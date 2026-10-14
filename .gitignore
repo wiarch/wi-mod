@@ -1,0 +1,10 @@
+data/
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.zip
+build/
+dist/
+tmp_*.py
+tmp_*.txt

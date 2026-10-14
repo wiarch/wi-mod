@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>wi-mod</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="boot" class="boot" aria-hidden="true">
+    <div class="boot-mark">wi-mod<small>olfateando la guarida…</small></div>
+  </div>
+
+  <header class="top">
+    <div class="brand">wi-mod</div>
+    <input id="search" type="search" placeholder="Buscar mod, autor o juego" autocomplete="off">
+    <div class="top-actions">
+      <button id="mute" class="mute-btn" type="button" title="Sonido">🔊</button>
+      <button id="translate-open" class="ghost" type="button">Traducir</button>
+      <button id="refresh-all" class="ghost" type="button">Actualizar</button>
+      <button id="export" class="ghost" type="button">Comprimir</button>
+      <button id="import" class="ghost" type="button">Restaurar</button>
+      <button id="settings-open" class="ghost" type="button">Ajustes</button>
+      <button id="add-open" class="solid" type="button">Añadir mod</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="side">
+      <p class="side-label">Plataforma</p>
+      <div id="platforms"></div>
+      <p class="side-label">Juegos</p>
+      <div id="games"></div>
+      <p class="side-label">Categoría</p>
+      <div id="categories"></div>
+      <p class="side-label">Archivos</p>
+      <div id="file-filters"></div>
+    </aside>
+    <main>
+      <div class="bar">
+        <p id="count"></p>
+        <label>Orden
+          <select id="sort">
+            <option value="added">Recién guardados</option>
+            <option value="updated">Última actualización</option>
+            <option value="name">Nombre</option>
+          </select>
+        </label>
+      </div>
+      <div id="grid" class="grid"></div>
+    </main>
+  </div>
+
+  <dialog id="add-dialog">
+    <form id="add-form">
+      <header>
+        <h2>Añadir mod</h2>
+        <button type="button" class="icon" data-close>✕</button>
+      </header>
+      <label>Enlace de Nexus
+        <input id="add-url" type="url" placeholder="https://www.nexusmods.com/juego/mods/123" required>
+      </label>
+      <div class="row">
+        <button id="detect" class="ghost" type="button">Detectar</button>
+        <button id="manual-toggle" class="ghost" type="button">Completar a mano</button>
+      </div>
+      <p id="add-status" class="status"></p>
+      <article id="preview" class="preview" hidden></article>
+      <div id="manual" hidden>
+        <label>Nombre<input id="manual-name" type="text"></label>
+        <label>Juego<input id="manual-game" type="text"></label>
+        <label>Autor<input id="manual-author" type="text"></label>
+        <label>Versión<input id="manual-version" type="text"></label>
+        <label>Qué hace<textarea id="manual-summary" rows="3"></textarea></label>
+      </div>
+      <div class="row">
+        <label style="flex:1">Plataforma
+          <input id="add-platform" type="text" list="platform-list" value="Nexus">
+        </label>
+        <label style="flex:1">Categoría
+          <input id="add-category" type="text" list="category-list" placeholder="Overhauls, UI…">
+        </label>
+      </div>
+      <label>Notas
+        <textarea id="add-notes" rows="2" placeholder="Opcional"></textarea>
+      </label>
+      <p class="hint">Al detectar, wi-mod lee categoría del juego, stats y dependencias enlazadas en la ficha de Nexus. Luego puedes bajar el archivo con <b>Descargar</b>.</p>
+      <footer>
+        <button id="add-save" class="solid" type="submit">Guardar</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="detail-dialog">
+    <article id="detail"></article>
+  </dialog>
+
+  <dialog id="translate-dialog">
+    <form id="translate-form">
+      <header>
+        <h2>Traductor</h2>
+        <button type="button" class="icon" data-close>✕</button>
+      </header>
+      <p class="hint">Pega cualquier texto del mod (inglés → español). También puedes traducir la ficha guardada desde el detalle del mod.</p>
+      <label>Original
+        <textarea id="translate-in" rows="5" placeholder="Paste English text here…"></textarea>
+      </label>
+      <div class="row">
+        <button id="translate-run" class="solid" type="submit">Traducir a español</button>
+      </div>
+      <label>Español
+        <textarea id="translate-out" rows="5" readonly placeholder="Aquí sale la traducción"></textarea>
+      </label>
+      <footer>
+        <button id="translate-copy" class="ghost" type="button">Copiar</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="settings-dialog">
+    <form id="settings-form">
+      <header>
+        <h2>Ajustes</h2>
+        <button type="button" class="icon" data-close>✕</button>
+      </header>
+      <p class="hint">La clave se guarda solo en esta PC, dentro de la carpeta <code>data</code>. Créala en tu cuenta de Nexus, pestaña API Access.</p>
+      <p><a href="https://www.nexusmods.com/users/myaccount?tab=api+access" target="_blank" rel="noreferrer">Abrir API Access</a></p>
+      <p id="settings-status" class="status"></p>
+      <label>Clave API
+        <input id="api-key" type="password" autocomplete="off" placeholder="Pega una clave nueva para reemplazarla">
+      </label>
+      <footer>
+        <button id="clear-key" class="ghost" type="button">Quitar clave</button>
+        <button class="solid" type="submit">Guardar</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <datalist id="category-list"></datalist>
+  <datalist id="platform-list">
+    <option value="Nexus"></option>
+  </datalist>
+  <input id="import-file" type="file" accept=".zip,application/zip" hidden>
+  <p id="toast" class="toast" hidden></p>
+  <script src="/app.js"></script>
+</body>
+</html>
