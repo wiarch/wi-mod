@@ -275,6 +275,7 @@ function syncDock() {
 
 function paintKeys() {
   const keys = state.keys || {};
+  const total = 4;
   let missing = 0;
   document.querySelectorAll("#dock-keys [data-key]").forEach((node) => {
     const id = node.dataset.key;
@@ -284,13 +285,14 @@ function paintKeys() {
     if (label) label.textContent = on ? "activa" : "falta";
     if (id !== "modrinth" && !on) missing += 1;
   });
+  const ready = total - missing;
   const summary = $("keys-summary");
   const count = $("keys-missing");
-  if (count) count.textContent = String(missing);
+  if (count) count.textContent = `${ready}/${total}`;
   if (summary) {
     summary.classList.toggle("ready", missing === 0);
     summary.title = missing
-      ? `${missing} clave${missing === 1 ? "" : "s"} por activar`
+      ? `${ready} de ${total} claves activas`
       : "Todas las claves activas";
     summary.setAttribute("aria-label", summary.title);
   }
@@ -852,38 +854,40 @@ function fillCategorySelect(node, preferred) {
   )).join("");
 }
 
+const THEME_ICONS = {
+  nexus: "/brand/nexus.ico",
+  modrinth: "/brand/modrinth.png",
+  curseforge: "/brand/curseforge.ico",
+  steam: "/brand/steam.ico",
+  rawg: "/brand/rawg.png",
+};
+
 function applyTheme(theme) {
   const allowed = ["nexus", "modrinth", "curseforge", "steam", "rawg"];
   state.theme = allowed.includes(theme) ? theme : "nexus";
   document.documentElement.dataset.theme = state.theme;
-  let stack = 0;
-  document.querySelectorAll(".theme-switch [data-theme]").forEach((button) => {
-    const on = button.dataset.theme === state.theme;
-    button.classList.toggle("on", on);
-    if (on) button.style.setProperty("--stack", "0");
-    else {
-      stack += 1;
-      button.style.setProperty("--stack", String(stack));
-    }
+  document.querySelectorAll(".theme-panel [data-theme]").forEach((button) => {
+    button.classList.toggle("on", button.dataset.theme === state.theme);
   });
+  const img = $("theme-summary-img");
+  if (img) img.src = THEME_ICONS[state.theme] || THEME_ICONS.nexus;
+  const summary = $("theme-summary");
+  if (summary) summary.title = summary.getAttribute("aria-label") || "Paleta";
   document.querySelectorAll('input[name="theme"]').forEach((input) => {
     input.checked = input.value === state.theme;
   });
 }
 
 function closeThemeSwitch() {
-  const node = document.querySelector(".theme-switch");
+  const node = $("theme-switch") || document.querySelector(".theme-switch");
   if (node) node.classList.remove("open");
+  const summary = $("theme-summary");
+  if (summary) summary.setAttribute("aria-expanded", "false");
 }
 
 async function setTheme(theme) {
   if (theme === state.theme) {
-    const node = document.querySelector(".theme-switch");
-    if (node) {
-      const open = !node.classList.contains("open");
-      if (open) closeKeysStack();
-      node.classList.toggle("open", open);
-    }
+    closeThemeSwitch();
     return;
   }
   applyTheme(theme);
@@ -1925,11 +1929,23 @@ $("mute").onclick = () => {
 document.querySelectorAll(".lang-switch [data-lang]").forEach((button) => {
   button.onclick = () => setLanguage(button.dataset.lang);
 });
-document.querySelectorAll(".theme-switch [data-theme]").forEach((button) => {
+document.querySelectorAll(".theme-panel [data-theme]").forEach((button) => {
   button.onclick = () => setTheme(button.dataset.theme);
 });
+if ($("theme-summary")) {
+  $("theme-summary").onclick = (event) => {
+    event.stopPropagation();
+    const node = $("theme-switch");
+    if (!node) return;
+    const open = !node.classList.contains("open");
+    if (open) closeKeysStack();
+    node.classList.toggle("open", open);
+    event.currentTarget.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) sfx.open();
+  };
+}
 document.addEventListener("pointerdown", (event) => {
-  const node = document.querySelector(".theme-switch");
+  const node = $("theme-switch") || document.querySelector(".theme-switch");
   if (!node || !node.classList.contains("open")) return;
   if (node.contains(event.target)) return;
   closeThemeSwitch();

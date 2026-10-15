@@ -365,7 +365,7 @@
         apikey: key,
         Accept: "application/json",
         "Application-Name": "wi-mod",
-        "Application-Version": "0.7.0",
+        "Application-Version": "0.7.1",
       },
     });
     if (!res.ok) return null;

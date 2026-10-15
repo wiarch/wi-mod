@@ -1,6 +1,6 @@
 # wi-mod
 
-Biblioteca local y portable de mods para Windows (v0.7.0). **Open source.** Junta mods de distintos juegos y plataformas en un solo sitio en tu PC: no sustituye a Nexus ni a Mod Organizer 2; es el complemento para buscar, guardar y ordenar tu biblioteca multi-juego sin saltar entre webs.
+Biblioteca local y portable de mods para Windows (v0.7.1). **Open source.** Junta mods de distintos juegos y plataformas en un solo sitio en tu PC: no sustituye a Nexus ni a Mod Organizer 2; es el complemento para buscar, guardar y ordenar tu biblioteca multi-juego sin saltar entre webs.
 
 En desarrollo. Corre solo en tu máquina (`127.0.0.1`), sin cuenta en la nube y sin enviar tu biblioteca a ningún servidor. Todo queda en una carpeta `data/` al lado del programa.
 

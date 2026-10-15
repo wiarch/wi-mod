@@ -666,8 +666,13 @@ a:hover { color: var(--copper-hot); }
   text-align: center;
 }
 .keys-summary.ready {
-  background: rgba(255, 248, 240, 0.72);
+  background: rgba(220, 245, 228, 0.85);
+  color: #167a3a;
+  border-color: rgba(22, 122, 58, 0.35);
+  padding: 0 9px;
 }
+.keys-summary.ready b { display: none; }
+.keys-summary.ready svg { color: #1f9d4a; }
 .keys-panel {
   position: absolute;
   right: 0;
@@ -703,18 +708,11 @@ a:hover { color: var(--copper-hot); }
   pointer-events: auto;
   transform: translateY(0);
 }
-/* Un solo pop: keys gana si está activo; tema no se abre encima */
-.dock-actions:has(.dock-keys:is(:hover, :focus-within, .open)) .theme-switch:is(:hover, :focus-within, .open) {
-  padding-top: 0;
-  margin-top: 0;
-}
-.dock-actions:has(.dock-keys:is(:hover, :focus-within, .open)) .theme-switch:is(:hover, :focus-within, .open)::before {
-  content: none;
-}
-.dock-actions:has(.dock-keys:is(:hover, :focus-within, .open)) .theme-switch:is(:hover, :focus-within, .open) button:not(.on) {
+/* Un solo pop a la vez */
+.dock-actions:has(.dock-keys:is(:hover, :focus-within, .open)) .theme-panel {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transform: none;
 }
 .dock-actions:has(.theme-switch:is(:hover, :focus-within, .open)):not(:has(.dock-keys:is(:hover, :focus-within, .open))) .keys-panel {
   opacity: 0;
@@ -868,64 +866,87 @@ button.key-pill { cursor: pointer; }
 }
 .theme-switch {
   position: relative;
-  width: 34px;
-  height: 34px;
   z-index: 70;
   flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
 }
-.theme-switch button {
-  position: absolute;
-  left: 2px;
-  bottom: 2px;
-  width: 30px;
-  height: 30px;
-  padding: 3px;
+.theme-summary {
+  position: relative;
+  z-index: 3;
+  width: 34px;
+  height: 34px;
+  padding: 4px;
   border-radius: 50%;
   border: 2px solid rgba(36, 24, 12, 0.28);
   background: rgba(255, 248, 240, 0.72);
   display: grid;
   place-items: center;
   overflow: hidden;
+  cursor: pointer;
+}
+.theme-summary img,
+.theme-panel img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.theme-panel {
+  position: absolute;
+  right: 0;
+  left: auto;
+  bottom: calc(100% + 8px);
+  transform: translateY(6px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(36, 24, 12, 0.22);
+  background: color-mix(in srgb, var(--copper-hot) 82%, #fff8f0);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transform: translateY(0) scale(0.88);
-  transition: transform 0.18s var(--ease), opacity 0.16s ease, box-shadow 0.16s ease;
-  z-index: 1;
+  transition: opacity 0.14s ease, transform 0.14s var(--ease), visibility 0.14s;
+  z-index: 4;
 }
-.theme-switch img { width: 100%; height: 100%; object-fit: contain; display: block; }
-.theme-switch button.on {
-  opacity: 1;
-  pointer-events: auto;
-  outline: 2px solid var(--copper-ink);
-  outline-offset: 1px;
-  transform: none;
-  z-index: 3;
-}
-.theme-switch:is(:hover, :focus-within, .open) {
-  padding-top: 148px;
-  margin-top: -148px;
-}
-.theme-switch:is(:hover, :focus-within, .open)::before {
+.theme-switch::after {
   content: "";
   position: absolute;
-  left: -4px;
-  right: -4px;
-  bottom: -4px;
-  height: 182px;
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--copper-hot) 82%, #fff8f0);
-  border: 1px solid rgba(36, 24, 12, 0.22);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
-  z-index: 0;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 12px;
 }
-.theme-switch:is(:hover, :focus-within, .open) button {
+.theme-switch:is(:hover, :focus-within, .open) .theme-panel {
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
-  transform: translateY(calc(var(--stack, 0) * -36px));
-  z-index: 2;
+  transform: translateY(0);
 }
-.theme-switch:is(:hover, :focus-within, .open) button.on {
-  z-index: 3;
+.theme-panel button {
+  width: 34px;
+  height: 34px;
+  padding: 4px;
+  border-radius: 50%;
+  border: 2px solid rgba(36, 24, 12, 0.22);
+  background: rgba(255, 248, 240, 0.72);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  cursor: pointer;
+  filter: grayscale(1);
+  opacity: 0.78;
+}
+.theme-panel button.on {
+  filter: none;
+  opacity: 1;
+  border-color: rgba(36, 24, 12, 0.4);
+  outline: 2px solid var(--copper-ink);
+  outline-offset: 1px;
+  background: #fff8f0;
 }
 .brand-mark {
   width: 18px;

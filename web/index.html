@@ -1,9 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es" data-theme="nexus">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>wi-mod</title>
+  <link rel="icon" href="/brand/wi-mod.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -20,17 +21,17 @@
     <p id="login-status" class="status"></p>
     <label class="login-keep">
       <input id="login-keep" type="checkbox">
-      Guardar sesión 60 días
+      Guardar sesiÃ³n 60 dÃ­as
     </label>
     <div class="login-actions">
-        <button id="login-reset" class="text-btn" type="button" hidden>Olvidé la clave</button>
+        <button id="login-reset" class="text-btn" type="button" hidden>OlvidÃ© la clave</button>
         <button id="login-go" class="solid" type="submit" disabled>Entrar</button>
       </div>
     </form>
   </div>
 
   <div id="boot" class="boot" aria-hidden="true">
-    <div class="boot-mark">wi-mod<small id="boot-line">olfateando la guarida…</small></div>
+    <div class="boot-mark">wi-mod<small id="boot-line">olfateando la guaridaâ€¦</small></div>
   </div>
 
   <header class="top">
@@ -44,7 +45,7 @@
         </button>
         <div id="game-menu" class="game-menu" hidden role="listbox"></div>
       </div>
-      <button type="button" id="game-add" class="side-add" title="Añadir juego (RAWG)">+</button>
+      <button type="button" id="game-add" class="side-add" title="AÃ±adir juego (RAWG)">+</button>
     </div>
     <div class="search-wrap">
       <div class="search-field">
@@ -67,8 +68,8 @@
       </div>
       <div id="modpacks"></div>
       <div class="side-head">
-        <p class="side-label">Categoría Nexus</p>
-        <button type="button" class="side-add" data-add="category" title="Añadir categoría Nexus">+</button>
+        <p class="side-label">CategorÃ­a Nexus</p>
+        <button type="button" class="side-add" data-add="category" title="AÃ±adir categorÃ­a Nexus">+</button>
       </div>
       <div id="categories"></div>
     </aside>
@@ -77,22 +78,22 @@
       <div class="bar">
         <p id="count"></p>
         <div class="view-dock">
-          <button type="button" id="pick-mode" class="ghost">Habilitar selección</button>
+          <button type="button" id="pick-mode" class="ghost">Habilitar selecciÃ³n</button>
           <button type="button" id="pick-all" class="ghost" hidden>Seleccionar todo</button>
-          <div class="view-toggle" role="group" aria-label="Diseño">
-            <button type="button" id="view-grid" data-view="grid" title="Cuadrícula">▦</button>
-            <button type="button" id="view-list" data-view="list" title="Listado">☰</button>
+          <div class="view-toggle" role="group" aria-label="DiseÃ±o">
+            <button type="button" id="view-grid" data-view="grid" title="CuadrÃ­cula">â–¦</button>
+            <button type="button" id="view-list" data-view="list" title="Listado">â˜°</button>
           </div>
-          <div class="view-toggle" role="group" aria-label="Tamaño">
-            <button type="button" id="size-sm" data-size="sm" title="Achicar">−</button>
-            <button type="button" id="size-md" data-size="md" title="Normal">□</button>
+          <div class="view-toggle" role="group" aria-label="TamaÃ±o">
+            <button type="button" id="size-sm" data-size="sm" title="Achicar">âˆ’</button>
+            <button type="button" id="size-md" data-size="md" title="Normal">â–¡</button>
             <button type="button" id="size-lg" data-size="lg" title="Agrandar">+</button>
           </div>
           <label class="sort-pick">
             <span>Orden</span>
             <select id="sort">
-              <option value="added">Recién guardados</option>
-              <option value="updated">Última actualización</option>
+              <option value="added">ReciÃ©n guardados</option>
+              <option value="updated">Ãšltima actualizaciÃ³n</option>
               <option value="name">Nombre</option>
             </select>
           </label>
@@ -106,7 +107,7 @@
           <button type="button" id="bulk-clear" class="ghost">Quitar marcas</button>
         </div>
         <div class="bulk-action">
-          <label>Categoría
+          <label>CategorÃ­a
             <select id="bulk-category"></select>
           </label>
           <button type="button" id="bulk-cat" class="solid">Asignar</button>
@@ -139,7 +140,7 @@
       <div class="dock-keys" id="dock-keys">
         <button type="button" id="keys-summary" class="keys-summary" title="Claves API" aria-label="Claves API" aria-expanded="false">
           <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M7 6a5 5 0 0 1 4.9 4H21v2.2h-2V16h-2.2v-3.8H14.9A5 5 0 1 1 7 6zm0 2.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6zm0 1.7a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2z"/></svg>
-          <b id="keys-missing">0</b>
+          <b id="keys-missing">0/4</b>
         </button>
         <div class="keys-panel" id="keys-panel">
           <button type="button" class="key-pill" data-key="nexus" title="Clave Nexus Mods">
@@ -169,26 +170,31 @@
           </button>
         </div>
       </div>
-      <div class="theme-switch" role="group" aria-label="Paleta">
-        <button type="button" data-theme="nexus" title="Nexus Mods" aria-label="Nexus Mods">
-          <img src="/brand/nexus.ico" alt="" width="22" height="22">
+      <div class="theme-switch" id="theme-switch" role="group" aria-label="Paleta">
+        <button type="button" id="theme-summary" class="theme-summary" title="Paleta" aria-label="Paleta" aria-expanded="false">
+          <img id="theme-summary-img" src="/brand/nexus.ico" alt="" width="22" height="22">
         </button>
-        <button type="button" data-theme="modrinth" title="Modrinth" aria-label="Modrinth">
-          <img src="/brand/modrinth.png" alt="" width="22" height="22">
-        </button>
-        <button type="button" data-theme="curseforge" title="CurseForge" aria-label="CurseForge">
-          <img src="/brand/curseforge.ico" alt="" width="22" height="22">
-        </button>
-        <button type="button" data-theme="steam" title="Steam Workshop" aria-label="Steam Workshop">
-          <img src="/brand/steam.ico" alt="" width="22" height="22">
-        </button>
-        <button type="button" data-theme="rawg" title="RAWG" aria-label="RAWG">
-          <img src="/brand/rawg.png" alt="" width="22" height="22">
-        </button>
+        <div class="theme-panel" id="theme-panel">
+          <button type="button" data-theme="nexus" title="Nexus Mods" aria-label="Nexus Mods">
+            <img src="/brand/nexus.ico" alt="" width="22" height="22">
+          </button>
+          <button type="button" data-theme="modrinth" title="Modrinth" aria-label="Modrinth">
+            <img src="/brand/modrinth.png" alt="" width="22" height="22">
+          </button>
+          <button type="button" data-theme="curseforge" title="CurseForge" aria-label="CurseForge">
+            <img src="/brand/curseforge.ico" alt="" width="22" height="22">
+          </button>
+          <button type="button" data-theme="steam" title="Steam Workshop" aria-label="Steam Workshop">
+            <img src="/brand/steam.ico" alt="" width="22" height="22">
+          </button>
+          <button type="button" data-theme="rawg" title="RAWG" aria-label="RAWG">
+            <img src="/brand/rawg.png" alt="" width="22" height="22">
+          </button>
+        </div>
       </div>
-      <button id="mute" class="mute-btn" type="button" title="Sonido">🔊</button>
+      <button id="mute" class="mute-btn" type="button" title="Sonido">ðŸ”Š</button>
       <div class="lang-switch" role="group" aria-label="Idioma">
-        <button type="button" data-lang="es" title="Español">ES</button>
+        <button type="button" data-lang="es" title="EspaÃ±ol">ES</button>
         <button type="button" data-lang="en" title="English">EN</button>
       </div>
     </div>
@@ -197,11 +203,11 @@
   <dialog id="add-dialog">
     <form id="add-form">
       <header>
-        <h2>Añadir mod</h2>
-        <button type="button" class="icon" data-close>✕</button>
+        <h2>AÃ±adir mod</h2>
+        <button type="button" class="icon" data-close>âœ•</button>
       </header>
       <label>Enlace
-        <input id="add-url" type="url" placeholder="Nexus, Modrinth, CurseForge, Steam o página oficial" required>
+        <input id="add-url" type="url" placeholder="Nexus, Modrinth, CurseForge, Steam o pÃ¡gina oficial" required>
       </label>
       <div class="row">
         <button id="detect" class="ghost" type="button">Detectar</button>
@@ -213,8 +219,8 @@
         <label>Nombre<input id="manual-name" type="text"></label>
         <label>Juego<input id="manual-game" type="text"></label>
         <label>Autor<input id="manual-author" type="text"></label>
-        <label>Versión<input id="manual-version" type="text"></label>
-        <label>Qué hace<textarea id="manual-summary" rows="3"></textarea></label>
+        <label>VersiÃ³n<input id="manual-version" type="text"></label>
+        <label>QuÃ© hace<textarea id="manual-summary" rows="3"></textarea></label>
       </div>
       <div class="row">
         <label style="flex:1">Plataforma
@@ -222,7 +228,7 @@
             <option value="Nexus" selected>Nexus</option>
           </select>
         </label>
-        <label style="flex:1">Categoría Nexus
+        <label style="flex:1">CategorÃ­a Nexus
           <select id="add-category"></select>
         </label>
       </div>
@@ -233,14 +239,14 @@
             <button type="button" class="side-add" id="add-pack-new" title="Crear modpack">+</button>
           </span>
         </label>
-        <label style="flex:1">Categoría del pack
+        <label style="flex:1">CategorÃ­a del pack
           <span class="pick-add">
             <select id="add-pack-cat"></select>
-            <button type="button" class="side-add" id="add-cat-new" title="Crear categoría">+</button>
+            <button type="button" class="side-add" id="add-cat-new" title="Crear categorÃ­a">+</button>
           </span>
         </label>
       </div>
-      <p class="hint">Con + creas el modpack o la categoría aquí mismo.</p>
+      <p class="hint">Con + creas el modpack o la categorÃ­a aquÃ­ mismo.</p>
       <footer>
         <button id="add-save" class="solid" type="submit">Guardar</button>
       </footer>
@@ -255,17 +261,17 @@
     <form id="translate-form">
       <header>
         <h2>Traductor</h2>
-        <button type="button" class="icon" data-close>✕</button>
+        <button type="button" class="icon" data-close>âœ•</button>
       </header>
-      <p class="hint">Pega cualquier texto del mod (inglés → español). También puedes traducir la ficha guardada desde el detalle del mod.</p>
+      <p class="hint">Pega cualquier texto del mod (inglÃ©s â†’ espaÃ±ol). TambiÃ©n puedes traducir la ficha guardada desde el detalle del mod.</p>
       <label>Original
-        <textarea id="translate-in" rows="5" placeholder="Paste English text here…"></textarea>
+        <textarea id="translate-in" rows="5" placeholder="Paste English text hereâ€¦"></textarea>
       </label>
       <div class="row">
-        <button id="translate-run" class="solid" type="submit">Traducir a español</button>
+        <button id="translate-run" class="solid" type="submit">Traducir a espaÃ±ol</button>
       </div>
-      <label>Español
-        <textarea id="translate-out" rows="5" readonly placeholder="Aquí sale la traducción"></textarea>
+      <label>EspaÃ±ol
+        <textarea id="translate-out" rows="5" readonly placeholder="AquÃ­ sale la traducciÃ³n"></textarea>
       </label>
       <footer>
         <button id="translate-copy" class="ghost" type="button">Copiar</button>
@@ -277,7 +283,7 @@
     <form id="settings-form">
       <header>
         <h2>Ajustes</h2>
-        <button type="button" class="icon" data-close>✕</button>
+        <button type="button" class="icon" data-close>âœ•</button>
       </header>
       <p class="hint">Las claves se guardan solo en esta PC (<code>data</code>).</p>
       <p id="settings-status" class="status"></p>
@@ -299,7 +305,7 @@
         <input id="rawg-key" type="password" autocomplete="off" placeholder="Pega clave RAWG para reemplazarla">
       </label>
       <p class="hint" id="rawg-status"></p>
-      <p><a href="https://rawg.io/apidocs" target="_blank" rel="noreferrer">Documentación RAWG</a></p>
+      <p><a href="https://rawg.io/apidocs" target="_blank" rel="noreferrer">DocumentaciÃ³n RAWG</a></p>
       <footer>
         <button id="clear-key" class="ghost" type="button">Quitar Nexus</button>
         <button class="solid" type="submit">Guardar</button>
@@ -310,15 +316,15 @@
   <dialog id="game-dialog">
     <form id="game-form">
       <header>
-        <h2>Añadir juego</h2>
-        <button type="button" class="icon" data-close>✕</button>
+        <h2>AÃ±adir juego</h2>
+        <button type="button" class="icon" data-close>âœ•</button>
       </header>
-      <p class="hint">Busca en <a href="https://rawg.io" target="_blank" rel="noreferrer">RAWG</a> y ve añadiendo juegos poco a poco.</p>
+      <p class="hint">Busca en <a href="https://rawg.io" target="_blank" rel="noreferrer">RAWG</a> y ve aÃ±adiendo juegos poco a poco.</p>
       <label>Buscar
-        <input id="game-search" type="search" placeholder="Skyrim, Dark Souls Remastered, Minecraft…" autocomplete="off" spellcheck="false">
+        <input id="game-search" type="search" placeholder="Skyrim, Dark Souls Remastered, Minecraftâ€¦" autocomplete="off" spellcheck="false">
       </label>
       <div id="game-results" class="game-results"></div>
-      <p class="hint">Datos de juegos vía <a href="https://rawg.io" target="_blank" rel="noreferrer">RAWG</a>.</p>
+      <p class="hint">Datos de juegos vÃ­a <a href="https://rawg.io" target="_blank" rel="noreferrer">RAWG</a>.</p>
       <footer>
         <button class="ghost" type="button" data-close>Cerrar</button>
       </footer>
@@ -329,7 +335,7 @@
     <form id="pack-form">
       <header>
         <h2 id="pack-title">Comprimir</h2>
-        <button type="button" class="icon" data-close>✕</button>
+        <button type="button" class="icon" data-close>âœ•</button>
       </header>
       <p class="hint" id="pack-hint"></p>
       <label>Alcance
@@ -358,17 +364,17 @@
     <form id="modpacks-form">
       <header>
         <h2>Modpacks</h2>
-        <button type="button" class="icon" data-close>✕</button>
+        <button type="button" class="icon" data-close>âœ•</button>
       </header>
-      <p class="hint">Pon el nombre y las categorías. Luego asigna los mods marcados.</p>
+      <p class="hint">Pon el nombre y las categorÃ­as. Luego asigna los mods marcados.</p>
       <div id="modpacks-list" class="files" style="max-height:140px"></div>
       <label>Nombre<input id="mp-name" type="text" placeholder="Ej. Lux Stack" required></label>
       <label>Juego
         <select id="mp-game" required></select>
       </label>
       <div class="side-head">
-        <p class="side-label">Categorías</p>
-        <button type="button" class="ghost" id="mp-cat-add" title="Otra categoría">+</button>
+        <p class="side-label">CategorÃ­as</p>
+        <button type="button" class="ghost" id="mp-cat-add" title="Otra categorÃ­a">+</button>
       </div>
       <div id="mp-cats" class="mp-cats"></div>
       <label>Notas<textarea id="mp-notes" rows="2" placeholder="Opcional"></textarea></label>
@@ -383,29 +389,29 @@
   <dialog id="packcat-dialog">
     <form id="packcat-form">
       <header>
-        <h2 id="packcat-title">Categoría del pack</h2>
-        <button type="button" class="icon" data-close>✕</button>
+        <h2 id="packcat-title">CategorÃ­a del pack</h2>
+        <button type="button" class="icon" data-close>âœ•</button>
       </header>
       <p class="hint">Apartado dentro del modpack. Nombre, imagen y una nota.</p>
       <p id="packcat-pack" class="meta"></p>
       <label>Nombre
-        <input id="pc-name" type="text" placeholder="Ej. Iluminación" required>
+        <input id="pc-name" type="text" placeholder="Ej. IluminaciÃ³n" required>
       </label>
       <label>Imagen
         <input id="pc-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
       </label>
       <label>O una URL
-        <input id="pc-image" type="url" placeholder="https://…">
+        <input id="pc-image" type="url" placeholder="https://â€¦">
       </label>
       <img id="pc-preview" class="pc-preview" alt="" hidden>
       <label>Nota
-        <textarea id="pc-notes" rows="3" placeholder="Para qué sirve este apartado…"></textarea>
+        <textarea id="pc-notes" rows="3" placeholder="Para quÃ© sirve este apartadoâ€¦"></textarea>
       </label>
       <input id="pc-edit-id" type="hidden">
       <input id="pc-pack-id" type="hidden">
       <footer>
         <button id="pc-delete" class="danger" type="button" hidden>Borrar</button>
-        <button class="solid" type="submit">Guardar categoría</button>
+        <button class="solid" type="submit">Guardar categorÃ­a</button>
       </footer>
     </form>
   </dialog>
@@ -413,7 +419,7 @@
     <form id="dup-form">
       <header>
         <h2>Ya existe</h2>
-        <button type="button" class="icon" id="dup-x">✕</button>
+        <button type="button" class="icon" id="dup-x">âœ•</button>
       </header>
       <p class="hint" id="dup-msg"></p>
       <footer>
@@ -427,8 +433,8 @@
   <dialog id="ask-dialog">
     <form id="ask-form">
       <header>
-        <h2 id="ask-title">Añadir</h2>
-        <button type="button" class="icon" id="ask-x">✕</button>
+        <h2 id="ask-title">AÃ±adir</h2>
+        <button type="button" class="icon" id="ask-x">âœ•</button>
       </header>
       <p class="hint" id="ask-hint" hidden></p>
       <label id="ask-text-wrap">Nombre
@@ -439,7 +445,7 @@
       </label>
       <footer>
         <button type="button" class="ghost" id="ask-cancel">Cancelar</button>
-        <button type="submit" class="solid" id="ask-ok">Añadir</button>
+        <button type="submit" class="solid" id="ask-ok">AÃ±adir</button>
       </footer>
     </form>
   </dialog>
@@ -448,12 +454,12 @@
     <form id="confirm-form">
       <header>
         <h2>Confirmar</h2>
-        <button type="button" class="icon" id="confirm-x">✕</button>
+        <button type="button" class="icon" id="confirm-x">âœ•</button>
       </header>
       <p class="hint" id="confirm-msg"></p>
       <footer>
         <button type="button" class="ghost" id="confirm-cancel">Cancelar</button>
-        <button type="submit" class="solid" id="confirm-ok">Sí</button>
+        <button type="submit" class="solid" id="confirm-ok">SÃ­</button>
       </footer>
     </form>
   </dialog>
@@ -485,7 +491,7 @@
         <input id="key-pop-input" type="password" autocomplete="off" placeholder="Pega la clave">
       </label>
       <div class="key-pop-row">
-        <a id="key-pop-doc" href="" target="_blank" rel="noreferrer">Documentación</a>
+        <a id="key-pop-doc" href="" target="_blank" rel="noreferrer">DocumentaciÃ³n</a>
         <button id="key-pop-save" class="solid" type="submit">Guardar</button>
       </div>
       <p id="key-pop-status" class="status"></p>
