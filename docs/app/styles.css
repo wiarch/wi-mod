@@ -763,10 +763,11 @@ button.dock-user[aria-expanded="true"] .dock-caret {
 }
 button.key-pill { cursor: pointer; }
 .key-pill img {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   object-fit: contain;
   display: block;
+  flex: 0 0 auto;
 }
 .key-pill em {
   margin-left: auto;
@@ -891,15 +892,15 @@ button.key-pill { cursor: pointer; }
   position: relative;
   z-index: 70;
   flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
 }
 .theme-summary {
   position: relative;
   z-index: 3;
-  width: 34px;
-  height: 34px;
-  padding: 4px;
+  width: 30px;
+  height: 30px;
+  padding: 3px;
   border-radius: 50%;
   border: 2px solid rgba(36, 24, 12, 0.28);
   background: rgba(255, 248, 240, 0.72);
@@ -910,10 +911,11 @@ button.key-pill { cursor: pointer; }
 }
 .theme-summary img,
 .theme-panel img {
-  width: 100%;
-  height: 100%;
+  width: 18px;
+  height: 18px;
   object-fit: contain;
   display: block;
+  margin: 0 auto;
 }
 .theme-panel {
   position: absolute;
@@ -924,9 +926,10 @@ button.key-pill { cursor: pointer; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  width: 50px;
-  padding: 8px;
+  justify-content: center;
+  gap: 5px;
+  width: 44px;
+  padding: 7px;
   border-radius: 14px;
   border: 1px solid rgba(36, 24, 12, 0.22);
   background: color-mix(in srgb, var(--copper-hot) 82%, #fff8f0);
@@ -954,10 +957,10 @@ button.key-pill { cursor: pointer; }
 .theme-panel button {
   flex: 0 0 auto;
   box-sizing: border-box;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   margin: 0;
-  padding: 4px;
+  padding: 3px;
   border-radius: 50%;
   border: 2px solid rgba(36, 24, 12, 0.22);
   background: rgba(255, 248, 240, 0.72);
