@@ -451,12 +451,25 @@ class Library:
             self._kv_set("settings", json.dumps(current, ensure_ascii=False))
 
     def ensure_rawg_key(self, default_key: str) -> None:
+        self.ensure_default_keys({"rawgApiKey": default_key})
+
+    def ensure_default_keys(self, defaults: dict[str, str] | None = None) -> None:
+        """Rellena claves vacías (no pisa las que ya guardó el usuario)."""
+        defaults = defaults or {}
+        fields = ("apiKey", "rawgApiKey", "curseforgeApiKey", "steamApiKey")
         with self._lock:
             current = self._read_settings()
-            if str(current.get("rawgApiKey") or "").strip():
-                return
-            current["rawgApiKey"] = str(default_key or "").strip()
-            self._kv_set("settings", json.dumps(current, ensure_ascii=False))
+            dirty = False
+            for field in fields:
+                incoming = str(defaults.get(field) or "").strip()
+                if not incoming:
+                    continue
+                if str(current.get(field) or "").strip():
+                    continue
+                current[field] = incoming
+                dirty = True
+            if dirty:
+                self._kv_set("settings", json.dumps(current, ensure_ascii=False))
 
     def absolute(self, relative: str | None) -> Path:
         if not relative:
@@ -1050,12 +1063,18 @@ class Library:
                 pass
 
     def _ensure_admin(self) -> None:
+        """WYDEX siempre existe y siempre es admin."""
         with self._cx() as conn:
             row = conn.execute(
-                "SELECT username FROM users WHERE username = ?",
+                "SELECT username, role FROM users WHERE upper(username) = upper(?)",
                 (ADMIN_USER,),
             ).fetchone()
             if row:
+                if str(row["role"] or "") != "admin":
+                    conn.execute(
+                        "UPDATE users SET role = ? WHERE upper(username) = upper(?)",
+                        ("admin", ADMIN_USER),
+                    )
                 return
             conn.execute(
                 "INSERT INTO users (username, password_hash, role, created_at) VALUES (?, ?, ?, ?)",

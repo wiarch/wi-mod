@@ -69,11 +69,51 @@ class DuplicateMod(Exception):
         self.mod = mod
 
 
+def _load_bootstrap_keys(root: Path) -> dict[str, str]:
+    """Claves iniciales para WYDEX: env + data/keys.json (gitignored). No pisan settings ya guardados."""
+    keys = {
+        "apiKey": (
+            os.environ.get("WI_MOD_NEXUS_KEY")
+            or os.environ.get("WI_MOD_API_KEY")
+            or ""
+        ).strip(),
+        "rawgApiKey": os.environ.get("WI_MOD_RAWG_KEY", "").strip(),
+        "curseforgeApiKey": os.environ.get("WI_MOD_CURSEFORGE_KEY", "").strip(),
+        "steamApiKey": os.environ.get("WI_MOD_STEAM_KEY", "").strip(),
+    }
+    for name in ("keys.json", ".wi-mod-keys.json"):
+        path = root / name
+        if not path.is_file():
+            continue
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(payload, dict):
+            continue
+        alias = {
+            "apiKey": "apiKey",
+            "nexus": "apiKey",
+            "nexusApiKey": "apiKey",
+            "rawgApiKey": "rawgApiKey",
+            "rawg": "rawgApiKey",
+            "curseforgeApiKey": "curseforgeApiKey",
+            "curseforge": "curseforgeApiKey",
+            "steamApiKey": "steamApiKey",
+            "steam": "steamApiKey",
+        }
+        for src, dest in alias.items():
+            val = str(payload.get(src) or "").strip()
+            if val and not keys.get(dest):
+                keys[dest] = val
+    return keys
+
+
 class App:
     def __init__(self, root: Path):
         self.root = root
         self.library = Library(root)
-        self.library.ensure_rawg_key(os.environ.get("WI_MOD_RAWG_KEY", ""))
+        self.library.ensure_default_keys(_load_bootstrap_keys(root))
         self.library.ensure_platforms()
         self.library.ensure_default_games()
         self.cache = Cache(root / "cache" / "games.json", root / "cache" / "categories.json")
