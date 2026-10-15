@@ -1,0 +1,1 @@
+window.__WI_DEMO_KEYS__ = {"nexus": "QQn5dY6SxYVR9htBvL+y+Gt3pynfzjLpKBDMwIQKX0JhJyCjxg==--sge+uyr1xfZAOklJ--pkz9ALqKAUiFHVVPx1ELKA==", "rawg": "acb48a4a28dd485b85ec1e141b80cdd1", "curseforge": "", "steam": ""};
