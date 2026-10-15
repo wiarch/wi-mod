@@ -2443,7 +2443,7 @@ $("mp-cat-add").onclick = () => addMpCatRow();
 function gameOptionsForPacks() {
   return [
     ["darksoulsremastered", "Dark Souls Remastered"],
-    ["skyrimspecialedition", "Skyrim"],
+    ["skyrimspecialedition", "The Elder Scrolls V: Skyrim Special Edition"],
     ["minecraft", "Minecraft"],
     ["stardewvalley", "Stardew Valley"],
     ["gtasa", "GTA San Andreas"],

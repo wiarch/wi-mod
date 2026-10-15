@@ -3,7 +3,7 @@
   const MODS_PER_GAME = 5;
   const GAMES = 5;
   const TTL_MS = 5 * 60 * 60 * 1000;
-  const KEY = "wi-mod-demo-v3";
+  const KEY = "wi-mod-demo-v4";
   const DESKTOP = "La versión de escritorio no tiene este límite.";
   const KEYS = (typeof window !== "undefined" && window.__WI_DEMO_KEYS__) || {};
   const STATIC_GAMES = {
@@ -281,6 +281,34 @@
     };
   }
 
+  function healGames(data) {
+    let changed = false;
+    const games = Array.isArray(data.games) ? data.games : [];
+    data.games = games.map((row) => {
+      const domain = String((row && row.gameDomain) || "").toLowerCase();
+      const base = staticGame(domain);
+      if (!base) return row;
+      const next = { ...row };
+      if (!next.imageUrl && base.imageUrl) { next.imageUrl = base.imageUrl; changed = true; }
+      if (!next.description && base.description) { next.description = base.description; changed = true; }
+      if (!next.gameName || next.gameName === domain || next.gameName === "Skyrim") {
+        next.gameName = base.gameName;
+        changed = true;
+      }
+      if (next.rawgId == null && base.rawgId != null) { next.rawgId = base.rawgId; changed = true; }
+      if (!next.rawgSlug && base.rawgSlug) { next.rawgSlug = base.rawgSlug; changed = true; }
+      if (!next.released && base.released) { next.released = base.released; changed = true; }
+      if (next.rating == null && base.rating != null) { next.rating = base.rating; changed = true; }
+      if (next.metacritic == null && base.metacritic != null) { next.metacritic = base.metacritic; changed = true; }
+      return next;
+    });
+    if (!data.games.length) {
+      data.games = empty().games;
+      changed = true;
+    }
+    return changed;
+  }
+
   function db() {
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) || "");
@@ -291,6 +319,7 @@
           localStorage.setItem(KEY, JSON.stringify(fresh));
           return fresh;
         }
+        if (healGames(saved)) localStorage.setItem(KEY, JSON.stringify(saved));
         return saved;
       }
     } catch (_) { /* vacío */ }
@@ -967,22 +996,24 @@
     const style = document.createElement("style");
     style.textContent = `
       #demo-bar {
-        position: fixed; z-index: 80; top: 0; left: 0; right: 0;
-        display: flex; gap: 14px; align-items: center; justify-content: center; flex-wrap: wrap;
-        padding: 8px 14px; background: #2a2118; color: #f6efe6;
-        border-bottom: 1px solid #e08a2c; font: 14px/1.3 "Segoe UI", sans-serif;
+        position: fixed; z-index: 80; left: 50%; bottom: 58px; transform: translateX(-50%);
+        display: flex; gap: 10px; align-items: center; flex-wrap: wrap; max-width: calc(100vw - 24px);
+        padding: 6px 10px 6px 12px; border-radius: 999px;
+        background: color-mix(in srgb, var(--panel, #1a1a1a) 88%, transparent);
+        color: var(--text, #f2f2f2); border: 1px solid color-mix(in srgb, var(--accent, #e08a2c) 55%, transparent);
+        backdrop-filter: blur(8px); font: 12px/1.3 "Segoe UI", sans-serif; box-shadow: 0 8px 24px rgba(0,0,0,.35);
       }
       #demo-bar a {
-        color: #1a1208; background: linear-gradient(120deg, #f0a04a, #c45c26);
-        text-decoration: none; font-weight: 700; border-radius: 999px; padding: 6px 12px;
+        color: #1a1208; background: var(--accent, #e08a2c);
+        text-decoration: none; font-weight: 700; border-radius: 999px; padding: 4px 10px; white-space: nowrap;
       }
-      body { padding-top: 42px; }
+      #demo-counts { opacity: .85; }
     `;
     document.head.appendChild(style);
     const bar = document.createElement("div");
     bar.id = "demo-bar";
-    bar.innerHTML = `Prueba web limitada · <span id="demo-counts"></span> · <a href="../wi-mod-portable.zip">Descargar escritorio</a>`;
-    document.body.prepend(bar);
+    bar.innerHTML = `Prueba · <span id="demo-counts"></span> · <a href="../wi-mod-portable.zip">Escritorio</a>`;
+    document.body.appendChild(bar);
     paintBar(db());
     setInterval(() => paintBar(db()), 30000);
   }
