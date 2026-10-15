@@ -275,25 +275,26 @@ function syncDock() {
 
 function paintKeys() {
   const keys = state.keys || {};
-  const total = 4;
-  let missing = 0;
-  document.querySelectorAll("#dock-keys [data-key]").forEach((node) => {
+  const pills = [...document.querySelectorAll("#dock-keys [data-key]")];
+  const total = pills.length || 5;
+  let ready = 0;
+  pills.forEach((node) => {
     const id = node.dataset.key;
     const on = id === "modrinth" || !!keys[id];
     node.classList.toggle("on", on);
     const label = node.querySelector("em");
     if (label) label.textContent = on ? "activa" : "falta";
-    if (id !== "modrinth" && !on) missing += 1;
+    if (on) ready += 1;
   });
-  const ready = total - missing;
+  const missing = total - ready;
   const summary = $("keys-summary");
   const count = $("keys-missing");
   if (count) count.textContent = `${ready}/${total}`;
   if (summary) {
     summary.classList.toggle("ready", missing === 0);
     summary.title = missing
-      ? `${ready} de ${total} claves activas`
-      : "Todas las claves activas";
+      ? `${ready} de ${total} servicios activos`
+      : "Todos los servicios activos";
     summary.setAttribute("aria-label", summary.title);
   }
 }
