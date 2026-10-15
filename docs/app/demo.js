@@ -5,7 +5,15 @@
   const TTL_MS = 5 * 60 * 60 * 1000;
   const KEY = "wi-mod-demo-v4";
   const DESKTOP = "La versión de escritorio no tiene este límite.";
-  const KEYS = (typeof window !== "undefined" && window.__WI_DEMO_KEYS__) || {};
+  function demoKeys() {
+    const raw = (typeof window !== "undefined" && window.__WI_DEMO_KEYS__) || {};
+    return {
+      nexus: String(raw.nexus || "").trim(),
+      rawg: String(raw.rawg || "").trim(),
+      curseforge: String(raw.curseforge || "").trim(),
+      steam: String(raw.steam || "").trim(),
+    };
+  }
   const STATIC_GAMES = {
     "skyrimspecialedition": {
       "rawgId": 12447,
@@ -384,11 +392,12 @@
   }
 
   function keyFlags() {
+    const keys = demoKeys();
     return {
-      nexus: Boolean(KEYS.nexus),
-      curseforge: Boolean(KEYS.curseforge),
-      steam: Boolean(KEYS.steam),
-      rawg: Boolean(KEYS.rawg),
+      nexus: Boolean(keys.nexus),
+      curseforge: Boolean(keys.curseforge),
+      steam: Boolean(keys.steam),
+      rawg: Boolean(keys.rawg),
     };
   }
 
@@ -587,7 +596,7 @@
 
   async function searchRawg(q) {
     const local = staticSearch(q);
-    const key = KEYS.rawg;
+    const key = demoKeys().rawg;
     if (!key) return local;
     try {
       const params = new URLSearchParams({ key, search: q, page_size: "12", search_precise: "false" });
@@ -642,13 +651,14 @@
   async function fetchNexusMod(game, modId) {
     const domain = String(game || "").toLowerCase();
     const id = String(modId || "");
-    if (KEYS.nexus) {
+    const nexusKey = demoKeys().nexus;
+    if (nexusKey) {
       const res = await realFetch(`https://api.nexusmods.com/v1/games/${encodeURIComponent(domain)}/mods/${id}.json`, {
         headers: {
-          apikey: KEYS.nexus,
+          apikey: nexusKey,
           Accept: "application/json",
           "Application-Name": "wi-mod",
-          "Application-Version": "0.7.2",
+          "Application-Version": "0.7.5",
         },
       });
       if (res.ok) return res.json();
@@ -776,9 +786,9 @@
       const body = await readJson(init);
       let game = null;
       if (body.gameDomain) game = staticGame(body.gameDomain);
-      if (!game && body.rawgId && KEYS.rawg) {
+      if (!game && body.rawgId && demoKeys().rawg) {
         try {
-          const params = new URLSearchParams({ key: KEYS.rawg });
+          const params = new URLSearchParams({ key: demoKeys().rawg });
           const res = await realFetch(`https://api.rawg.io/api/games/${encodeURIComponent(body.rawgId)}?${params}`, {
             headers: { Accept: "application/json" },
           });

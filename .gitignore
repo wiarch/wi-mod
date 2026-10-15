@@ -14,7 +14,6 @@ tmp_*.txt
 .vscode/
 *.log
 Thumbs.db
-docs/app/demo-keys.js
 keys.json
 .wi-mod-keys.json
 
