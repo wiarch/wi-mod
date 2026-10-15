@@ -984,38 +984,197 @@
     return reply(404, { error: desktopOnly() });
   }
 
+  function demoLang() {
+    const saved = localStorage.getItem("wi-mod-lang");
+    if (saved === "en" || saved === "es") return saved;
+    return "es";
+  }
+
+  function resetLabel(box) {
+    const started = Number(box.startedAt) || Date.now();
+    const left = Math.max(0, TTL_MS - (Date.now() - started));
+    const h = Math.floor(left / 3600000);
+    const m = Math.floor((left % 3600000) / 60000);
+    if (demoLang() === "en") {
+      if (h <= 0) return `${m} min`;
+      return m ? `${h} h ${m} min` : `${h} h`;
+    }
+    if (h <= 0) return `${m} min`;
+    return m ? `${h} h ${m} min` : `${h} h`;
+  }
+
   function paintBar(data) {
-    const node = document.getElementById("demo-counts");
-    if (!node) return;
     const box = data || db();
-    node.textContent = `${box.games.length}/${GAMES} juegos · máx ${MODS_PER_GAME} mods/juego · reinicio en ${hoursLeft(box)}`;
+    const en = demoLang() === "en";
+    const games = document.getElementById("demo-games");
+    const mods = document.getElementById("demo-mods");
+    const reset = document.getElementById("demo-reset");
+    if (games) {
+      games.innerHTML = en
+        ? `<strong>${box.games.length}/${GAMES}</strong> games used`
+        : `<strong>${box.games.length}/${GAMES}</strong> juegos usados`;
+    }
+    if (mods) {
+      mods.innerHTML = en
+        ? `<strong>${MODS_PER_GAME}</strong> mods max per game`
+        : `<strong>${MODS_PER_GAME}</strong> mods máx. por juego`;
+    }
+    if (reset) {
+      reset.innerHTML = en
+        ? `Resets in <strong>${resetLabel(box)}</strong>`
+        : `Se reinicia en <strong>${resetLabel(box)}</strong>`;
+    }
+  }
+
+  function paintOnline(count) {
+    const node = document.getElementById("demo-online");
+    if (!node) return;
+    const n = Math.max(1, Number(count) || 1);
+    const en = demoLang() === "en";
+    node.innerHTML = en
+      ? `<strong>${n}</strong> ${n === 1 ? "person" : "people"} online now`
+      : `<strong>${n}</strong> ${n === 1 ? "persona" : "personas"} usándolo ahora`;
+  }
+
+  // Contador público Abacus (solo online de la demo web).
+  const PRESENCE = {
+    base: "https://abacus.jasoncameron.dev",
+    ns: "wiarch-wimod",
+    key: "live",
+    admin: "c29f5aef-0b0d-4c9d-bc2b-d28465adf6ff",
+  };
+  let presenceJoined = false;
+
+  async function presenceGet() {
+    const res = await realFetch(`${PRESENCE.base}/get/${PRESENCE.ns}/${PRESENCE.key}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error("presence get");
+    const data = await res.json();
+    const value = Number(data.value);
+    return Number.isFinite(value) ? Math.max(0, value) : 0;
+  }
+
+  async function presenceDelta(delta) {
+    const res = await realFetch(
+      `${PRESENCE.base}/update/${PRESENCE.ns}/${PRESENCE.key}?value=${delta}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${PRESENCE.admin}` },
+        cache: "no-store",
+        keepalive: true,
+      },
+    );
+    if (!res.ok) throw new Error("presence update");
+    const data = await res.json();
+    const value = Number(data.value);
+    return Number.isFinite(value) ? Math.max(0, value) : 0;
+  }
+
+  async function joinPresence() {
+    if (presenceJoined) return;
+    presenceJoined = true;
+    try {
+      paintOnline(Math.max(1, await presenceDelta(1)));
+    } catch (_) {
+      paintOnline(1);
+    }
+  }
+
+  async function leavePresence() {
+    if (!presenceJoined) return;
+    presenceJoined = false;
+    try {
+      await presenceDelta(-1);
+    } catch (_) { /* ignore */ }
+  }
+
+  async function refreshPresence() {
+    try {
+      const n = await presenceGet();
+      paintOnline(presenceJoined ? Math.max(1, n) : n);
+    } catch (_) { /* keep last */ }
   }
 
   function mountBar() {
     if (document.getElementById("demo-bar")) return;
+    const en = demoLang() === "en";
     const style = document.createElement("style");
     style.textContent = `
       #demo-bar {
-        position: fixed; z-index: 80; left: 50%; bottom: 58px; transform: translateX(-50%);
-        display: flex; gap: 10px; align-items: center; flex-wrap: wrap; max-width: calc(100vw - 24px);
-        padding: 6px 10px 6px 12px; border-radius: 999px;
-        background: color-mix(in srgb, var(--panel, #1a1a1a) 88%, transparent);
-        color: var(--text, #f2f2f2); border: 1px solid color-mix(in srgb, var(--accent, #e08a2c) 55%, transparent);
-        backdrop-filter: blur(8px); font: 12px/1.3 "Segoe UI", sans-serif; box-shadow: 0 8px 24px rgba(0,0,0,.35);
+        position: sticky; top: 0; z-index: 90; width: 100%; box-sizing: border-box;
+        display: flex; gap: 10px 14px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+        padding: 10px 16px;
+        background: #1a1410;
+        color: #f6efe6;
+        border-bottom: 2px solid var(--accent, #e08a2c);
+        font: 13px/1.35 "Segoe UI", system-ui, sans-serif;
       }
-      #demo-bar a {
+      #demo-bar .demo-title {
+        display: flex; align-items: center; gap: 8px; font-weight: 700; white-space: nowrap;
+      }
+      #demo-bar .demo-title em {
+        font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+        color: #1a1208; background: var(--accent, #e08a2c); border-radius: 999px; padding: 3px 8px;
+      }
+      #demo-bar .demo-chips {
+        display: flex; flex: 1; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap;
+      }
+      #demo-bar .demo-chip {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 5px 10px; border-radius: 999px;
+        background: rgba(255,255,255,.06);
+        border: 1px solid rgba(224,138,44,.35);
+        color: #f6efe6;
+      }
+      #demo-bar .demo-chip strong { color: #fff; font-weight: 800; }
+      #demo-bar .demo-chip.online {
+        border-color: rgba(80, 200, 120, .55);
+        background: rgba(80, 200, 120, .12);
+      }
+      #demo-bar .demo-actions { display: flex; gap: 8px; align-items: center; }
+      #demo-bar a.demo-dl {
         color: #1a1208; background: var(--accent, #e08a2c);
-        text-decoration: none; font-weight: 700; border-radius: 999px; padding: 4px 10px; white-space: nowrap;
+        text-decoration: none; font-weight: 700; border-radius: 999px; padding: 7px 12px; white-space: nowrap;
       }
-      #demo-counts { opacity: .85; }
+      #demo-bar a.demo-dl:hover { filter: brightness(1.08); }
+      body.demo-banner-on { padding-top: 0; }
+      @media (max-width: 720px) {
+        #demo-bar { justify-content: center; text-align: center; }
+        #demo-bar .demo-chips { justify-content: center; }
+      }
     `;
     document.head.appendChild(style);
+    document.body.classList.add("demo-banner-on");
     const bar = document.createElement("div");
     bar.id = "demo-bar";
-    bar.innerHTML = `Prueba · <span id="demo-counts"></span> · <a href="../wi-mod-portable.zip">Escritorio</a>`;
-    document.body.appendChild(bar);
+    bar.setAttribute("role", "status");
+    bar.innerHTML = `
+      <div class="demo-title">
+        <em>${en ? "Web trial" : "Prueba web"}</em>
+        <span>${en ? "Limited demo — data resets alone" : "Demo limitada — los datos se borran solos"}</span>
+      </div>
+      <div class="demo-chips">
+        <span class="demo-chip" id="demo-games"></span>
+        <span class="demo-chip" id="demo-mods"></span>
+        <span class="demo-chip" id="demo-reset"></span>
+        <span class="demo-chip online" id="demo-online">${en ? "Counting…" : "Contando…"}</span>
+      </div>
+      <div class="demo-actions">
+        <a class="demo-dl" href="../wi-mod-portable.zip">${en ? "Download desktop" : "Descargar escritorio"}</a>
+      </div>
+    `;
+    document.body.prepend(bar);
     paintBar(db());
+    paintOnline(1);
+    joinPresence();
     setInterval(() => paintBar(db()), 30000);
+    setInterval(() => refreshPresence(), 60000);
+    window.addEventListener("pagehide", leavePresence);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") leavePresence();
+      else joinPresence();
+    });
   }
 
   const realFetch = window.fetch.bind(window);
