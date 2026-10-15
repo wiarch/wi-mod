@@ -91,7 +91,7 @@ class Library:
             existing = None
             page = _norm_url(str(fields.get("nexusUrl") or ""))
             official = str(fields.get("platform") or "") in {
-                "Independiente", "Modrinth", "CurseForge", "Steam Workshop",
+                "Independiente", "Modrinth", "CurseForge", "Steam Workshop", "ModDB",
             }
             if mode != "duplicate" and official and page:
                 for mod in data["mods"]:
@@ -386,7 +386,7 @@ class Library:
             self._kv_set("settings", json.dumps(current, ensure_ascii=False))
 
     def ensure_platforms(self) -> None:
-        names = ("Nexus", "Modrinth", "CurseForge", "Steam Workshop", "Independiente")
+        names = ("Nexus", "Modrinth", "CurseForge", "Steam Workshop", "ModDB", "Independiente")
         with self._lock:
             data = self._read()
             self._migrate(data)
@@ -400,6 +400,38 @@ class Library:
             if dirty:
                 self._write(data)
 
+    def ensure_default_games(self) -> None:
+        defaults = (
+            {"gameDomain": "gtasa", "gameName": "Grand Theft Auto: San Andreas", "rawgId": 416},
+            {"gameDomain": "gta5", "gameName": "Grand Theft Auto V", "rawgId": 3498},
+            {"gameDomain": "fallout4", "gameName": "Fallout 4", "rawgId": 3070},
+            {"gameDomain": "newvegas", "gameName": "Fallout: New Vegas", "rawgId": 5563},
+            {"gameDomain": "stalkershadowofchernobyl", "gameName": "S.T.A.L.K.E.R.: Shadow of Chernobyl", "rawgId": 17857},
+        )
+        with self._lock:
+            data = self._read()
+            self._migrate(data)
+            catalog = data.setdefault("catalog", self._empty_catalog())
+            items = catalog.setdefault("games", [])
+            dirty = False
+            for entry in defaults:
+                domain = entry["gameDomain"]
+                exists = next(
+                    (
+                        item
+                        for item in items
+                        if isinstance(item, dict)
+                        and str(item.get("gameDomain") or "").lower() == domain
+                    ),
+                    None,
+                )
+                if exists is not None:
+                    continue
+                items.append(dict(entry))
+                dirty = True
+            if dirty:
+                self._write(data)
+
     def set_curseforge_api_key(self, api_key: str) -> None:
         with self._lock:
             current = self._read_settings()
@@ -410,6 +442,12 @@ class Library:
         with self._lock:
             current = self._read_settings()
             current["rawgApiKey"] = str(api_key or "").strip()
+            self._kv_set("settings", json.dumps(current, ensure_ascii=False))
+
+    def set_steam_api_key(self, api_key: str) -> None:
+        with self._lock:
+            current = self._read_settings()
+            current["steamApiKey"] = str(api_key or "").strip()
             self._kv_set("settings", json.dumps(current, ensure_ascii=False))
 
     def ensure_rawg_key(self, default_key: str) -> None:
@@ -568,7 +606,8 @@ class Library:
     def catalog(self) -> dict[str, Any]:
         with self._lock:
             data = self._read()
-            self._migrate(data)
+            if self._migrate(data):
+                self._write(data)
             catalog = dict(data.get("catalog") or self._empty_catalog())
             for key in ("platforms", "games", "categories", "skills", "rules"):
                 catalog.setdefault(key, [])
@@ -756,6 +795,46 @@ class Library:
         catalog = data["catalog"]
         for key in ("platforms", "games", "categories", "skills", "rules"):
             catalog.setdefault(key, [])
+        domain_fixes = {
+            "darksouls8482remastered": "darksoulsremastered",
+            "darksoulstmremastered": "darksoulsremastered",
+        }
+        games = catalog.get("games") or []
+        fixed_games: list[Any] = []
+        seen_domains: set[str] = set()
+        for item in games:
+            if not isinstance(item, dict):
+                fixed_games.append(item)
+                continue
+            domain = str(item.get("gameDomain") or "").strip().lower()
+            fixed = domain_fixes.get(domain, domain)
+            if fixed != domain:
+                item = dict(item)
+                item["gameDomain"] = fixed
+                if "remaster" in fixed and not str(item.get("gameName") or "").lower().endswith("remastered"):
+                    item["gameName"] = "Dark Souls: Remastered"
+                dirty = True
+            if fixed in seen_domains:
+                dirty = True
+                continue
+            if fixed:
+                seen_domains.add(fixed)
+            fixed_games.append(item)
+        if fixed_games != games:
+            catalog["games"] = fixed_games
+            dirty = True
+        for pack in packs:
+            domain = str(pack.get("gameDomain") or "").strip().lower()
+            fixed = domain_fixes.get(domain)
+            if fixed and fixed != domain:
+                pack["gameDomain"] = fixed
+                dirty = True
+        for mod in data.get("mods") or []:
+            domain = str(mod.get("gameDomain") or "").strip().lower()
+            fixed = domain_fixes.get(domain)
+            if fixed and fixed != domain:
+                mod["gameDomain"] = fixed
+                dirty = True
         for mod in data.get("mods") or []:
             if "modpackId" not in mod:
                 mod["modpackId"] = ""
@@ -1192,14 +1271,15 @@ class Library:
     def _read_settings(self) -> dict[str, Any]:
         raw = self._kv_get("settings")
         if not raw:
-            return {"apiKey": "", "rawgApiKey": "", "curseforgeApiKey": "", "language": "es", "theme": "nexus", "profile": {}}
+            return {"apiKey": "", "rawgApiKey": "", "curseforgeApiKey": "", "steamApiKey": "", "language": "es", "theme": "nexus", "profile": {}}
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
-            return {"apiKey": "", "rawgApiKey": "", "curseforgeApiKey": "", "language": "es", "theme": "nexus", "profile": {}}
+            return {"apiKey": "", "rawgApiKey": "", "curseforgeApiKey": "", "steamApiKey": "", "language": "es", "theme": "nexus", "profile": {}}
         data.setdefault("apiKey", "")
         data.setdefault("rawgApiKey", "")
         data.setdefault("curseforgeApiKey", "")
+        data.setdefault("steamApiKey", "")
         data.setdefault("language", "es")
         data.setdefault("theme", "nexus")
         data.setdefault("profile", {})

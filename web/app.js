@@ -19,11 +19,20 @@ const state = {
   manual: false,
   packMode: "export",
   muted: localStorage.getItem("wi-mod-mute") === "1",
-  lang: localStorage.getItem("wi-mod-lang") === "en" ? "en" : "es",
-  showEs: localStorage.getItem("wi-mod-lang") !== "en",
+  lang: (() => {
+    const saved = localStorage.getItem("wi-mod-lang");
+    if (saved === "en" || saved === "es") return saved;
+    const nav = String(navigator.language || navigator.userLanguage || "es").toLowerCase();
+    return nav.startsWith("es") ? "es" : "en";
+  })(),
+  showEs: true,
   theme: "nexus",
-  keys: { nexus: false, curseforge: false, rawg: false },
+  keys: { nexus: false, curseforge: false, steam: false, rawg: false },
 };
+state.showEs = state.lang === "es";
+if (localStorage.getItem("wi-mod-lang") !== "en" && localStorage.getItem("wi-mod-lang") !== "es") {
+  localStorage.setItem("wi-mod-lang", state.lang);
+}
 
 function displaySummary(mod) {
   if (state.showEs && mod.summaryEs) return mod.summaryEs;
@@ -209,9 +218,20 @@ async function load() {
   state.modpacks = data.modpacks || [];
   state.catalog = data.catalog || { platforms: [], games: [], categories: [], skills: [], rules: [] };
   state.sources = data.sources || {};
-  if (data.language === "en" || data.language === "es") applyLang(data.language);
+  {
+    const saved = localStorage.getItem("wi-mod-lang");
+    if (saved === "en" || saved === "es") applyLang(saved);
+    else if (data.language === "en" || data.language === "es") applyLang(data.language);
+  }
   if (data.theme) applyTheme(data.theme);
-  if (data.keys) state.keys = { nexus: !!data.keys.nexus, curseforge: !!data.keys.curseforge, rawg: !!data.keys.rawg };
+  if (data.keys) {
+    state.keys = {
+      nexus: !!data.keys.nexus,
+      curseforge: !!data.keys.curseforge,
+      steam: !!data.keys.steam,
+      rawg: !!data.keys.rawg,
+    };
+  }
   paintKeys();
   const alive = new Set(state.mods.map((mod) => mod.id));
   state.selected.forEach((id) => { if (!alive.has(id)) state.selected.delete(id); });
@@ -255,13 +275,33 @@ function syncDock() {
 
 function paintKeys() {
   const keys = state.keys || {};
+  let missing = 0;
   document.querySelectorAll("#dock-keys [data-key]").forEach((node) => {
     const id = node.dataset.key;
     const on = id === "modrinth" || !!keys[id];
     node.classList.toggle("on", on);
     const label = node.querySelector("em");
     if (label) label.textContent = on ? "activa" : "falta";
+    if (id !== "modrinth" && !on) missing += 1;
   });
+  const summary = $("keys-summary");
+  const count = $("keys-missing");
+  if (count) count.textContent = String(missing);
+  if (summary) {
+    summary.classList.toggle("ready", missing === 0);
+    summary.title = missing
+      ? `${missing} clave${missing === 1 ? "" : "s"} por activar`
+      : "Todas las claves activas";
+    summary.setAttribute("aria-label", summary.title);
+  }
+}
+
+function closeKeysStack() {
+  const node = $("dock-keys");
+  if (!node) return;
+  node.classList.remove("open");
+  const summary = $("keys-summary");
+  if (summary) summary.setAttribute("aria-expanded", "false");
 }
 
 async function setLanguage(lang) {
@@ -816,17 +856,38 @@ function applyTheme(theme) {
   const allowed = ["nexus", "modrinth", "curseforge", "steam", "rawg"];
   state.theme = allowed.includes(theme) ? theme : "nexus";
   document.documentElement.dataset.theme = state.theme;
+  let stack = 0;
   document.querySelectorAll(".theme-switch [data-theme]").forEach((button) => {
-    button.classList.toggle("on", button.dataset.theme === state.theme);
+    const on = button.dataset.theme === state.theme;
+    button.classList.toggle("on", on);
+    if (on) button.style.setProperty("--stack", "0");
+    else {
+      stack += 1;
+      button.style.setProperty("--stack", String(stack));
+    }
   });
   document.querySelectorAll('input[name="theme"]').forEach((input) => {
     input.checked = input.value === state.theme;
   });
 }
 
+function closeThemeSwitch() {
+  const node = document.querySelector(".theme-switch");
+  if (node) node.classList.remove("open");
+}
+
 async function setTheme(theme) {
-  if (theme === state.theme) return;
+  if (theme === state.theme) {
+    const node = document.querySelector(".theme-switch");
+    if (node) {
+      const open = !node.classList.contains("open");
+      if (open) closeKeysStack();
+      node.classList.toggle("open", open);
+    }
+    return;
+  }
   applyTheme(theme);
+  closeThemeSwitch();
   sfx.click();
   try {
     await api("/api/settings", {
@@ -839,7 +900,7 @@ async function setTheme(theme) {
   }
 }
 
-const PLATFORMS = ["Nexus", "Modrinth", "CurseForge", "Steam Workshop", "Independiente"];
+const PLATFORMS = ["Nexus", "Modrinth", "CurseForge", "Steam Workshop", "ModDB", "Independiente"];
 
 function platformsForGame(domain) {
   const key = String(domain || "").trim().toLowerCase();
@@ -847,6 +908,9 @@ function platformsForGame(domain) {
   if (map[key]) return map[key];
   if (key.startsWith("minecraft")) return ["Modrinth", "CurseForge", "Independiente"];
   if (key === "wow" || key.startsWith("worldofwarcraft")) return ["CurseForge", "Independiente"];
+  if (key === "fallout4" || key === "newvegas" || key === "stalkershadowofchernobyl") {
+    return ["Nexus", "ModDB", "Independiente"];
+  }
   return ["Nexus", "Independiente"];
 }
 
@@ -889,6 +953,7 @@ function platformFromUrl(url) {
   if (/nexusmods\.com\/[^/]+\/mods\/\d+/.test(text)) return "Nexus";
   if (text.includes("modrinth.com")) return "Modrinth";
   if (text.includes("curseforge.com")) return "CurseForge";
+  if (text.includes("moddb.com")) return "ModDB";
   if (text.includes("steamcommunity.com") && /workshop|sharedfiles|filedetails/.test(text)) return "Steam Workshop";
   if (text.trim()) return "Independiente";
   return "Nexus";
@@ -1310,7 +1375,9 @@ async function detect() {
   const page = $("add-url").value;
   status.textContent = isNexusUrl(page)
     ? "Olfateando Nexus…"
-    : (/modrinth\.com/i.test(page) ? "Olfateando Modrinth…" : (/curseforge\.com/i.test(page) ? "Olfateando CurseForge…" : "Leyendo la página oficial…"));
+    : (/modrinth\.com/i.test(page) ? "Olfateando Modrinth…"
+      : (/curseforge\.com/i.test(page) ? "Olfateando CurseForge…"
+        : (/moddb\.com/i.test(page) ? "Olfateando ModDB…" : "Leyendo la página oficial…")));
   setLoading(button, true, "Detectando");
   sfx.sniff();
   try {
@@ -1741,10 +1808,14 @@ async function openSettings() {
     if ($("cf-status")) {
       $("cf-status").textContent = data.hasCurseforgeKey ? `CurseForge: ${data.curseforgeHint}` : "CurseForge: sin clave.";
     }
+    if ($("steam-status")) {
+      $("steam-status").textContent = data.hasSteamKey ? `Steam: ${data.steamHint}` : "Steam: sin clave.";
+    }
     $("rawg-status").textContent = data.hasRawgKey ? `RAWG: ${data.rawgHint}` : "RAWG: sin clave.";
     fillSecret($("api-key"), data.apiKey);
     fillSecret($("rawg-key"), data.rawgApiKey);
     fillSecret($("cf-key"), data.curseforgeApiKey);
+    fillSecret($("steam-key"), data.steamApiKey);
     if (data.language) applyLang(data.language);
   } catch (error) {
     $("settings-status").textContent = error.message;
@@ -1856,6 +1927,12 @@ document.querySelectorAll(".lang-switch [data-lang]").forEach((button) => {
 });
 document.querySelectorAll(".theme-switch [data-theme]").forEach((button) => {
   button.onclick = () => setTheme(button.dataset.theme);
+});
+document.addEventListener("pointerdown", (event) => {
+  const node = document.querySelector(".theme-switch");
+  if (!node || !node.classList.contains("open")) return;
+  if (node.contains(event.target)) return;
+  closeThemeSwitch();
 });
 if ($("translate-open")) $("translate-open").onclick = () => {
   sfx.open();
@@ -1988,6 +2065,13 @@ const KEY_POPS = {
     doc: "https://console.curseforge.com/#/api-keys",
     docLabel: "Sacar clave en CurseForge",
   },
+  steam: {
+    label: "Clave Steam Web API",
+    field: "steamApiKey",
+    flag: "hasSteamKey",
+    doc: "https://steamcommunity.com/dev/apikey",
+    docLabel: "Sacar clave en Steam",
+  },
   rawg: {
     label: "Clave RAWG",
     field: "rawgApiKey",
@@ -2038,6 +2122,17 @@ function openKeyPop(pill) {
 }
 
 $("dock-keys").onclick = (event) => {
+  const summary = event.target.closest("#keys-summary");
+  if (summary) {
+    event.stopPropagation();
+    const node = $("dock-keys");
+    const open = !node.classList.contains("open");
+    if (open) closeThemeSwitch();
+    node.classList.toggle("open", open);
+    summary.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) sfx.open();
+    return;
+  }
   const pill = event.target.closest("[data-key]");
   if (!pill) return;
   sfx.open();
@@ -2045,13 +2140,19 @@ $("dock-keys").onclick = (event) => {
 };
 document.addEventListener("pointerdown", (event) => {
   const pop = $("key-pop");
-  if (!pop || pop.hidden) return;
-  if (pop.contains(event.target) || event.target.closest("#dock-keys [data-key]")) return;
-  closeKeyPop();
+  if (pop && !pop.hidden) {
+    if (!(pop.contains(event.target) || event.target.closest("#dock-keys [data-key]"))) closeKeyPop();
+  }
+  const keys = $("dock-keys");
+  if (keys && keys.classList.contains("open") && !keys.contains(event.target) && !(pop && pop.contains(event.target))) {
+    closeKeysStack();
+  }
 });
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   closeKeyPop();
+  closeKeysStack();
+  closeThemeSwitch();
   const more = $("more-pop");
   const tape = $("tape-pop");
   if (more) more.hidden = true;
@@ -2077,6 +2178,7 @@ $("key-pop-form").onsubmit = async (event) => {
     state.keys = {
       nexus: !!data.hasKey,
       curseforge: !!data.hasCurseforgeKey,
+      steam: !!data.hasSteamKey,
       rawg: !!data.hasRawgKey,
     };
     paintKeys();
@@ -2099,9 +2201,11 @@ $("settings-form").onsubmit = async (event) => {
     const nexus = ($("api-key").value || "").trim();
     const rawg = ($("rawg-key").value || "").trim();
     const curse = ($("cf-key")?.value || "").trim();
+    const steam = ($("steam-key")?.value || "").trim();
     if (nexus) body.apiKey = nexus;
     if (rawg) body.rawgApiKey = rawg;
     if (curse) body.curseforgeApiKey = curse;
+    if (steam) body.steamApiKey = steam;
     const data = await api("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -2115,9 +2219,13 @@ $("settings-form").onsubmit = async (event) => {
     if ($("cf-status")) {
       $("cf-status").textContent = data.hasCurseforgeKey ? `CurseForge: ${data.curseforgeHint}` : "CurseForge: sin clave.";
     }
+    if ($("steam-status")) {
+      $("steam-status").textContent = data.hasSteamKey ? `Steam: ${data.steamHint}` : "Steam: sin clave.";
+    }
     fillSecret($("api-key"), data.apiKey);
     fillSecret($("rawg-key"), data.rawgApiKey);
     fillSecret($("cf-key"), data.curseforgeApiKey);
+    fillSecret($("steam-key"), data.steamApiKey);
     if (data.language) applyLang(data.language);
     if (data.theme) applyTheme(data.theme);
     await load();
@@ -2318,10 +2426,15 @@ $("mp-cat-add").onclick = () => addMpCatRow();
 
 function gameOptionsForPacks() {
   return [
-    ["darksouls3", "Dark Souls"],
+    ["darksoulsremastered", "Dark Souls Remastered"],
     ["skyrimspecialedition", "Skyrim"],
     ["minecraft", "Minecraft"],
     ["stardewvalley", "Stardew Valley"],
+    ["gtasa", "GTA San Andreas"],
+    ["gta5", "GTA V"],
+    ["fallout4", "Fallout 4"],
+    ["newvegas", "Fallout New Vegas"],
+    ["stalkershadowofchernobyl", "S.T.A.L.K.E.R."],
   ];
 }
 

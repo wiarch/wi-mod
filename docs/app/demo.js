@@ -1,9 +1,11 @@
-/* Prueba web: biblioteca en este navegador. 20 mods y 10 juegos. */
+/* Prueba web: 5 juegos, 5 mods/juego, reinicio cada 5 h. Claves en demo-keys.js (no se sube a git). */
 (function () {
-  const MODS = 20;
-  const GAMES = 10;
-  const KEY = "wi-mod-demo-v1";
+  const MODS_PER_GAME = 5;
+  const GAMES = 5;
+  const TTL_MS = 5 * 60 * 60 * 1000;
+  const KEY = "wi-mod-demo-v2";
   const DESKTOP = "La versión de escritorio no tiene este límite.";
+  const KEYS = (typeof window !== "undefined" && window.__WI_DEMO_KEYS__) || {};
   const NEXUS = ["Nexus", "Independiente"];
   const SOURCES = {
     minecraft: ["Modrinth", "CurseForge", "Independiente"],
@@ -17,40 +19,38 @@
     darksouls: NEXUS,
     eldenring: NEXUS,
     stardewvalley: NEXUS,
-    fallout4: NEXUS,
-    newvegas: NEXUS,
+    fallout4: ["Nexus", "ModDB", "Independiente"],
+    newvegas: ["Nexus", "ModDB", "Independiente"],
+    stalkershadowofchernobyl: ["Nexus", "ModDB", "Independiente"],
     witcher3: NEXUS,
     cyberpunk2077: NEXUS,
     baldursgate3: NEXUS,
     monsterhunterworld: NEXUS,
     hollowknight: NEXUS,
+    gtasa: NEXUS,
+    gta5: NEXUS,
     worldofwarcraft: ["CurseForge", "Independiente"],
     wow: ["CurseForge", "Independiente"],
   };
-  const CATALOG = [
-    ["minecraft", "Minecraft", "2011"],
-    ["skyrimspecialedition", "Skyrim Special Edition", "2016"],
-    ["skyrim", "Skyrim", "2011"],
-    ["stardewvalley", "Stardew Valley", "2016"],
-    ["darksoulsremastered", "Dark Souls Remastered", "2018"],
-    ["worldofwarcraft", "World of Warcraft", "2004"],
-    ["fallout4", "Fallout 4", "2015"],
-    ["newvegas", "Fallout: New Vegas", "2010"],
-    ["witcher3", "The Witcher 3", "2015"],
-    ["cyberpunk2077", "Cyberpunk 2077", "2020"],
-    ["baldursgate3", "Baldur's Gate 3", "2023"],
-    ["eldenring", "Elden Ring", "2022"],
-    ["hollowknight", "Hollow Knight", "2017"],
-    ["monsterhunterworld", "Monster Hunter: World", "2018"],
-    ["darksouls3", "Dark Souls III", "2016"],
-  ].map(([gameDomain, gameName, released], index) => ({
-    rawgId: index + 1,
-    gameDomain,
-    gameName,
-    released,
-    imageUrl: "",
-    platforms: [],
-  }));
+  const NEXUS_BY_SLUG = {
+    "the-elder-scrolls-v-skyrim-special-edition": "skyrimspecialedition",
+    "the-elder-scrolls-v-skyrim": "skyrim",
+    "dark-souls-remastered": "darksoulsremastered",
+    "elden-ring": "eldenring",
+    minecraft: "minecraft",
+    "stardew-valley": "stardewvalley",
+    "fallout-4": "fallout4",
+    "fallout-new-vegas": "newvegas",
+    "the-witcher-3-wild-hunt": "witcher3",
+    "cyberpunk-2077": "cyberpunk2077",
+    "baldurs-gate-3": "baldursgate3",
+    "monster-hunter-world": "monsterhunterworld",
+    "hollow-knight": "hollowknight",
+    "grand-theft-auto-san-andreas": "gtasa",
+    "grand-theft-auto-v": "gta5",
+    "stalker-shadow-of-chernobyl": "stalkershadowofchernobyl",
+    "world-of-warcraft": "worldofwarcraft",
+  };
 
   function id() {
     const bytes = new Uint8Array(16);
@@ -66,20 +66,40 @@
       categories: ["General"],
       language: "es",
       theme: "nexus",
+      startedAt: Date.now(),
     };
   }
 
   function db() {
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) || "");
-      if (saved && Array.isArray(saved.mods) && Array.isArray(saved.games)) return saved;
+      if (saved && Array.isArray(saved.mods) && Array.isArray(saved.games)) {
+        const started = Number(saved.startedAt) || 0;
+        if (!started || Date.now() - started >= TTL_MS) {
+          const fresh = empty();
+          localStorage.setItem(KEY, JSON.stringify(fresh));
+          return fresh;
+        }
+        return saved;
+      }
     } catch (_) { /* vacío */ }
-    return empty();
+    const fresh = empty();
+    localStorage.setItem(KEY, JSON.stringify(fresh));
+    return fresh;
   }
 
   function save(data) {
+    if (!data.startedAt) data.startedAt = Date.now();
     localStorage.setItem(KEY, JSON.stringify(data));
     paintBar(data);
+  }
+
+  function hoursLeft(data) {
+    const started = Number(data.startedAt) || Date.now();
+    const left = Math.max(0, TTL_MS - (Date.now() - started));
+    const h = Math.floor(left / 3600000);
+    const m = Math.floor((left % 3600000) / 60000);
+    return `${h}h ${String(m).padStart(2, "0")}m`;
   }
 
   function platformsFor(domain) {
@@ -95,9 +115,41 @@
     if (/nexusmods\.com\/[^/]+\/mods\/\d+/.test(text)) return "Nexus";
     if (text.includes("modrinth.com")) return "Modrinth";
     if (text.includes("curseforge.com")) return "CurseForge";
+    if (text.includes("moddb.com")) return "ModDB";
     if (text.includes("steamcommunity.com") && /workshop|sharedfiles|filedetails/.test(text)) return "Steam Workshop";
     if (text.trim()) return "Independiente";
     return "Nexus";
+  }
+
+  function domainOf(slug, name) {
+    const s = String(slug || "").trim().toLowerCase();
+    if (NEXUS_BY_SLUG[s]) return NEXUS_BY_SLUG[s];
+    const compact = s.replace(/[^a-z0-9]/g, "");
+    if (compact) return compact.slice(0, 64);
+    return String(name || "game").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 64) || "game";
+  }
+
+  function normalizeRawg(item) {
+    const slug = String(item.slug || "").trim().toLowerCase();
+    const gameName = String(item.name || slug || "Juego").trim();
+    return {
+      rawgId: item.id,
+      rawgSlug: slug,
+      gameName,
+      gameDomain: domainOf(slug, gameName),
+      imageUrl: String(item.background_image || "").trim(),
+      released: String(item.released || "").slice(0, 10),
+      platforms: [],
+    };
+  }
+
+  function keyFlags() {
+    return {
+      nexus: Boolean(KEYS.nexus),
+      curseforge: Boolean(KEYS.curseforge),
+      steam: Boolean(KEYS.steam),
+      rawg: Boolean(KEYS.rawg),
+    };
   }
 
   function library(data) {
@@ -105,7 +157,7 @@
       mods: data.mods,
       modpacks: data.modpacks,
       catalog: {
-        platforms: ["Nexus", "Modrinth", "CurseForge", "Steam Workshop", "Independiente"],
+        platforms: ["Nexus", "Modrinth", "CurseForge", "Steam Workshop", "ModDB", "Independiente"],
         games: data.games,
         categories: data.categories,
         skills: [],
@@ -114,6 +166,7 @@
       language: data.language,
       theme: data.theme,
       sources: Object.fromEntries(Object.entries(SOURCES).map(([key, names]) => [key, names.slice()])),
+      keys: keyFlags(),
     };
   }
 
@@ -153,16 +206,22 @@
     };
   }
 
-  function limitMods() {
-    return `La prueba web guarda ${MODS} mods como máximo. ${DESKTOP}`;
+  function limitMods(game) {
+    const label = game || "este juego";
+    return `La prueba web permite ${MODS_PER_GAME} mods por juego (${label}). ${DESKTOP}`;
   }
 
   function limitGames() {
-    return `La prueba web guarda ${GAMES} juegos como máximo. ${DESKTOP}`;
+    return `La prueba web permite ${GAMES} juegos como máximo. ${DESKTOP}`;
   }
 
   function desktopOnly() {
     return `Eso está en la versión de escritorio. ${DESKTOP}`;
+  }
+
+  function modsInGame(data, domain) {
+    const key = String(domain || "").toLowerCase();
+    return data.mods.filter((mod) => String(mod.gameDomain || "").toLowerCase() === key).length;
   }
 
   async function readJson(init) {
@@ -237,6 +296,82 @@
     });
   }
 
+  async function searchNexus(game, q) {
+    const domain = String(game || "").trim().toLowerCase();
+    const text = String(q || "").trim().slice(0, 80);
+    if (domain.length < 2 || text.length < 2) return [];
+    const body = {
+      query: `query ($filter: ModsFilter, $count: Int, $sort: [ModsSort!]) {
+  mods(filter: $filter, count: $count, sort: $sort) {
+    nodes { modId name summary author version downloads endorsements thumbnailUrl status game { domainName name } }
+  }
+}`,
+      variables: {
+        count: 24,
+        sort: [{ downloads: { direction: "DESC" } }],
+        filter: {
+          op: "AND",
+          name: [{ op: "WILDCARD", value: text }],
+          gameDomainName: [{ op: "EQUALS", value: domain }],
+        },
+      },
+    };
+    const res = await realFetch("https://api.nexusmods.com/v2/graphql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error("Nexus no respondió.");
+    const payload = await res.json();
+    const nodes = (((payload || {}).data || {}).mods || {}).nodes || [];
+    const data = db();
+    return nodes.slice(0, 8).map((row) => {
+      const modId = row.modId;
+      const gameDomain = String(((row.game || {}).domainName) || domain).toLowerCase();
+      const url = `https://www.nexusmods.com/${gameDomain}/mods/${modId}`;
+      const saved = data.mods.find((mod) => mod.nexusUrl === url);
+      return {
+        platform: "Nexus",
+        name: row.name || "",
+        author: row.author || "",
+        summary: row.summary || "",
+        downloads: row.downloads || 0,
+        pictureUrl: row.thumbnailUrl || "",
+        url,
+        gameDomain,
+        modId,
+        savedId: saved ? saved.id : "",
+      };
+    });
+  }
+
+  async function searchRawg(q) {
+    const key = KEYS.rawg;
+    if (!key) return [];
+    const params = new URLSearchParams({ key, search: q, page_size: "12", search_precise: "false" });
+    const res = await realFetch(`https://api.rawg.io/api/games?${params}`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) throw new Error("RAWG no respondió.");
+    const payload = await res.json();
+    return (payload.results || []).map(normalizeRawg);
+  }
+
+  async function fetchNexusMod(game, modId) {
+    const key = KEYS.nexus;
+    if (!key) return null;
+    const res = await realFetch(`https://api.nexusmods.com/v1/games/${encodeURIComponent(game)}/mods/${modId}.json`, {
+      headers: {
+        apikey: key,
+        Accept: "application/json",
+        "Application-Name": "wi-mod",
+        "Application-Version": "0.7.0",
+      },
+    });
+    if (!res.ok) return null;
+    return res.json();
+  }
+
   async function route(url, init) {
     const parsed = new URL(url, location.origin);
     const path = parsed.pathname.replace(/\/+$/, "") || "/";
@@ -249,11 +384,14 @@
     if (path === "/api/logout" && method === "POST") return reply(200, { ok: true });
     if (path === "/api/library") return reply(200, library(data));
     if (path === "/api/settings" && method === "GET") {
+      const flags = keyFlags();
       return reply(200, {
-        hasKey: false,
-        hint: "",
-        hasRawgKey: false,
-        rawgHint: "",
+        hasKey: flags.nexus,
+        hint: flags.nexus ? "••••demo" : "",
+        hasRawgKey: flags.rawg,
+        rawgHint: flags.rawg ? "••••demo" : "",
+        hasCurseforgeKey: flags.curseforge,
+        hasSteamKey: flags.steam,
         language: data.language,
         theme: data.theme,
         profile: { name: "prueba" },
@@ -263,6 +401,9 @@
       const body = await readJson(init);
       if (body.language) data.language = String(body.language).startsWith("en") ? "en" : "es";
       if (body.theme) data.theme = String(body.theme);
+      if (body.apiKey || body.rawgApiKey || body.curseforgeApiKey || body.steamApiKey) {
+        return reply(400, { error: "En la prueba web las claves ya están cargadas. No se pueden cambiar." });
+      }
       save(data);
       return reply(200, { ok: true, language: data.language, theme: data.theme });
     }
@@ -276,37 +417,103 @@
       }
     }
     if (path === "/api/nexus/search") {
-      return reply(400, { error: `La búsqueda de Nexus es de la versión de escritorio. En la prueba pega el enlace. ${DESKTOP}` });
+      const q = parsed.searchParams.get("q") || "";
+      const game = parsed.searchParams.get("game") || "";
+      const platform = parsed.searchParams.get("platform") || "Nexus";
+      if (platform !== "Nexus") return reply(200, { results: [], supported: false, platform });
+      try {
+        const results = await searchNexus(game, q);
+        return reply(200, { results, supported: true, platform: "Nexus" });
+      } catch (error) {
+        return reply(502, { error: error.message || "Nexus no respondió." });
+      }
     }
     if (path === "/api/rawg/search") {
-      const q = (parsed.searchParams.get("q") || "").trim().toLowerCase();
-      const results = CATALOG.filter((game) => game.gameName.toLowerCase().includes(q) || game.gameDomain.includes(q));
-      return reply(200, { results });
+      const q = (parsed.searchParams.get("q") || "").trim();
+      try {
+        const results = await searchRawg(q);
+        return reply(200, { results });
+      } catch (error) {
+        return reply(502, { error: error.message || "RAWG no respondió." });
+      }
     }
     if (path === "/api/rawg/add" && method === "POST") {
       const body = await readJson(init);
-      const game = CATALOG.find((item) => String(item.rawgId) === String(body.rawgId));
+      let game = null;
+      if (body.rawgId && KEYS.rawg) {
+        try {
+          const params = new URLSearchParams({ key: KEYS.rawg });
+          const res = await realFetch(`https://api.rawg.io/api/games/${encodeURIComponent(body.rawgId)}?${params}`, {
+            headers: { Accept: "application/json" },
+          });
+          if (res.ok) game = normalizeRawg(await res.json());
+        } catch (_) { /* fallback */ }
+      }
+      if (!game && body.gameDomain) {
+        game = {
+          rawgId: body.rawgId || 0,
+          gameDomain: String(body.gameDomain).toLowerCase(),
+          gameName: String(body.gameName || body.gameDomain),
+          imageUrl: String(body.imageUrl || ""),
+          released: "",
+          platforms: [],
+        };
+      }
       if (!game) return reply(404, { error: "Ese juego no está en la prueba." });
       if (!data.games.some((item) => item.gameDomain === game.gameDomain)) {
         if (data.games.length >= GAMES) return reply(400, { error: limitGames() });
-        data.games.push({ gameDomain: game.gameDomain, gameName: game.gameName, imageUrl: "" });
+        data.games.push({
+          gameDomain: game.gameDomain,
+          gameName: game.gameName,
+          imageUrl: game.imageUrl || "",
+        });
         save(data);
       }
       return reply(200, { game, catalog: library(data).catalog });
+    }
+    if (path === "/api/rawg/resolve") {
+      const domain = parsed.searchParams.get("domain") || "";
+      const name = parsed.searchParams.get("name") || "";
+      if (!KEYS.rawg) return reply(200, { game: null });
+      try {
+        const results = await searchRawg(name || domain);
+        const hit = results.find((row) => row.gameDomain === domain) || results[0] || null;
+        return reply(200, { game: hit });
+      } catch (_) {
+        return reply(200, { game: null });
+      }
     }
     if (path === "/api/preview" && method === "POST") {
       const body = await readJson(init);
       const urlValue = String(body.url || "");
       const platform = platformOf(urlValue);
       const saved = data.mods.find((mod) => mod.nexusUrl && mod.nexusUrl === urlValue);
+      let name = "";
+      let author = "";
+      let summary = "";
+      let version = "";
+      let pictureUrl = "";
+      const nexusMatch = urlValue.match(/nexusmods\.com\/([^/]+)\/mods\/(\d+)/i);
+      if (platform === "Nexus" && nexusMatch && KEYS.nexus) {
+        try {
+          const mod = await fetchNexusMod(nexusMatch[1].toLowerCase(), nexusMatch[2]);
+          if (mod) {
+            name = String(mod.name || "");
+            summary = String(mod.summary || "").replace(/<[^>]+>/g, "");
+            version = String(mod.version || "");
+            pictureUrl = String(mod.picture_url || "");
+            author = String((mod.user && mod.user.name) || mod.author || "");
+          }
+        } catch (_) { /* preview vacío */ }
+      }
       return reply(200, {
-        name: "",
-        author: "",
-        summary: "",
-        version: "",
+        name,
+        author,
+        summary,
+        version,
         platform,
         official: platform !== "Nexus",
-        pictureUrl: "",
+        pictureUrl,
         duplicate: Boolean(saved),
         existingName: saved ? saved.name : "",
         existingId: saved ? saved.id : "",
@@ -334,7 +541,18 @@
         save(data);
         return reply(200, { mod: existing });
       }
-      if (data.mods.length >= MODS) return reply(400, { error: limitMods() });
+      const gameDomain = String(body.gameDomain || (body.manual && body.manual.gameDomain) || "").toLowerCase();
+      if (gameDomain && modsInGame(data, gameDomain) >= MODS_PER_GAME) {
+        return reply(400, { error: limitMods(gameDomain) });
+      }
+      if (gameDomain && !data.games.some((g) => g.gameDomain === gameDomain)) {
+        if (data.games.length >= GAMES) return reply(400, { error: limitGames() });
+        data.games.push({
+          gameDomain,
+          gameName: String(body.gameName || (body.manual && body.manual.gameName) || gameDomain),
+          imageUrl: "",
+        });
+      }
       let mod;
       try {
         mod = applyMod(blankMod({}), body);
@@ -444,12 +662,8 @@
   function paintBar(data) {
     const node = document.getElementById("demo-counts");
     if (!node) return;
-    const box = dbSafe(data);
-    node.textContent = `${box.mods.length}/${MODS} mods · ${box.games.length}/${GAMES} juegos`;
-  }
-
-  function dbSafe(data) {
-    return data || db();
+    const box = data || db();
+    node.textContent = `${box.games.length}/${GAMES} juegos · máx ${MODS_PER_GAME} mods/juego · reinicio en ${hoursLeft(box)}`;
   }
 
   function mountBar() {
@@ -471,9 +685,10 @@
     document.head.appendChild(style);
     const bar = document.createElement("div");
     bar.id = "demo-bar";
-    bar.innerHTML = `Prueba web · <span id="demo-counts"></span> · <a href="../wi-mod-portable.zip">Descargar escritorio</a>`;
+    bar.innerHTML = `Prueba web limitada · <span id="demo-counts"></span> · <a href="../wi-mod-portable.zip">Descargar escritorio</a>`;
     document.body.prepend(bar);
     paintBar(db());
+    setInterval(() => paintBar(db()), 30000);
   }
 
   const realFetch = window.fetch.bind(window);

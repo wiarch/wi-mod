@@ -11,5 +11,7 @@ tmp_*.py
 tmp_*.txt
 .idea/
 .vscode/
+.cursor/
 *.log
 Thumbs.db
+docs/app/demo-keys.js

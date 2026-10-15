@@ -1,48 +1,37 @@
 # wi-mod
 
-Biblioteca local de mods para Windows. Corre en `127.0.0.1`, guarda todo en `data/` y abre una ventana propia.
+Biblioteca local y portable de mods para Windows (v0.7.0). **Open source.** Junta mods de distintos juegos y plataformas en un solo sitio en tu PC: no sustituye a Nexus ni a Mod Organizer 2; es el complemento para buscar, guardar y ordenar tu biblioteca multi-juego sin saltar entre webs.
 
-Plataformas: Nexus Mods, Modrinth, CurseForge, Steam Workshop y páginas oficiales. La paleta y la tipografía siguen la plataforma elegida.
+En desarrollo. Corre solo en tu máquina (`127.0.0.1`), sin cuenta en la nube y sin enviar tu biblioteca a ningún servidor. Todo queda en una carpeta `data/` al lado del programa.
 
-## Requisitos
+## Qué hace
 
-- Windows
-- Python 3.12
-- Dependencias de `requirements.txt`
+- Guarda fichas de mods (enlace, portada, resumen, categoría, juego, plataforma).
+- Busca y añade desde Nexus Mods, Modrinth, CurseForge, Steam Workshop, ModDB y páginas independientes (según juego y claves API).
+- Organiza por juego activo, categorías y modpacks.
+- Temas visuales por plataforma (Nexus, Modrinth, CurseForge, Steam, RAWG).
+- Interfaz en español/inglés; detecta el idioma del sistema.
+- Login local por usuario/clave (sin servicio externo).
+- Versión portable: un `.exe` + `LEEME.txt`, sin instalador.
+- Demo web limitada en `docs/` para probar sin descargar (se reinicia sola).
 
-## Uso
+## Tecnologías
 
-```bat
-py -3 -m pip install -r requirements.txt
-py -3 app.py
-```
+| Capa | Stack |
+|------|--------|
+| Runtime | Python 3.12 |
+| UI | HTML/CSS/JS en ventana **pywebview** (WebView2 en Windows) |
+| Servidor local | `http.server` / `ThreadingHTTPServer` en `127.0.0.1` |
+| Datos | JSON + SQLite en `data/` (no va al repo) |
+| Empaquetado | **PyInstaller** → `dist/wi-mod.exe` |
+| Página / demo | estático en `docs/` (GitHub Pages) |
 
-O doble clic en `wi-mod.bat`. Si existe `dist\wi-mod.exe`, abre el ejecutable.
+APIs externas (opcionales, claves en Ajustes): Nexus Mods, CurseForge, Steam Web API, RAWG. Modrinth es público. ModDB se usa por URL/página (sin API oficial).
 
-El usuario y la clave empiezan vacíos. Al escribir el nombre se consulta la base: si no existe se puede crear la clave; si existe, entrar pide el mismo largo de clave. **Olvidé la clave** deja elegir otra.
+## Plataformas
 
-## Datos
+Nexus Mods · Modrinth · CurseForge · Steam Workshop · ModDB · Independiente / página oficial.
 
-`data/` no se sube al repositorio. Ahí quedan la biblioteca, las sesiones, las portadas y el perfil de la ventana.
+## Estado
 
-La clave de RAWG se guarda en esa base, desde Ajustes, o con la variable `WI_MOD_RAWG_KEY` la primera vez que falte.
-
-## Pruebas
-
-```bat
-py -3 -m unittest tests.test_core -q
-```
-
-## Descarga
-
-La página pública está en `docs/index.html`. El zip portable solo incluye `wi-mod.exe` y un leeme. No incluye `data/`.
-
-El archivo está en `docs/wi-mod-portable.zip`, al lado de la página.
-
-## Ejecutable
-
-```bat
-py -3 -m PyInstaller --noconfirm wi-mod.spec
-```
-
-El resultado es `dist\wi-mod.exe`. Cierra wi-mod antes de volver a compilar. Los datos del ejecutable viven en `dist\data\`.
+Open source. Windows disponible. Linux: próximamente. Proyecto en desarrollo activo; feedback bienvenido desde la página pública.

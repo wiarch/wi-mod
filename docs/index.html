@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>wi-mod — portable</title>
-  <meta name="description" content="Biblioteca local de mods para Windows. Un ejecutable portable, sin datos.">
+  <meta name="description" content="Biblioteca local de mods para Windows. Open source, ejecutable portable, sin datos en la nube.">
   <link rel="icon" href="brand/nexus.ico">
   <style>
     :root {
@@ -34,6 +34,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 12px;
       padding: 22px 0;
     }
     .mark {
@@ -41,7 +42,44 @@
       letter-spacing: 0.04em;
       font-size: 1.15rem;
     }
+    .head-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .plat { text-align: right; }
     .ver { color: var(--muted); font-size: 0.85rem; }
+    .soon {
+      margin-top: 4px;
+      color: var(--hot);
+      font-size: 0.78rem;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+    }
+    .lang-switch {
+      display: inline-flex;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: rgba(255, 248, 240, 0.06);
+    }
+    .lang-switch button {
+      min-width: 40px;
+      height: 30px;
+      padding: 0 10px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+    }
+    .lang-switch button + button { border-left: 1px solid var(--line); }
+    .lang-switch button.on {
+      background: var(--copper);
+      color: var(--ink);
+    }
     .hero { padding: 48px 0 28px; }
     h1 {
       margin: 0 0 12px;
@@ -143,16 +181,25 @@
   <div class="wrap">
     <header>
       <div class="mark">wi-mod</div>
-      <div class="ver">Windows · portable · v0.6.0</div>
+      <div class="head-right">
+        <div class="lang-switch" role="group" aria-label="Language">
+          <button type="button" data-lang="es" class="on">ES</button>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+        <div class="plat">
+          <div class="ver" data-i18n="ver">Windows · portable · open source · v0.7.0</div>
+          <div class="soon" data-i18n="linux">Próximamente en Linux</div>
+        </div>
+      </div>
     </header>
     <section class="hero">
-      <h1>Tu biblioteca de mods.<span>Sin cuenta y sin datos de nadie.</span></h1>
-      <p class="lead">Un solo ejecutable. Lo descomprimes, lo abres y empieza vacío: sin mods, sin usuarios y sin claves. Lo que guardes después queda en tu PC, en una carpeta <code>data</code> al lado del programa.</p>
+      <h1><span data-i18n="h1a">Tu biblioteca de mods.</span><span data-i18n="h1b">Sin cuenta y sin datos de nadie.</span></h1>
+      <p class="lead" data-i18n="lead">Open source. Un solo ejecutable. Lo descomprimes, lo abres y empieza vacío: sin mods, sin usuarios y sin claves. Lo que guardes después queda en tu PC, en una carpeta <code>data</code> al lado del programa.</p>
       <div class="cta">
-        <a class="download" href="wi-mod-portable.zip">Descargar wi-mod-portable.zip</a>
-        <a class="try" href="app/">Probar en la web</a>
-        <span class="meta">13 MB · solo el exe y un leeme · nada de biblioteca</span>
-        <span class="meta">La prueba guarda 20 mods y 10 juegos en el navegador.</span>
+        <a class="download" href="wi-mod-portable.zip" data-i18n="download">Descargar wi-mod-portable.zip</a>
+        <a class="try" href="app/" data-i18n="try">Probar en la web</a>
+        <span class="meta" data-i18n="meta1">13 MB · solo el exe y un leeme · nada de biblioteca</span>
+        <span class="meta" data-i18n="meta2">La versión web es solo para probar: 5 juegos, 5 mods por juego, se reinicia cada 5 horas. Las claves del demo ya van incluidas.</span>
       </div>
       <div class="platforms">
         <span><img src="brand/nexus.ico" alt="">Nexus Mods</span>
@@ -163,24 +210,108 @@
     </section>
     <section class="grid">
       <article class="card">
-        <strong>Portable</strong>
-        <p>No hay instalador. La carpeta se puede mover o borrar entera.</p>
+        <strong data-i18n="c1t">Portable</strong>
+        <p data-i18n="c1p">No hay instalador. La carpeta se puede mover o borrar entera.</p>
       </article>
       <article class="card">
-        <strong>Desde cero</strong>
-        <p>El zip no trae mods, sesiones ni contraseñas. El primer usuario lo creas tú.</p>
+        <strong data-i18n="c2t">Desde cero</strong>
+        <p data-i18n="c2p">El zip no trae mods, sesiones ni contraseñas. El primer usuario lo creas tú.</p>
       </article>
       <article class="card">
-        <strong>Solo en tu máquina</strong>
-        <p>Escucha en 127.0.0.1. La biblioteca no sale de esa carpeta.</p>
+        <strong data-i18n="c3t">Solo en tu máquina</strong>
+        <p data-i18n="c3p">Escucha en 127.0.0.1. La biblioteca no sale de esa carpeta.</p>
       </article>
     </section>
     <ol class="steps">
-      <li class="step"><em>1</em><strong>Descomprime</strong><p>Deja la carpeta wi-mod donde quieras.</p></li>
-      <li class="step"><em>2</em><strong>Abre wi-mod.exe</strong><p>La ventana arranca maximizada y en blanco.</p></li>
-      <li class="step"><em>3</em><strong>Crea tu clave</strong><p>Escribe un usuario nuevo. Si no existe, la página de entrada te deja crearlo.</p></li>
+      <li class="step"><em>1</em><strong data-i18n="s1t">Descomprime</strong><p data-i18n="s1p">Deja la carpeta wi-mod donde quieras.</p></li>
+      <li class="step"><em>2</em><strong data-i18n="s2t">Abre wi-mod.exe</strong><p data-i18n="s2p">La ventana arranca maximizada y en blanco.</p></li>
+      <li class="step"><em>3</em><strong data-i18n="s3t">Crea tu clave</strong><p data-i18n="s3p">Escribe un usuario nuevo. Si no existe, la página de entrada te deja crearlo.</p></li>
     </ol>
-    <footer>wi-mod 0.6.0 · Windows</footer>
+    <footer data-i18n="foot">wi-mod 0.7.0 · open source · Windows · Linux próximamente</footer>
   </div>
+  <script>
+    const I18N = {
+      es: {
+        title: "wi-mod — portable",
+        desc: "Biblioteca local de mods para Windows. Open source, ejecutable portable, sin datos en la nube.",
+        ver: "Windows · portable · open source · v0.7.0",
+        linux: "Próximamente en Linux",
+        h1a: "Tu biblioteca de mods.",
+        h1b: "Sin cuenta y sin datos de nadie.",
+        lead: "Open source. Un solo ejecutable. Lo descomprimes, lo abres y empieza vacío: sin mods, sin usuarios y sin claves. Lo que guardes después queda en tu PC, en una carpeta <code>data</code> al lado del programa.",
+        download: "Descargar wi-mod-portable.zip",
+        try: "Probar en la web",
+        meta1: "13 MB · solo el exe y un leeme · nada de biblioteca",
+        meta2: "La versión web es solo para probar: 5 juegos, 5 mods por juego, se reinicia cada 5 horas. Las claves del demo ya van incluidas.",
+        c1t: "Portable",
+        c1p: "No hay instalador. La carpeta se puede mover o borrar entera.",
+        c2t: "Desde cero",
+        c2p: "El zip no trae mods, sesiones ni contraseñas. El primer usuario lo creas tú.",
+        c3t: "Solo en tu máquina",
+        c3p: "Escucha en 127.0.0.1. La biblioteca no sale de esa carpeta.",
+        s1t: "Descomprime",
+        s1p: "Deja la carpeta wi-mod donde quieras.",
+        s2t: "Abre wi-mod.exe",
+        s2p: "La ventana arranca maximizada y en blanco.",
+        s3t: "Crea tu clave",
+        s3p: "Escribe un usuario nuevo. Si no existe, la página de entrada te deja crearlo.",
+        foot: "wi-mod 0.7.0 · open source · Windows · Linux próximamente",
+      },
+      en: {
+        title: "wi-mod — portable",
+        desc: "Local mod library for Windows. One portable executable, no cloud data. Open source.",
+        ver: "Windows · portable · open source · v0.7.0",
+        linux: "Coming soon on Linux",
+        h1a: "Your mod library.",
+        h1b: "No account. Nobody else's data.",
+        lead: "Open source. One executable. Unzip, open, and it starts empty: no mods, no users, no keys. Whatever you save stays on your PC in a <code>data</code> folder next to the program.",
+        download: "Download wi-mod-portable.zip",
+        try: "Try in the browser",
+        meta1: "13 MB · exe and a readme only · no library inside",
+        meta2: "The web version is a limited trial: 5 games, 5 mods per game, resets every 5 hours. Demo API keys are included.",
+        c1t: "Portable",
+        c1p: "No installer. Move the folder or delete it wholesale.",
+        c2t: "From scratch",
+        c2p: "The zip ships with no mods, sessions, or passwords. You create the first user.",
+        c3t: "On your machine only",
+        c3p: "Listens on 127.0.0.1. The library never leaves that folder.",
+        s1t: "Unzip",
+        s1p: "Put the wi-mod folder wherever you like.",
+        s2t: "Open wi-mod.exe",
+        s2p: "The window opens maximized and blank.",
+        s3t: "Create your key",
+        s3p: "Type a new username. If it doesn't exist, the login page lets you create it.",
+        foot: "wi-mod 0.7.0 · open source · Windows · Linux coming soon",
+      },
+    };
+
+    function detectLang() {
+      const saved = localStorage.getItem("wi-mod-lang");
+      if (saved === "en" || saved === "es") return saved;
+      const nav = String(navigator.language || navigator.userLanguage || "es").toLowerCase();
+      return nav.startsWith("es") ? "es" : "en";
+    }
+
+    function applyLang(lang) {
+      const pack = I18N[lang] || I18N.es;
+      document.documentElement.lang = lang;
+      document.title = pack.title;
+      const meta = document.querySelector('meta[name="description"]');
+      if (meta) meta.setAttribute("content", pack.desc);
+      document.querySelectorAll("[data-i18n]").forEach((node) => {
+        const key = node.getAttribute("data-i18n");
+        if (pack[key] != null) node.innerHTML = pack[key];
+      });
+      document.querySelectorAll(".lang-switch [data-lang]").forEach((btn) => {
+        btn.classList.toggle("on", btn.dataset.lang === lang);
+      });
+      localStorage.setItem("wi-mod-lang", lang);
+    }
+
+    document.querySelectorAll(".lang-switch [data-lang]").forEach((btn) => {
+      btn.addEventListener("click", () => applyLang(btn.dataset.lang));
+    });
+    applyLang(detectLang());
+  </script>
 </body>
 </html>

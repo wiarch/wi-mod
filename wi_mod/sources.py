@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 NEXUS = ("Nexus", "Independiente")
+NEXUS_MODDB = ("Nexus", "ModDB", "Independiente")
 MINECRAFT = ("Modrinth", "CurseForge", "Independiente")
 
 GAME_SOURCES: dict[str, tuple[str, ...]] = {
@@ -17,13 +18,19 @@ GAME_SOURCES: dict[str, tuple[str, ...]] = {
     "darksouls": NEXUS,
     "eldenring": NEXUS,
     "stardewvalley": NEXUS,
-    "fallout4": NEXUS,
-    "newvegas": NEXUS,
+    "fallout4": NEXUS_MODDB,
+    "newvegas": NEXUS_MODDB,
     "witcher3": NEXUS,
     "cyberpunk2077": NEXUS,
     "baldursgate3": NEXUS,
     "monsterhunterworld": NEXUS,
     "hollowknight": NEXUS,
+    "gtasa": NEXUS,
+    "gta5": NEXUS,
+    "stalkershadowofchernobyl": NEXUS_MODDB,
+    "stalkerclearsky": NEXUS,
+    "stalkercallofpripyat": NEXUS,
+    "stalker2": NEXUS,
     "worldofwarcraft": ("CurseForge", "Independiente"),
     "wow": ("CurseForge", "Independiente"),
 }

@@ -19,10 +19,19 @@ const state = {
   manual: false,
   packMode: "export",
   muted: localStorage.getItem("wi-mod-mute") === "1",
-  lang: localStorage.getItem("wi-mod-lang") === "en" ? "en" : "es",
-  showEs: localStorage.getItem("wi-mod-lang") !== "en",
+  lang: (() => {
+    const saved = localStorage.getItem("wi-mod-lang");
+    if (saved === "en" || saved === "es") return saved;
+    const nav = String(navigator.language || navigator.userLanguage || "es").toLowerCase();
+    return nav.startsWith("es") ? "es" : "en";
+  })(),
+  showEs: true,
   theme: "nexus",
 };
+state.showEs = state.lang === "es";
+if (localStorage.getItem("wi-mod-lang") !== "en" && localStorage.getItem("wi-mod-lang") !== "es") {
+  localStorage.setItem("wi-mod-lang", state.lang);
+}
 
 function displaySummary(mod) {
   if (state.showEs && mod.summaryEs) return mod.summaryEs;
@@ -208,7 +217,11 @@ async function load() {
   state.modpacks = data.modpacks || [];
   state.catalog = data.catalog || { platforms: [], games: [], categories: [], skills: [], rules: [] };
   state.sources = data.sources || {};
-  if (data.language === "en" || data.language === "es") applyLang(data.language);
+  {
+    const saved = localStorage.getItem("wi-mod-lang");
+    if (saved === "en" || saved === "es") applyLang(saved);
+    else if (data.language === "en" || data.language === "es") applyLang(data.language);
+  }
   if (data.theme) applyTheme(data.theme);
   const alive = new Set(state.mods.map((mod) => mod.id));
   state.selected.forEach((id) => { if (!alive.has(id)) state.selected.delete(id); });

@@ -19,6 +19,8 @@ NEXUS_BY_SLUG = {
     "the-elder-scrolls-v-skyrim-special-edition": "skyrimspecialedition",
     "the-elder-scrolls-v-skyrim": "skyrim",
     "dark-souls-remastered": "darksoulsremastered",
+    "dark-souls-tm-remastered": "darksoulsremastered",
+    "dark-souls-8482-remastered": "darksoulsremastered",
     "dark-souls-iii": "darksouls3",
     "dark-souls-3": "darksouls3",
     "dark-souls-ii": "darksouls2",
@@ -33,6 +35,12 @@ NEXUS_BY_SLUG = {
     "baldurs-gate-3": "baldursgate3",
     "monster-hunter-world": "monsterhunterworld",
     "hollow-knight": "hollowknight",
+    "grand-theft-auto-san-andreas": "gtasa",
+    "grand-theft-auto-v": "gta5",
+    "stalker-shadow-of-chernobyl": "stalkershadowofchernobyl",
+    "stalker-clear-sky": "stalkerclearsky",
+    "stalker-call-of-pripyat": "stalkercallofpripyat",
+    "stalker-2": "stalker2",
     "world-of-warcraft": "worldofwarcraft",
 }
 
@@ -166,9 +174,13 @@ def nexus_domain_for(slug: str, name: str = "") -> str:
     if slug in NEXUS_BY_SLUG:
         return NEXUS_BY_SLUG[slug]
     compact = re.sub(r"[^a-z0-9]", "", slug)
+    if compact in {"darksouls8482remastered", "darksoulstmremastered"}:
+        return "darksoulsremastered"
     if compact:
         return compact[:64]
     fallback = re.sub(r"[^a-z0-9]", "", (name or "").lower())
+    if fallback in {"darksouls8482remastered", "darksoulstmremastered"}:
+        return "darksoulsremastered"
     return (fallback or "game")[:64]
 
 

@@ -38,6 +38,7 @@ from wi_mod.rawg import (
     validate_key as validate_rawg_key,
 )
 from wi_mod.sources import platforms_for, sources_payload
+from wi_mod.steam import SteamError, validate_key as validate_steam_key
 from wi_mod.store import Library, now, safe_name
 from wi_mod.translate import TranslateError, translate_text
 
@@ -57,6 +58,7 @@ _BRAND = {
     "curseforge.ico": "image/x-icon",
     "steam.ico": "image/x-icon",
     "rawg.png": "image/png",
+    "moddb.png": "image/png",
 }
 _ID = re.compile(r"^[0-9a-f]{32}$")
 
@@ -73,9 +75,11 @@ class App:
         self.library = Library(root)
         self.library.ensure_rawg_key(os.environ.get("WI_MOD_RAWG_KEY", ""))
         self.library.ensure_platforms()
+        self.library.ensure_default_games()
         self.cache = Cache(root / "cache" / "games.json", root / "cache" / "categories.json")
         self.tmp = root / "tmp"
         self.tmp.mkdir(parents=True, exist_ok=True)
+        _fill_default_games(self)
 
 
 def make_server(app: App, port: int = 0) -> ThreadingHTTPServer:
@@ -428,6 +432,11 @@ def make_handler(app: App):
                 if cf_key:
                     validate_curseforge_key(cf_key)
                 app.library.set_curseforge_api_key(cf_key)
+            if "steamApiKey" in body:
+                steam_key = str(body.get("steamApiKey") or "").strip()
+                if steam_key:
+                    validate_steam_key(steam_key)
+                app.library.set_steam_api_key(steam_key)
             if "apiKey" in body:
                 key = str(body.get("apiKey") or "").strip()
                 if not key:
@@ -616,6 +625,9 @@ def make_handler(app: App):
             if isinstance(exc, CurseForgeError):
                 self._json(exc.status or 400, {"error": str(exc)})
                 return
+            if isinstance(exc, SteamError):
+                self._json(exc.status or 400, {"error": str(exc)})
+                return
             if isinstance(exc, RawgError):
                 self._json(exc.status or 400, {"error": str(exc)})
                 return
@@ -679,6 +691,7 @@ def _key_flags(app: App) -> dict:
     return {
         "nexus": bool(str(settings.get("apiKey") or "").strip()),
         "curseforge": bool(str(settings.get("curseforgeApiKey") or "").strip()),
+        "steam": bool(str(settings.get("steamApiKey") or "").strip()),
         "rawg": bool(str(settings.get("rawgApiKey") or "").strip()),
     }
 
@@ -698,6 +711,8 @@ def _platform_for_url(url: str) -> str:
         return "Modrinth"
     if "curseforge.com" in host:
         return "CurseForge"
+    if "moddb.com" in host:
+        return "ModDB"
     if "steamcommunity.com" in host and any(bit in path for bit in ("workshop", "sharedfiles", "filedetails")):
         return "Steam Workshop"
     return "Independiente"
@@ -970,7 +985,7 @@ def _create(app: App, body: dict) -> dict:
     if allowed and platform not in allowed:
         names = ", ".join(allowed)
         raise ValueError(f"Este juego solo acepta mods de {names}.")
-    if platform in {"Independiente", "Modrinth", "CurseForge", "Steam Workshop"}:
+    if platform in {"Independiente", "Modrinth", "CurseForge", "Steam Workshop", "ModDB"}:
         existing = app.library.find_page(str(fields.get("nexusUrl") or ""))
     else:
         game = str(fields.get("gameDomain") or "")
@@ -978,7 +993,7 @@ def _create(app: App, body: dict) -> dict:
         existing = app.library.find_nexus(game, nexus_id) if game and isinstance(nexus_id, int) else None
     if existing and mode not in {"replace", "duplicate"}:
         raise DuplicateMod(existing)
-    if platform in {"Independiente", "Modrinth", "CurseForge", "Steam Workshop"}:
+    if platform in {"Independiente", "Modrinth", "CurseForge", "Steam Workshop", "ModDB"}:
         app.library.add_catalog_item("platform", {"name": platform})
     mod = app.library.add(fields, mode="duplicate" if mode == "duplicate" else "replace")
     return _with_picture(app, mod)
@@ -1456,6 +1471,7 @@ def _public_settings(settings: dict) -> dict:
     key = str(settings.get("apiKey") or "")
     rawg = str(settings.get("rawgApiKey") or "")
     curse = str(settings.get("curseforgeApiKey") or "")
+    steam = str(settings.get("steamApiKey") or "")
     profile = settings.get("profile") or {}
     hint = ""
     if len(key) > 8:
@@ -1472,6 +1488,11 @@ def _public_settings(settings: dict) -> dict:
         curse_hint = f"{curse[:4]}…{curse[-4:]}"
     elif curse:
         curse_hint = "••••"
+    steam_hint = ""
+    if len(steam) > 8:
+        steam_hint = f"{steam[:4]}…{steam[-4:]}"
+    elif steam:
+        steam_hint = "••••"
     return {
         "hasKey": bool(key),
         "hint": hint,
@@ -1479,9 +1500,12 @@ def _public_settings(settings: dict) -> dict:
         "rawgHint": rawg_hint,
         "hasCurseforgeKey": bool(curse),
         "curseforgeHint": curse_hint,
+        "hasSteamKey": bool(steam),
+        "steamHint": steam_hint,
         "apiKey": key,
         "rawgApiKey": rawg,
         "curseforgeApiKey": curse,
+        "steamApiKey": steam,
         "language": "en" if str(settings.get("language") or "es").lower().startswith("en") else "es",
         "theme": _theme_name(settings.get("theme")),
         "profile": {
@@ -1523,6 +1547,36 @@ def _enrich_game_from_rawg(app: App, body: dict) -> dict:
     merged = dict(game)
     merged.update({k: v for k, v in body.items() if v not in (None, "")})
     return merged
+
+
+def _fill_default_games(app: App) -> None:
+    catalog = app.library.catalog()
+    games = [item for item in (catalog.get("games") or []) if isinstance(item, dict)]
+    pending = [
+        item
+        for item in games
+        if str(item.get("gameDomain") or "").lower() in {
+            "gtasa", "gta5", "fallout4", "newvegas", "stalkershadowofchernobyl",
+        }
+        and (not item.get("imageUrl") or not item.get("description"))
+    ]
+    if not pending:
+        return
+    key = str(app.library.settings().get("rawgApiKey") or "").strip()
+    if not key:
+        return
+    for item in pending:
+        rawg_id = item.get("rawgId")
+        domain = str(item.get("gameDomain") or "").strip().lower()
+        if not rawg_id:
+            continue
+        try:
+            game = get_game(key, rawg_id)
+            game["gameDomain"] = domain
+            game = _localize_game(app, game)
+            app.library.add_catalog_item("game", game)
+        except (RawgError, ValueError):
+            continue
 
 
 def _add_game_from_rawg(app: App, body: dict) -> dict:

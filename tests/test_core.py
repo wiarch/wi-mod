@@ -247,6 +247,14 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(platforms_for("darksoulsremastered"), ("Nexus", "Independiente"))
         self.assertEqual(platforms_for("worldofwarcraft"), ("CurseForge", "Independiente"))
         self.assertEqual(platforms_for("wow"), ("CurseForge", "Independiente"))
+        self.assertEqual(platforms_for("gtasa"), ("Nexus", "Independiente"))
+        self.assertEqual(platforms_for("gta5"), ("Nexus", "Independiente"))
+        self.assertEqual(platforms_for("fallout4"), ("Nexus", "ModDB", "Independiente"))
+        self.assertEqual(platforms_for("newvegas"), ("Nexus", "ModDB", "Independiente"))
+        self.assertEqual(
+            platforms_for("stalkershadowofchernobyl"),
+            ("Nexus", "ModDB", "Independiente"),
+        )
         self.assertEqual(platforms_for("otrojuego"), ("Nexus", "Independiente"))
         self.assertEqual(
             project_ref("https://www.curseforge.com/minecraft/mc-mods/jei"),
