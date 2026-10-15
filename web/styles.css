@@ -917,13 +917,15 @@ button.key-pill { cursor: pointer; }
 }
 .theme-panel {
   position: absolute;
-  right: 0;
-  left: auto;
+  left: 50%;
+  right: auto;
   bottom: calc(100% + 8px);
-  transform: translateY(6px);
+  transform: translateX(-50%) translateY(6px);
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 6px;
+  width: 50px;
   padding: 8px;
   border-radius: 14px;
   border: 1px solid rgba(36, 24, 12, 0.22);
@@ -947,11 +949,14 @@ button.key-pill { cursor: pointer; }
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transform: translateY(0);
+  transform: translateX(-50%) translateY(0);
 }
 .theme-panel button {
+  flex: 0 0 auto;
+  box-sizing: border-box;
   width: 34px;
   height: 34px;
+  margin: 0;
   padding: 4px;
   border-radius: 50%;
   border: 2px solid rgba(36, 24, 12, 0.22);
@@ -966,9 +971,8 @@ button.key-pill { cursor: pointer; }
 .theme-panel button.on {
   filter: none;
   opacity: 1;
-  border-color: rgba(36, 24, 12, 0.4);
-  outline: 2px solid var(--copper-ink);
-  outline-offset: 1px;
+  border-color: var(--copper-ink);
+  box-shadow: 0 0 0 2px rgba(36, 24, 12, 0.35);
   background: #fff8f0;
 }
 .brand-mark {

@@ -3,9 +3,206 @@
   const MODS_PER_GAME = 5;
   const GAMES = 5;
   const TTL_MS = 5 * 60 * 60 * 1000;
-  const KEY = "wi-mod-demo-v2";
+  const KEY = "wi-mod-demo-v3";
   const DESKTOP = "La versión de escritorio no tiene este límite.";
   const KEYS = (typeof window !== "undefined" && window.__WI_DEMO_KEYS__) || {};
+  const STATIC_GAMES = {
+    "skyrimspecialedition": {
+      "rawgId": 12447,
+      "rawgSlug": "the-elder-scrolls-v-skyrim-special-edition",
+      "gameName": "The Elder Scrolls V: Skyrim Special Edition",
+      "gameDomain": "skyrimspecialedition",
+      "imageUrl": "https://media.rawg.io/media/games/62c/62c7c8b28a27b83680b22fb9d33fc619.jpg",
+      "released": "2016-10-27",
+      "rating": 4.45,
+      "metacritic": 74,
+      "description": "Open-world RPG. The Special Edition remaster of Skyrim.",
+      "platforms": [],
+      "genres": []
+    },
+    "skyrim": {
+      "rawgId": 5679,
+      "rawgSlug": "the-elder-scrolls-v-skyrim",
+      "gameName": "The Elder Scrolls V: Skyrim",
+      "gameDomain": "skyrim",
+      "imageUrl": "https://media.rawg.io/media/games/7cf/7cfc9220b401b7a300e409e539c9afd5.jpg",
+      "released": "2011-11-11",
+      "rating": 4.42,
+      "metacritic": 94,
+      "description": "Open-world RPG set in Tamriel.",
+      "platforms": [],
+      "genres": []
+    },
+    "minecraft": {
+      "rawgId": 22509,
+      "rawgSlug": "minecraft",
+      "gameName": "Minecraft",
+      "gameDomain": "minecraft",
+      "imageUrl": "https://media.rawg.io/media/games/b4e/b4e4c73d5aa4ec66bbf75375c4847a2b.jpg",
+      "released": "2009-05-10",
+      "rating": 4.44,
+      "metacritic": 83,
+      "description": "Sandbox building and survival.",
+      "platforms": [],
+      "genres": []
+    },
+    "stardewvalley": {
+      "rawgId": 654,
+      "rawgSlug": "stardew-valley",
+      "gameName": "Stardew Valley",
+      "gameDomain": "stardewvalley",
+      "imageUrl": "https://media.rawg.io/media/games/713/713269608dc8f2f40f5a670a14b2de94.jpg",
+      "released": "2016-02-25",
+      "rating": 4.39,
+      "metacritic": 89,
+      "description": "Farming life sim.",
+      "platforms": [],
+      "genres": []
+    },
+    "fallout4": {
+      "rawgId": 3070,
+      "rawgSlug": "fallout-4",
+      "gameName": "Fallout 4",
+      "gameDomain": "fallout4",
+      "imageUrl": "https://media.rawg.io/media/games/d82/d82990b9c67ba0d2d09d4e6fa88885a7.jpg",
+      "released": "2015-11-09",
+      "rating": 3.81,
+      "metacritic": 84,
+      "description": "Post-apocalyptic open-world RPG.",
+      "platforms": [],
+      "genres": []
+    },
+    "newvegas": {
+      "rawgId": 5563,
+      "rawgSlug": "fallout-new-vegas",
+      "gameName": "Fallout: New Vegas",
+      "gameDomain": "newvegas",
+      "imageUrl": "https://media.rawg.io/media/games/995/9951d9d55323d08967640f7b9ab3e342.jpg",
+      "released": "2010-10-19",
+      "rating": 4.43,
+      "metacritic": 84,
+      "description": "Fallout RPG in the Mojave.",
+      "platforms": [],
+      "genres": []
+    },
+    "witcher3": {
+      "rawgId": 3328,
+      "rawgSlug": "the-witcher-3-wild-hunt",
+      "gameName": "The Witcher 3: Wild Hunt",
+      "gameDomain": "witcher3",
+      "imageUrl": "https://media.rawg.io/media/games/618/618c2031a07bbff6b4f611f10b6bcdbc.jpg",
+      "released": "2015-05-18",
+      "rating": 4.64,
+      "metacritic": 92,
+      "description": "Story-driven open-world RPG.",
+      "platforms": [],
+      "genres": []
+    },
+    "cyberpunk2077": {
+      "rawgId": 41494,
+      "rawgSlug": "cyberpunk-2077",
+      "gameName": "Cyberpunk 2077",
+      "gameDomain": "cyberpunk2077",
+      "imageUrl": "https://media.rawg.io/media/games/26d/26d4437715bee60138dab4a7c8c59c92.jpg",
+      "released": "2020-12-10",
+      "rating": 4.23,
+      "metacritic": 73,
+      "description": "Open-world RPG in Night City.",
+      "platforms": [],
+      "genres": []
+    },
+    "baldursgate3": {
+      "rawgId": 324997,
+      "rawgSlug": "baldurs-gate-3",
+      "gameName": "Baldur's Gate III",
+      "gameDomain": "baldursgate3",
+      "imageUrl": "https://media.rawg.io/media/games/699/69907ecf13f172e9e144069769c3be73.jpg",
+      "released": "2023-08-03",
+      "rating": 4.43,
+      "metacritic": 97,
+      "description": "CRPG based on D&D 5e.",
+      "platforms": [],
+      "genres": []
+    },
+    "eldenring": {
+      "rawgId": 326243,
+      "rawgSlug": "elden-ring",
+      "gameName": "Elden Ring",
+      "gameDomain": "eldenring",
+      "imageUrl": "https://media.rawg.io/media/games/b29/b294fdd866dcdb643e7bab370a552855.jpg",
+      "released": "2022-02-25",
+      "rating": 4.38,
+      "metacritic": 95,
+      "description": "Open-world action RPG from FromSoftware.",
+      "platforms": [],
+      "genres": []
+    },
+    "gtasa": {
+      "rawgId": 416,
+      "rawgSlug": "grand-theft-auto-san-andreas",
+      "gameName": "Grand Theft Auto: San Andreas",
+      "gameDomain": "gtasa",
+      "imageUrl": "https://media.rawg.io/media/games/960/960b601d9541cec776c5fa42a00bf6c4.jpg",
+      "released": "2004-10-26",
+      "rating": 4.5,
+      "metacritic": 93,
+      "description": "Open-world crime classic.",
+      "platforms": [],
+      "genres": []
+    },
+    "gta5": {
+      "rawgId": 3498,
+      "rawgSlug": "grand-theft-auto-v",
+      "gameName": "Grand Theft Auto V",
+      "gameDomain": "gta5",
+      "imageUrl": "https://media.rawg.io/media/games/20a/20aa03a10cda45239fe22d035c0ebe64.jpg",
+      "released": "2013-09-17",
+      "rating": 4.47,
+      "metacritic": 92,
+      "description": "Open-world crime in Los Santos.",
+      "platforms": [],
+      "genres": []
+    },
+    "darksoulsremastered": {
+      "rawgId": 51610,
+      "rawgSlug": "dark-souls8482-remastered",
+      "gameName": "Dark Souls: Remastered",
+      "gameDomain": "darksoulsremastered",
+      "imageUrl": "https://media.rawg.io/media/games/29c/29c6c21cc0c78cff6f45d23631cc82f4.jpg",
+      "released": "2018-05-23",
+      "rating": 4.48,
+      "metacritic": 84,
+      "description": "Remastered action RPG.",
+      "platforms": [],
+      "genres": []
+    },
+    "stalkershadowofchernobyl": {
+      "rawgId": 17857,
+      "rawgSlug": "stalker-shadow-of-chernobyl",
+      "gameName": "S.T.A.L.K.E.R.: Shadow of Chernobyl",
+      "gameDomain": "stalkershadowofchernobyl",
+      "imageUrl": "https://media.rawg.io/media/games/348/348640e78a7fcd4bb7dcad4fea014eeb.jpg",
+      "released": "2007-03-19",
+      "rating": 4.27,
+      "metacritic": 82,
+      "description": "Survival shooter in the Zone.",
+      "platforms": [],
+      "genres": []
+    }
+  };
+  function staticGame(domain) {
+    const key = String(domain || "").toLowerCase();
+    return STATIC_GAMES[key] ? { ...STATIC_GAMES[key] } : null;
+  }
+  function staticSearch(q) {
+    const needle = String(q || "").trim().toLowerCase();
+    if (needle.length < 2) return [];
+    return Object.values(STATIC_GAMES).filter((game) =>
+      String(game.gameName || "").toLowerCase().includes(needle)
+      || String(game.gameDomain || "").toLowerCase().includes(needle)
+      || String(game.rawgSlug || "").toLowerCase().includes(needle)
+    ).map((game) => ({ ...game }));
+  }
   const NEXUS = ["Nexus", "Independiente"];
   const SOURCES = {
     minecraft: ["Modrinth", "CurseForge", "Independiente"],
@@ -59,10 +256,24 @@
   }
 
   function empty() {
+    const seed = ["skyrimspecialedition", "minecraft", "stardewvalley", "gtasa", "gta5"]
+      .map((domain) => staticGame(domain))
+      .filter(Boolean)
+      .map((game) => ({
+        gameDomain: game.gameDomain,
+        gameName: game.gameName,
+        imageUrl: game.imageUrl || "",
+        description: game.description || "",
+        released: game.released || "",
+        rating: game.rating,
+        metacritic: game.metacritic,
+        rawgId: game.rawgId,
+        rawgSlug: game.rawgSlug,
+      }));
     return {
       mods: [],
       modpacks: [],
-      games: [],
+      games: seed,
       categories: ["General"],
       language: "es",
       theme: "nexus",
@@ -346,30 +557,112 @@
   }
 
   async function searchRawg(q) {
+    const local = staticSearch(q);
     const key = KEYS.rawg;
-    if (!key) return [];
-    const params = new URLSearchParams({ key, search: q, page_size: "12", search_precise: "false" });
-    const res = await realFetch(`https://api.rawg.io/api/games?${params}`, {
-      headers: { Accept: "application/json" },
+    if (!key) return local;
+    try {
+      const params = new URLSearchParams({ key, search: q, page_size: "12", search_precise: "false" });
+      const res = await realFetch(`https://api.rawg.io/api/games?${params}`, {
+        headers: { Accept: "application/json" },
+      });
+      if (!res.ok) return local;
+      const payload = await res.json();
+      const remote = (payload.results || []).map(normalizeRawg);
+      const seen = new Set(remote.map((row) => row.gameDomain));
+      local.forEach((row) => { if (!seen.has(row.gameDomain)) remote.push(row); });
+      return remote;
+    } catch (_) {
+      return local;
+    }
+  }
+
+  const nexusGameIds = Object.create(null);
+
+  async function nexusGameId(domain) {
+    const key = String(domain || "").toLowerCase();
+    if (!key) return null;
+    if (nexusGameIds[key]) return nexusGameIds[key];
+    const body = {
+      query: `query ($filter: ModsFilter, $count: Int) {
+  mods(filter: $filter, count: $count) {
+    nodes { game { id domainName } }
+  }
+}`,
+      variables: {
+        count: 1,
+        filter: {
+          op: "AND",
+          gameDomainName: [{ op: "EQUALS", value: key }],
+        },
+      },
+    };
+    const res = await realFetch("https://api.nexusmods.com/v2/graphql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error("RAWG no respondió.");
+    if (!res.ok) return null;
     const payload = await res.json();
-    return (payload.results || []).map(normalizeRawg);
+    const node = ((((payload || {}).data || {}).mods || {}).nodes || [])[0];
+    const id = node && node.game && node.game.id;
+    if (!id) return null;
+    nexusGameIds[key] = String(id);
+    return nexusGameIds[key];
   }
 
   async function fetchNexusMod(game, modId) {
-    const key = KEYS.nexus;
-    if (!key) return null;
-    const res = await realFetch(`https://api.nexusmods.com/v1/games/${encodeURIComponent(game)}/mods/${modId}.json`, {
-      headers: {
-        apikey: key,
-        Accept: "application/json",
-        "Application-Name": "wi-mod",
-        "Application-Version": "0.7.2",
+    const domain = String(game || "").toLowerCase();
+    const id = String(modId || "");
+    if (KEYS.nexus) {
+      const res = await realFetch(`https://api.nexusmods.com/v1/games/${encodeURIComponent(domain)}/mods/${id}.json`, {
+        headers: {
+          apikey: KEYS.nexus,
+          Accept: "application/json",
+          "Application-Name": "wi-mod",
+          "Application-Version": "0.7.2",
+        },
+      });
+      if (res.ok) return res.json();
+    }
+    const gameId = await nexusGameId(domain);
+    if (!gameId) return null;
+    const body = {
+      query: `query ($filter: ModsFilter, $count: Int) {
+  mods(filter: $filter, count: $count) {
+    nodes {
+      modId name summary author version downloads thumbnailUrl updatedAt
+      game { id domainName name }
+    }
+  }
+}`,
+      variables: {
+        count: 1,
+        filter: {
+          op: "AND",
+          modId: [{ op: "EQUALS", value: id }],
+          gameId: [{ op: "EQUALS", value: gameId }],
+        },
       },
+    };
+    const res = await realFetch("https://api.nexusmods.com/v2/graphql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
     });
     if (!res.ok) return null;
-    return res.json();
+    const payload = await res.json();
+    const row = ((((payload || {}).data || {}).mods || {}).nodes || [])[0];
+    if (!row) return null;
+    return {
+      name: row.name || "",
+      summary: row.summary || "",
+      author: row.author || "",
+      version: row.version || "",
+      picture_url: row.thumbnailUrl || "",
+      mod_id: row.modId,
+      domain_name: ((row.game || {}).domainName) || domain,
+      updated_time: row.updatedAt || "",
+    };
   }
 
   async function route(url, init) {
@@ -440,7 +733,8 @@
     if (path === "/api/rawg/add" && method === "POST") {
       const body = await readJson(init);
       let game = null;
-      if (body.rawgId && KEYS.rawg) {
+      if (body.gameDomain) game = staticGame(body.gameDomain);
+      if (!game && body.rawgId && KEYS.rawg) {
         try {
           const params = new URLSearchParams({ key: KEYS.rawg });
           const res = await realFetch(`https://api.rawg.io/api/games/${encodeURIComponent(body.rawgId)}?${params}`, {
@@ -455,6 +749,7 @@
           gameDomain: String(body.gameDomain).toLowerCase(),
           gameName: String(body.gameName || body.gameDomain),
           imageUrl: String(body.imageUrl || ""),
+          description: "",
           released: "",
           platforms: [],
         };
@@ -474,7 +769,8 @@
     if (path === "/api/rawg/resolve") {
       const domain = parsed.searchParams.get("domain") || "";
       const name = parsed.searchParams.get("name") || "";
-      if (!KEYS.rawg) return reply(200, { game: null });
+      const local = staticGame(domain);
+      if (local) return reply(200, { game: local });
       try {
         const results = await searchRawg(name || domain);
         const hit = results.find((row) => row.gameDomain === domain) || results[0] || null;
@@ -494,7 +790,7 @@
       let version = "";
       let pictureUrl = "";
       const nexusMatch = urlValue.match(/nexusmods\.com\/([^/]+)\/mods\/(\d+)/i);
-      if (platform === "Nexus" && nexusMatch && KEYS.nexus) {
+      if (platform === "Nexus" && nexusMatch) {
         try {
           const mod = await fetchNexusMod(nexusMatch[1].toLowerCase(), nexusMatch[2]);
           if (mod) {

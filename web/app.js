@@ -458,7 +458,7 @@ async function enrichActiveGame() {
   const domain = state.game;
   if (!domain) return;
   const current = catalogGame(domain);
-  if (current?.imageUrl && current?.description && "steamAppId" in current) {
+  if (current?.imageUrl && current?.description && (current?.rawgId || "steamAppId" in current)) {
     renderGameHero();
     return;
   }

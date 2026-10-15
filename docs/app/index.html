@@ -54,21 +54,6 @@
       </div>
       <div id="search-remote" class="search-remote" hidden></div>
     </div>
-    <div class="top-actions">
-      <div class="app-menu-wrap">
-        <button type="button" id="app-menu-btn" class="solid app-menu-btn" aria-haspopup="true" aria-expanded="false">Menú ▾</button>
-        <div id="app-menu" class="app-menu" hidden role="menu">
-          <button type="button" role="menuitem" id="add-open">Añadir mod</button>
-          <button type="button" role="menuitem" id="packs-open">Modpacks</button>
-          <button type="button" role="menuitem" id="translate-open">Traducir</button>
-          <button type="button" role="menuitem" id="refresh-all">Actualizar</button>
-          <button type="button" role="menuitem" id="export">Comprimir</button>
-          <button type="button" role="menuitem" id="import">Restaurar</button>
-          <button type="button" role="menuitem" id="settings-open">Ajustes</button>
-          <button type="button" role="menuitem" id="logout">Salir</button>
-        </div>
-      </div>
-    </div>
   </header>
 
   <div class="layout">
@@ -116,54 +101,100 @@
         <span class="bar-balance" aria-hidden="true"></span>
       </div>
       <div id="bulk" class="bulk" hidden>
-        <p id="bulk-count"></p>
-        <button type="button" id="bulk-all" class="ghost">Marcar visibles</button>
-        <label>Categoría
-          <select id="bulk-category"></select>
-        </label>
-        <button type="button" id="bulk-cat" class="solid">Asignar</button>
-        <label>Modpack
-          <select id="bulk-pack"></select>
-        </label>
-        <label>Dentro del pack
-          <select id="bulk-pack-cat"></select>
-        </label>
-        <button type="button" id="bulk-move" class="solid">Mover</button>
-        <button type="button" id="bulk-clear" class="ghost">Quitar marcas</button>
+        <div class="bulk-tools">
+          <p id="bulk-count"></p>
+          <button type="button" id="bulk-all" class="ghost">Marcar visibles</button>
+          <button type="button" id="bulk-clear" class="ghost">Quitar marcas</button>
+        </div>
+        <div class="bulk-action">
+          <label>Categoría
+            <select id="bulk-category"></select>
+          </label>
+          <button type="button" id="bulk-cat" class="solid">Asignar</button>
+        </div>
+        <div class="bulk-action">
+          <label>Modpack
+            <select id="bulk-pack"></select>
+          </label>
+          <label>Dentro del pack
+            <select id="bulk-pack-cat"></select>
+          </label>
+          <button type="button" id="bulk-move" class="solid">Mover</button>
+        </div>
       </div>
       <div id="grid" class="grid"></div>
     </main>
   </div>
 
   <footer class="dock">
-    <div class="dock-user">
-      <img id="dock-avatar" alt="" width="36" height="36">
-      <span id="dock-name"></span>
-    </div>
-    <div class="dock-clock">
-      <strong id="dock-time">--:--</strong>
-      <span id="dock-date"></span>
+    <div class="dock-lead">
+      <button type="button" id="more-open" class="dock-user" title="Menú" aria-label="Menú" aria-expanded="false">
+        <img id="dock-avatar" alt="" width="36" height="36">
+        <span id="dock-name"></span>
+        <svg class="dock-caret" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M7.4 9.2 12 13.8l4.6-4.6 1.4 1.4L12 16.6 6 10.6z"/></svg>
+      </button>
     </div>
     <div class="dock-actions">
-      <div class="theme-switch" role="group" aria-label="Paleta">
-        <button type="button" data-theme="nexus" title="Nexus Mods" aria-label="Nexus Mods">
-          <img src="brand/nexus.ico" alt="" width="22" height="22">
+      <div class="dock-keys" id="dock-keys">
+        <button type="button" id="keys-summary" class="keys-summary" title="Claves API" aria-label="Claves API" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M7 6a5 5 0 0 1 4.9 4H21v2.2h-2V16h-2.2v-3.8H14.9A5 5 0 1 1 7 6zm0 2.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6zm0 1.7a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2z"/></svg>
+          <b id="keys-missing">0/4</b>
         </button>
-        <button type="button" data-theme="modrinth" title="Modrinth" aria-label="Modrinth">
-          <img src="brand/modrinth.png" alt="" width="22" height="22">
-        </button>
-        <button type="button" data-theme="curseforge" title="CurseForge" aria-label="CurseForge">
-          <img src="brand/curseforge.ico" alt="" width="22" height="22">
-        </button>
-        <button type="button" data-theme="steam" title="Steam Workshop" aria-label="Steam Workshop">
-          <img src="brand/steam.ico" alt="" width="22" height="22">
-        </button>
+        <div class="keys-panel" id="keys-panel">
+          <button type="button" class="key-pill" data-key="nexus" title="Clave Nexus Mods">
+            <img src="brand/nexus.ico" alt="" width="16" height="16">
+            <span>Nexus</span>
+            <em>falta</em>
+          </button>
+          <button type="button" class="key-pill on" data-key="modrinth" title="Modrinth no pide clave">
+            <img src="brand/modrinth.png" alt="" width="16" height="16">
+            <span>Modrinth</span>
+            <em>activa</em>
+          </button>
+          <button type="button" class="key-pill" data-key="curseforge" title="Clave CurseForge">
+            <img src="brand/curseforge.ico" alt="" width="16" height="16">
+            <span>CurseForge</span>
+            <em>falta</em>
+          </button>
+          <button type="button" class="key-pill" data-key="steam" title="Clave Steam Web API">
+            <img src="brand/steam.ico" alt="" width="16" height="16">
+            <span>Steam</span>
+            <em>falta</em>
+          </button>
+          <button type="button" class="key-pill" data-key="rawg" title="Clave RAWG, para buscar juegos">
+            <img src="brand/rawg.png" alt="" width="16" height="16">
+            <span>RAWG</span>
+            <em>falta</em>
+          </button>
+        </div>
       </div>
+      <div class="theme-switch" id="theme-switch" role="group" aria-label="Paleta">
+        <button type="button" id="theme-summary" class="theme-summary" title="Paleta" aria-label="Paleta" aria-expanded="false">
+          <img id="theme-summary-img" src="brand/nexus.ico" alt="" width="22" height="22">
+        </button>
+        <div class="theme-panel" id="theme-panel">
+          <button type="button" data-theme="nexus" title="Nexus Mods" aria-label="Nexus Mods">
+            <img src="brand/nexus.ico" alt="" width="22" height="22">
+          </button>
+          <button type="button" data-theme="modrinth" title="Modrinth" aria-label="Modrinth">
+            <img src="brand/modrinth.png" alt="" width="22" height="22">
+          </button>
+          <button type="button" data-theme="curseforge" title="CurseForge" aria-label="CurseForge">
+            <img src="brand/curseforge.ico" alt="" width="22" height="22">
+          </button>
+          <button type="button" data-theme="steam" title="Steam Workshop" aria-label="Steam Workshop">
+            <img src="brand/steam.ico" alt="" width="22" height="22">
+          </button>
+          <button type="button" data-theme="rawg" title="RAWG" aria-label="RAWG">
+            <img src="brand/rawg.png" alt="" width="22" height="22">
+          </button>
+        </div>
+      </div>
+      <button id="mute" class="mute-btn" type="button" title="Sonido">🔊</button>
       <div class="lang-switch" role="group" aria-label="Idioma">
         <button type="button" data-lang="es" title="Español">ES</button>
         <button type="button" data-lang="en" title="English">EN</button>
       </div>
-      <button id="mute" class="mute-btn" type="button" title="Sonido">🔊</button>
     </div>
   </footer>
 
@@ -253,24 +284,21 @@
         <button type="button" class="icon" data-close>✕</button>
       </header>
       <p class="hint">Las claves se guardan solo en esta PC (<code>data</code>).</p>
-      <fieldset class="lang-pick">
-        <legend>Paleta de la plataforma</legend>
-        <label><input type="radio" name="theme" value="nexus" checked><span class="brand-mark" aria-hidden="true"><img src="brand/nexus.ico" alt="" width="18" height="18"></span> Nexus Mods</label>
-        <label><input type="radio" name="theme" value="modrinth"><span class="brand-mark" aria-hidden="true"><img src="brand/modrinth.png" alt="" width="18" height="18"></span> Modrinth</label>
-        <label><input type="radio" name="theme" value="curseforge"><span class="brand-mark" aria-hidden="true"><img src="brand/curseforge.ico" alt="" width="18" height="18"></span> CurseForge</label>
-        <label><input type="radio" name="theme" value="steam"><span class="brand-mark" aria-hidden="true"><img src="brand/steam.ico" alt="" width="18" height="18"></span> Steam Workshop</label>
-      </fieldset>
-      <fieldset class="lang-pick">
-        <legend>Idioma de los textos de la API</legend>
-        <label><input type="radio" name="language" value="es" checked> Español</label>
-        <label><input type="radio" name="language" value="en"> English</label>
-      </fieldset>
-      <p class="hint">En español, resúmenes y descripciones se traducen al traerlos.</p>
       <p id="settings-status" class="status"></p>
       <label>Clave Nexus Mods
         <input id="api-key" type="password" autocomplete="off" placeholder="Pega una clave nueva para reemplazarla">
       </label>
       <p><a href="https://www.nexusmods.com/users/myaccount?tab=api+access" target="_blank" rel="noreferrer">API Access Nexus</a></p>
+      <label>Clave CurseForge
+        <input id="cf-key" type="password" autocomplete="off" placeholder="Pega una clave nueva para reemplazarla">
+      </label>
+      <p class="hint" id="cf-status"></p>
+      <p><a href="https://console.curseforge.com/#/api-keys" target="_blank" rel="noreferrer">Claves API de CurseForge</a></p>
+      <label>Clave Steam Web API
+        <input id="steam-key" type="password" autocomplete="off" placeholder="Pega una clave nueva para reemplazarla">
+      </label>
+      <p class="hint" id="steam-status"></p>
+      <p><a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noreferrer">Steam Web API Key</a></p>
       <label>Clave RAWG (juegos)
         <input id="rawg-key" type="password" autocomplete="off" placeholder="Pega clave RAWG para reemplazarla">
       </label>
@@ -291,7 +319,7 @@
       </header>
       <p class="hint">Busca en <a href="https://rawg.io" target="_blank" rel="noreferrer">RAWG</a> y ve añadiendo juegos poco a poco.</p>
       <label>Buscar
-        <input id="game-search" type="search" placeholder="Skyrim, Dark Souls, Minecraft…" autocomplete="off" spellcheck="false">
+        <input id="game-search" type="search" placeholder="Skyrim, Dark Souls Remastered, Minecraft…" autocomplete="off" spellcheck="false">
       </label>
       <div id="game-results" class="game-results"></div>
       <p class="hint">Datos de juegos vía <a href="https://rawg.io" target="_blank" rel="noreferrer">RAWG</a>.</p>
@@ -435,7 +463,40 @@
   </dialog>
 
   <p id="toast" class="toast" hidden></p>
-  <script src="demo-keys.js"></script>
+  <div id="more-pop" class="key-pop tape-pop more-pop" hidden>
+    <button type="button" id="refresh-all">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 12a8 8 0 1 1-2.2-5.5M20 4v5h-5"/></svg>
+      Actualizar
+    </button>
+    <button type="button" id="tape-open">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="15.5" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.2 12h3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      Comprimir y restaurar
+    </button>
+    <button type="button" id="logout">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2M4 12h11M12 9l3 3-3 3"/></svg>
+      Salir
+    </button>
+  </div>
+  <div id="tape-pop" class="key-pop tape-pop" hidden>
+    <button type="button" id="export">Comprimir</button>
+    <button type="button" id="import">Restaurar</button>
+  </div>
+
+  <div id="key-pop" class="key-pop" hidden>
+    <form id="key-pop-form">
+      <p id="key-pop-note" class="hint" hidden></p>
+      <label id="key-pop-field"><span id="key-pop-label">Clave</span>
+        <input id="key-pop-input" type="password" autocomplete="off" placeholder="Pega la clave">
+      </label>
+      <div class="key-pop-row">
+        <a id="key-pop-doc" href="" target="_blank" rel="noreferrer">Documentación</a>
+        <button id="key-pop-save" class="solid" type="submit">Guardar</button>
+      </div>
+      <p id="key-pop-status" class="status"></p>
+    </form>
+  </div>
+
+  <script src="demo-keys.js" onerror=""></script>
   <script src="demo.js"></script>
   <script src="app.js"></script>
 </body>
