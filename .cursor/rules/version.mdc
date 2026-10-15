@@ -1,0 +1,21 @@
+---
+description: Sube la versión de wi-mod en cada push según el cambio
+alwaysApply: true
+---
+
+# Versión
+
+La fuente es `wi_mod/__version__`. Hoy parte de `0.7.5`. En cada commit de producto que se suba, súbela **antes** del commit y copia el mismo número en:
+
+- `wi_mod/__init__.py` (`__version__`)
+- `package.json`
+- `src-tauri/tauri.conf.json`
+- `docs/index.html` (cabecera y pie)
+
+El CI compila Tauri solo si ese número cambia en el push a `main`.
+
+- Parche (`0.7.5` → `0.7.6`): arreglo, texto, página o empaquetado del mismo programa.
+- Menor (`0.7.5` → `0.8.0`): función nueva que el usuario ve.
+- Mayor (`0.7.5` → `1.0.0`): rompe la carpeta `data` o la forma de abrir la app.
+
+Si el cambio incluye el ejecutable portable Python, regenera `docs/wi-mod-portable.zip` solo con `wi-mod.exe` y `LEEME.txt`, sin `data/`. Un commit que no toca el programa no cambia el número.
