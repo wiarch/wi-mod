@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="nexus">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,49 +7,137 @@
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+  <div id="login" class="login" hidden>
+    <form id="login-form" class="login-card">
+      <div class="brand">wi-mod</div>
+      <p class="hint" id="login-hint">Escribe tu usuario.</p>
+      <label>Usuario
+        <input id="login-user" autocomplete="username" spellcheck="false">
+      </label>
+      <label>Clave
+        <input id="login-pass" type="password" autocomplete="current-password">
+      </label>
+      <p id="login-status" class="status"></p>
+      <div class="login-actions">
+        <button id="login-reset" class="text-btn" type="button" hidden>Olvidé la clave</button>
+        <button id="login-go" class="solid" type="submit" disabled>Entrar</button>
+      </div>
+    </form>
+  </div>
+
   <div id="boot" class="boot" aria-hidden="true">
-    <div class="boot-mark">wi-mod<small>olfateando la guarida…</small></div>
+    <div class="boot-mark">wi-mod<small id="boot-line">olfateando la guarida…</small></div>
   </div>
 
   <header class="top">
     <div class="brand">wi-mod</div>
-    <input id="search" type="search" placeholder="Buscar mod, autor o juego" autocomplete="off">
+    <div class="game-scope">
+      <span>Juego</span>
+      <div class="game-picker-wrap">
+        <button type="button" id="game-picker" class="game-picker" aria-haspopup="listbox" aria-expanded="false">
+          <img id="game-picker-img" alt="" hidden>
+          <span id="game-picker-name">Elegir juego</span>
+        </button>
+        <div id="game-menu" class="game-menu" hidden role="listbox"></div>
+      </div>
+      <button type="button" id="game-add" class="side-add" title="Añadir juego (RAWG)">+</button>
+    </div>
+    <input id="search" type="search" placeholder="Buscar mod o autor" autocomplete="off" spellcheck="false">
     <div class="top-actions">
-      <button id="mute" class="mute-btn" type="button" title="Sonido">🔊</button>
-      <button id="translate-open" class="ghost" type="button">Traducir</button>
-      <button id="refresh-all" class="ghost" type="button">Actualizar</button>
-      <button id="export" class="ghost" type="button">Comprimir</button>
-      <button id="import" class="ghost" type="button">Restaurar</button>
-      <button id="settings-open" class="ghost" type="button">Ajustes</button>
-      <button id="add-open" class="solid" type="button">Añadir mod</button>
+      <div class="app-menu-wrap">
+        <button type="button" id="app-menu-btn" class="solid app-menu-btn" aria-haspopup="true" aria-expanded="false">Menú ▾</button>
+        <div id="app-menu" class="app-menu" hidden role="menu">
+          <button type="button" role="menuitem" id="add-open">Añadir mod</button>
+          <button type="button" role="menuitem" id="packs-open">Modpacks</button>
+          <button type="button" role="menuitem" id="translate-open">Traducir</button>
+          <button type="button" role="menuitem" id="refresh-all">Actualizar</button>
+          <button type="button" role="menuitem" id="export">Comprimir</button>
+          <button type="button" role="menuitem" id="import">Restaurar</button>
+          <button type="button" role="menuitem" id="settings-open">Ajustes</button>
+          <button type="button" role="menuitem" id="logout">Salir</button>
+        </div>
+      </div>
     </div>
   </header>
 
   <div class="layout">
     <aside class="side">
-      <p class="side-label">Plataforma</p>
+      <div class="side-head">
+        <p class="side-label">Plataforma</p>
+        <button type="button" class="side-add" data-add="platform" title="Añadir plataforma">+</button>
+      </div>
       <div id="platforms"></div>
-      <p class="side-label">Juegos</p>
-      <div id="games"></div>
-      <p class="side-label">Categoría</p>
+      <div class="side-head">
+        <p class="side-label">Modpack</p>
+        <button type="button" class="side-add" data-add="modpack" title="Crear modpack">+</button>
+      </div>
+      <div id="modpacks"></div>
+      <div class="side-head">
+        <p class="side-label">Categoría Nexus</p>
+        <button type="button" class="side-add" data-add="category" title="Añadir categoría Nexus">+</button>
+      </div>
       <div id="categories"></div>
-      <p class="side-label">Archivos</p>
-      <div id="file-filters"></div>
     </aside>
     <main>
+      <section id="game-hero" class="game-hero" hidden></section>
       <div class="bar">
         <p id="count"></p>
-        <label>Orden
-          <select id="sort">
-            <option value="added">Recién guardados</option>
-            <option value="updated">Última actualización</option>
-            <option value="name">Nombre</option>
-          </select>
-        </label>
+        <div class="view-dock">
+          <div class="view-toggle" role="group" aria-label="Diseño">
+            <button type="button" id="view-grid" data-view="grid" title="Cuadrícula">▦</button>
+            <button type="button" id="view-list" data-view="list" title="Listado">☰</button>
+          </div>
+          <div class="view-toggle" role="group" aria-label="Tamaño">
+            <button type="button" id="size-sm" data-size="sm" title="Achicar">−</button>
+            <button type="button" id="size-md" data-size="md" title="Normal">□</button>
+            <button type="button" id="size-lg" data-size="lg" title="Agrandar">+</button>
+          </div>
+          <label class="sort-pick">
+            <span>Orden</span>
+            <select id="sort">
+              <option value="added">Recién guardados</option>
+              <option value="updated">Última actualización</option>
+              <option value="name">Nombre</option>
+            </select>
+          </label>
+        </div>
+        <span class="bar-balance" aria-hidden="true"></span>
       </div>
       <div id="grid" class="grid"></div>
     </main>
   </div>
+
+  <footer class="dock">
+    <div class="dock-user">
+      <img id="dock-avatar" alt="" width="36" height="36">
+      <span id="dock-name"></span>
+    </div>
+    <div class="dock-clock">
+      <strong id="dock-time">--:--</strong>
+      <span id="dock-date"></span>
+    </div>
+    <div class="dock-actions">
+      <div class="theme-switch" role="group" aria-label="Paleta">
+        <button type="button" data-theme="nexus" title="Nexus Mods" aria-label="Nexus Mods">
+          <img src="/brand/nexus.ico" alt="" width="22" height="22">
+        </button>
+        <button type="button" data-theme="modrinth" title="Modrinth" aria-label="Modrinth">
+          <img src="/brand/modrinth.png" alt="" width="22" height="22">
+        </button>
+        <button type="button" data-theme="curseforge" title="CurseForge" aria-label="CurseForge">
+          <img src="/brand/curseforge.ico" alt="" width="22" height="22">
+        </button>
+        <button type="button" data-theme="steam" title="Steam Workshop" aria-label="Steam Workshop">
+          <img src="/brand/steam.ico" alt="" width="22" height="22">
+        </button>
+      </div>
+      <div class="lang-switch" role="group" aria-label="Idioma">
+        <button type="button" data-lang="es" title="Español">ES</button>
+        <button type="button" data-lang="en" title="English">EN</button>
+      </div>
+      <button id="mute" class="mute-btn" type="button" title="Sonido">🔊</button>
+    </div>
+  </footer>
 
   <dialog id="add-dialog">
     <form id="add-form">
@@ -57,8 +145,8 @@
         <h2>Añadir mod</h2>
         <button type="button" class="icon" data-close>✕</button>
       </header>
-      <label>Enlace de Nexus
-        <input id="add-url" type="url" placeholder="https://www.nexusmods.com/juego/mods/123" required>
+      <label>Enlace
+        <input id="add-url" type="url" placeholder="Nexus, Modrinth, CurseForge, Steam o página oficial" required>
       </label>
       <div class="row">
         <button id="detect" class="ghost" type="button">Detectar</button>
@@ -75,16 +163,23 @@
       </div>
       <div class="row">
         <label style="flex:1">Plataforma
-          <input id="add-platform" type="text" list="platform-list" value="Nexus">
+          <select id="add-platform">
+            <option value="Nexus" selected>Nexus</option>
+          </select>
         </label>
-        <label style="flex:1">Categoría
-          <input id="add-category" type="text" list="category-list" placeholder="Overhauls, UI…">
+        <label style="flex:1">Categoría Nexus
+          <select id="add-category"></select>
         </label>
       </div>
-      <label>Notas
-        <textarea id="add-notes" rows="2" placeholder="Opcional"></textarea>
-      </label>
-      <p class="hint">Al detectar, wi-mod lee categoría del juego, stats y dependencias enlazadas en la ficha de Nexus. Luego puedes bajar el archivo con <b>Descargar</b>.</p>
+      <div class="row">
+        <label style="flex:1">Modpack
+          <select id="add-modpack"></select>
+        </label>
+        <label style="flex:1">Categoría del pack
+          <select id="add-pack-cat"></select>
+        </label>
+      </div>
+      <p class="hint">Primero crea el modpack y sus categorías. Aquí solo asignas el mod.</p>
       <footer>
         <button id="add-save" class="solid" type="submit">Guardar</button>
       </footer>
@@ -123,24 +218,184 @@
         <h2>Ajustes</h2>
         <button type="button" class="icon" data-close>✕</button>
       </header>
-      <p class="hint">La clave se guarda solo en esta PC, dentro de la carpeta <code>data</code>. Créala en tu cuenta de Nexus, pestaña API Access.</p>
-      <p><a href="https://www.nexusmods.com/users/myaccount?tab=api+access" target="_blank" rel="noreferrer">Abrir API Access</a></p>
+      <p class="hint">Las claves se guardan solo en esta PC (<code>data</code>).</p>
+      <fieldset class="lang-pick">
+        <legend>Paleta de la plataforma</legend>
+        <label><input type="radio" name="theme" value="nexus" checked><span class="brand-mark" aria-hidden="true"><img src="/brand/nexus.ico" alt="" width="18" height="18"></span> Nexus Mods</label>
+        <label><input type="radio" name="theme" value="modrinth"><span class="brand-mark" aria-hidden="true"><img src="/brand/modrinth.png" alt="" width="18" height="18"></span> Modrinth</label>
+        <label><input type="radio" name="theme" value="curseforge"><span class="brand-mark" aria-hidden="true"><img src="/brand/curseforge.ico" alt="" width="18" height="18"></span> CurseForge</label>
+        <label><input type="radio" name="theme" value="steam"><span class="brand-mark" aria-hidden="true"><img src="/brand/steam.ico" alt="" width="18" height="18"></span> Steam Workshop</label>
+      </fieldset>
+      <fieldset class="lang-pick">
+        <legend>Idioma de los textos de la API</legend>
+        <label><input type="radio" name="language" value="es" checked> Español</label>
+        <label><input type="radio" name="language" value="en"> English</label>
+      </fieldset>
+      <p class="hint">En español, resúmenes y descripciones se traducen al traerlos.</p>
       <p id="settings-status" class="status"></p>
-      <label>Clave API
+      <label>Clave Nexus Mods
         <input id="api-key" type="password" autocomplete="off" placeholder="Pega una clave nueva para reemplazarla">
       </label>
+      <p><a href="https://www.nexusmods.com/users/myaccount?tab=api+access" target="_blank" rel="noreferrer">API Access Nexus</a></p>
+      <label>Clave RAWG (juegos)
+        <input id="rawg-key" type="password" autocomplete="off" placeholder="Pega clave RAWG para reemplazarla">
+      </label>
+      <p class="hint" id="rawg-status"></p>
+      <p><a href="https://rawg.io/apidocs" target="_blank" rel="noreferrer">Documentación RAWG</a></p>
       <footer>
-        <button id="clear-key" class="ghost" type="button">Quitar clave</button>
+        <button id="clear-key" class="ghost" type="button">Quitar Nexus</button>
         <button class="solid" type="submit">Guardar</button>
       </footer>
     </form>
   </dialog>
 
-  <datalist id="category-list"></datalist>
-  <datalist id="platform-list">
-    <option value="Nexus"></option>
-  </datalist>
-  <input id="import-file" type="file" accept=".zip,application/zip" hidden>
+  <dialog id="game-dialog">
+    <form id="game-form">
+      <header>
+        <h2>Añadir juego</h2>
+        <button type="button" class="icon" data-close>✕</button>
+      </header>
+      <p class="hint">Busca en <a href="https://rawg.io" target="_blank" rel="noreferrer">RAWG</a> y ve añadiendo juegos poco a poco.</p>
+      <label>Buscar
+        <input id="game-search" type="search" placeholder="Skyrim, Dark Souls, Minecraft…" autocomplete="off" spellcheck="false">
+      </label>
+      <div id="game-results" class="game-results"></div>
+      <p class="hint">Datos de juegos vía <a href="https://rawg.io" target="_blank" rel="noreferrer">RAWG</a>.</p>
+      <footer>
+        <button class="ghost" type="button" data-close>Cerrar</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="pack-dialog">
+    <form id="pack-form">
+      <header>
+        <h2 id="pack-title">Comprimir</h2>
+        <button type="button" class="icon" data-close>✕</button>
+      </header>
+      <p class="hint" id="pack-hint"></p>
+      <label>Alcance
+        <select id="pack-scope">
+          <option value="all">Todo</option>
+          <option value="platform">Por plataforma</option>
+          <option value="game">Por juego</option>
+          <option value="modpack">Por modpack</option>
+          <option value="selected">Solo marcados</option>
+        </select>
+      </label>
+      <label id="pack-value-wrap" hidden>Elige
+        <select id="pack-value"></select>
+      </label>
+      <label id="pack-file-wrap" hidden>Paquete .zip
+        <input id="pack-file" type="file" accept=".zip,application/zip">
+      </label>
+      <p id="pack-count" class="meta"></p>
+      <footer>
+        <button id="pack-go" class="solid" type="submit">Comprimir</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="modpacks-dialog">
+    <form id="modpacks-form">
+      <header>
+        <h2>Modpacks</h2>
+        <button type="button" class="icon" data-close>✕</button>
+      </header>
+      <p class="hint">1) Crea el pack · 2) Añade categorías con + · 3) Asigna mods a una categoría.</p>
+      <div id="modpacks-list" class="files" style="max-height:140px"></div>
+      <label>Nombre<input id="mp-name" type="text" placeholder="Ej. Lux Stack" required></label>
+      <label>Juego
+        <select id="mp-game" required></select>
+      </label>
+      <label>Notas<textarea id="mp-notes" rows="2" placeholder="Opcional"></textarea></label>
+      <input id="mp-edit-id" type="hidden">
+      <footer>
+        <button id="mp-reset" class="ghost" type="button">Nuevo</button>
+        <button id="mp-save" class="solid" type="submit">Guardar modpack</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="packcat-dialog">
+    <form id="packcat-form">
+      <header>
+        <h2 id="packcat-title">Categoría del pack</h2>
+        <button type="button" class="icon" data-close>✕</button>
+      </header>
+      <p class="hint">Apartado dentro del modpack para agrupar mods (iluminación, UI, combate…). Personaliza emoji o imagen y deja notas de propósito.</p>
+      <p id="packcat-pack" class="meta"></p>
+      <div class="row">
+        <label style="flex:0 0 88px">Emoji
+          <input id="pc-emoji" type="text" maxlength="8" value="📦" style="text-align:center;font-size:22px">
+        </label>
+        <label style="flex:1">Nombre
+          <input id="pc-name" type="text" placeholder="Ej. Iluminación" required>
+        </label>
+      </div>
+      <div class="emoji-picks" id="pc-emoji-picks"></div>
+      <label>Imagen (URL opcional)
+        <input id="pc-image" type="url" placeholder="https://…">
+      </label>
+      <label>Notas de la categoría
+        <textarea id="pc-notes" rows="3" placeholder="Para qué sirve este apartado, reglas del proyecto…"></textarea>
+      </label>
+      <input id="pc-edit-id" type="hidden">
+      <footer>
+        <button id="pc-delete" class="danger" type="button" hidden>Borrar</button>
+        <button class="solid" type="submit">Guardar categoría</button>
+      </footer>
+    </form>
+  </dialog>
+  <dialog id="dup-dialog">
+    <form id="dup-form">
+      <header>
+        <h2>Ya existe</h2>
+        <button type="button" class="icon" id="dup-x">✕</button>
+      </header>
+      <p class="hint" id="dup-msg"></p>
+      <footer>
+        <button type="button" class="ghost" id="dup-cancel">Cancelar</button>
+        <button type="button" class="ghost" id="dup-copy">Duplicar</button>
+        <button type="button" class="solid" id="dup-replace">Sustituir</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="ask-dialog">
+    <form id="ask-form">
+      <header>
+        <h2 id="ask-title">Añadir</h2>
+        <button type="button" class="icon" id="ask-x">✕</button>
+      </header>
+      <p class="hint" id="ask-hint" hidden></p>
+      <label id="ask-text-wrap">Nombre
+        <input id="ask-text" type="text" autocomplete="off">
+      </label>
+      <label id="ask-select-wrap" hidden>Elige
+        <select id="ask-select"></select>
+      </label>
+      <footer>
+        <button type="button" class="ghost" id="ask-cancel">Cancelar</button>
+        <button type="submit" class="solid" id="ask-ok">Añadir</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="confirm-dialog">
+    <form id="confirm-form">
+      <header>
+        <h2>Confirmar</h2>
+        <button type="button" class="icon" id="confirm-x">✕</button>
+      </header>
+      <p class="hint" id="confirm-msg"></p>
+      <footer>
+        <button type="button" class="ghost" id="confirm-cancel">Cancelar</button>
+        <button type="submit" class="solid" id="confirm-ok">Sí</button>
+      </footer>
+    </form>
+  </dialog>
+
   <p id="toast" class="toast" hidden></p>
   <script src="/app.js"></script>
 </body>

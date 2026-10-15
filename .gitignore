@@ -8,3 +8,7 @@ build/
 dist/
 tmp_*.py
 tmp_*.txt
+.idea/
+.vscode/
+*.log
+Thumbs.db

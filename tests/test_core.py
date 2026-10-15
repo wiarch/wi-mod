@@ -7,9 +7,9 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-from wi_mod.archive import export_library, import_library
+from wi_mod.archive import export_library, import_library, select_mods
 from wi_mod.multipart import parse_multipart
-from wi_mod.nexus import extract_dependencies, parse_mod_url, pick_file
+from wi_mod.nexus import parse_mod_url, pick_file
 from wi_mod.server import App, _has_update, make_server
 from wi_mod.store import Library
 
@@ -61,16 +61,6 @@ class UrlTests(unittest.TestCase):
 
         text = "Esta descripción también habla de la iluminación para el camino."
         self.assertEqual(translate_text(text), text)
-
-    def test_extract_dependencies(self):
-        desc = (
-            "Hard requirements: [url=https://www.nexusmods.com/skyrimspecialedition/mods/12604]SkyUI[/url] "
-            "Optional patch: [url=https://www.nexusmods.com/skyrimspecialedition/mods/43158]Lux[/url]"
-        )
-        deps = extract_dependencies(desc, "skyrimspecialedition", 63588)
-        self.assertTrue(any(item["modId"] == 12604 for item in deps["required"]))
-        self.assertTrue(any(item["modId"] == 43158 for item in deps["optional"]))
-
 
 class MultipartTests(unittest.TestCase):
     def test_file_part(self):
@@ -125,6 +115,65 @@ class ArchiveTests(unittest.TestCase):
             with zipfile.ZipFile(dest) as bundle:
                 self.assertIn("manifest.json", bundle.namelist())
 
+    def test_filter_by_platform_and_modpack(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            library = Library(root / "lib")
+            pack = library.add_modpack({
+                "name": "Lux Stack",
+                "gameDomain": "skyrimspecialedition",
+                "gameName": "Skyrim Special Edition",
+            })
+            self.assertEqual(pack["categories"], [])
+            pack = library.add_pack_category(pack["id"], {
+                "name": "Core",
+                "emoji": "🔧",
+                "notes": "Base del stack",
+            })
+            pack = library.add_pack_category(pack["id"], {
+                "name": "Lighting",
+                "emoji": "💡",
+                "notes": "Luces y clima",
+            })
+            cat = pack["categories"][1]["id"]
+            self.assertEqual(pack["categories"][1]["emoji"], "💡")
+            library.add({
+                "name": "A",
+                "platform": "Nexus",
+                "modpackId": pack["id"],
+                "modpackCategoryId": cat,
+                "modpackNotes": "No mezclar con ENB X",
+                "emoji": "💡",
+                "techNotes": "Subir skylight a 0.8",
+                "compatNotes": "Choca con ELFX",
+                "gameDomain": "skyrimspecialedition",
+                "modId": 1,
+            })
+            library.add({
+                "name": "B",
+                "platform": "Nexus",
+                "gameDomain": "fallout4",
+                "modId": 2,
+            })
+            picked = select_mods(library.list_mods(), scope="modpack", modpack=pack["id"])
+            self.assertEqual(len(picked), 1)
+            self.assertEqual(picked[0]["name"], "A")
+            self.assertEqual(picked[0]["modpackCategoryId"], cat)
+            self.assertEqual(picked[0]["modpackNotes"], "No mezclar con ENB X")
+            self.assertEqual(picked[0]["emoji"], "💡")
+            self.assertEqual(picked[0]["techNotes"], "Subir skylight a 0.8")
+            self.assertEqual(picked[0]["compatNotes"], "Choca con ELFX")
+            dest = root / "pack.zip"
+            export_library(library, dest, scope="modpack", modpack=pack["id"])
+            restored = Library(root / "restored")
+            result = import_library(restored, dest, scope="all")
+            self.assertEqual(result["added"], 1)
+            self.assertEqual(result["modpacks"], 1)
+            self.assertEqual(restored.list_mods()[0]["name"], "A")
+            self.assertEqual(restored.list_modpacks()[0]["name"], "Lux Stack")
+            self.assertEqual(len(restored.list_modpacks()[0]["categories"]), 2)
+            self.assertEqual(restored.list_modpacks()[0]["categories"][1]["emoji"], "💡")
+
 
 class ServerTests(unittest.TestCase):
     def test_manual_mod_export(self):
@@ -135,6 +184,15 @@ class ServerTests(unittest.TestCase):
             thread.start()
             base = f"http://127.0.0.1:{server.server_address[1]}"
             try:
+                opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
+                setup = json.dumps({"username": "WYDEX", "password": "test-clave"}).encode()
+                login_req = urllib.request.Request(
+                    base + "/api/login",
+                    data=setup,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                opener.open(login_req).read()
                 created = _post(base + "/api/mods", {
                     "url": "https://www.nexusmods.com/skyrimspecialedition/mods/12604",
                     "category": "UI",
@@ -144,10 +202,10 @@ class ServerTests(unittest.TestCase):
                         "summary": "Interfaz",
                         "version": "5.2",
                     },
-                })
+                }, opener)
                 self.assertEqual(created["mod"]["name"], "SkyUI")
                 self.assertEqual(created["mod"]["category"], "UI")
-                listing = json.loads(urllib.request.urlopen(base + "/api/library").read())
+                listing = json.loads(opener.open(base + "/api/library").read())
                 self.assertEqual(len(listing["mods"]), 1)
             finally:
                 server.shutdown()
@@ -155,14 +213,15 @@ class ServerTests(unittest.TestCase):
                 thread.join(timeout=3)
 
 
-def _post(url, payload):
+def _post(url, payload, opener=None):
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode(),
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req) as res:
+    client = opener.open if opener else urllib.request.urlopen
+    with client(req) as res:
         return json.loads(res.read().decode())
 
 

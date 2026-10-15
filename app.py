@@ -39,8 +39,15 @@ def _open(url: str) -> None:
         webview = None
     if webview is not None:
         try:
-            webview.create_window("wi-mod", url, width=1280, height=840, min_size=(980, 640))
-            webview.start()
+            webview.create_window(
+                "wi-mod",
+                url,
+                width=1280,
+                height=840,
+                min_size=(980, 640),
+                maximized=True,
+            )
+            webview.start(private_mode=False, storage_path=str(ROOT / "data" / "webview"))
             return
         except Exception as exc:  # noqa: BLE001
             print(f"Ventana nativa no disponible ({exc}). Abro el navegador.")

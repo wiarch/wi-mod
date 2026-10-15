@@ -3,17 +3,19 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import sys
 import uuid
+import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
-from wi_mod.archive import export_library, import_library
+from wi_mod.archive import export_label, export_library, import_library
 from wi_mod.images import download_picture
 from wi_mod.multipart import parse_multipart
 from wi_mod.nexus import (
@@ -25,8 +27,16 @@ from wi_mod.nexus import (
     parse_mod_url,
     validate_key,
 )
+from wi_mod.rawg import (
+    RawgError,
+    get_game,
+    resolve_game,
+    search_games,
+    validate_key as validate_rawg_key,
+)
 from wi_mod.store import Library, now, safe_name
 from wi_mod.translate import TranslateError, translate_text
+
 
 def _locations() -> tuple[Path, Path]:
     if getattr(sys, "frozen", False):
@@ -37,13 +47,27 @@ def _locations() -> tuple[Path, Path]:
 
 BUNDLE, ROOT = _locations()
 WEB = BUNDLE / "web"
+_BRAND = {
+    "nexus.ico": "image/x-icon",
+    "modrinth.png": "image/png",
+    "curseforge.ico": "image/x-icon",
+    "steam.ico": "image/x-icon",
+}
 _ID = re.compile(r"^[0-9a-f]{32}$")
+
+
+class DuplicateMod(Exception):
+    def __init__(self, mod: dict):
+        super().__init__("Ese mod ya está en la biblioteca.")
+        self.mod = mod
 
 
 class App:
     def __init__(self, root: Path):
         self.root = root
         self.library = Library(root)
+        self.library.ensure_rawg_key(os.environ.get("WI_MOD_RAWG_KEY", ""))
+        self.library.ensure_platforms()
         self.cache = Cache(root / "cache" / "games.json", root / "cache" / "categories.json")
         self.tmp = root / "tmp"
         self.tmp.mkdir(parents=True, exist_ok=True)
@@ -93,8 +117,57 @@ def make_handler(app: App):
             except Exception as exc:  # noqa: BLE001
                 self._fail(exc)
 
+        def _token(self) -> str:
+            header = (self.headers.get("X-Session") or "").strip()
+            if header:
+                return header
+            raw = self.headers.get("Cookie") or ""
+            for bit in raw.split(";"):
+                name, _, value = bit.strip().partition("=")
+                if name == "wi_session":
+                    return value
+            return ""
+
+        def _session_payload(self, token: str) -> dict:
+            user = app.library.user_for_token(token) or {}
+            return {
+                "username": user.get("username") or "",
+                "role": user.get("role") or "",
+                "token": token,
+            }
+
+        def _open(self) -> bool:
+            path = urlparse(self.path).path
+            if path in {"/", "/index.html", "/app.js", "/styles.css", "/api/session", "/api/login", "/api/logout", "/api/users/lookup", "/api/users", "/api/password/reset"}:
+                return True
+            if path.startswith("/media/"):
+                return True
+            if path.startswith("/brand/") and Path(path).name in _BRAND:
+                return True
+            if app.library.user_for_token(self._token()):
+                return True
+            self._json(401, {"error": "Inicia sesión."})
+            return False
+
         def _get(self) -> None:
             path = urlparse(self.path).path
+            if path == "/api/users/lookup":
+                query = parse_qs(urlparse(self.path).query)
+                name = (query.get("name") or [""])[0]
+                self._json(200, app.library.lookup_user(name))
+                return
+            if path == "/api/session":
+                state = app.library.session_state()
+                user = app.library.user_for_token(self._token())
+                self._json(200, {
+                    "username": user["username"] if user else "",
+                    "role": user["role"] if user else "",
+                    "needsPassword": bool(state.get("needsPassword")),
+                    "admin": "WYDEX",
+                })
+                return
+            if not self._open():
+                return
             if path in ("/", "/index.html"):
                 self._file(WEB / "index.html", "text/html; charset=utf-8")
                 return
@@ -106,19 +179,71 @@ def make_handler(app: App):
                 return
             if path == "/api/library":
                 mods = app.library.list_mods()
-                self._json(200, {"mods": [_public_mod(mod) for mod in mods]})
+                packs = app.library.list_modpacks()
+                self._json(
+                    200,
+                    {
+                        "mods": [_public_mod(mod) for mod in mods],
+                        "modpacks": [_public_pack(pack) for pack in packs],
+                        "catalog": app.library.catalog(),
+                        "language": _lang(app),
+                        "theme": _theme(app),
+                    },
+                )
+                return
+            if path == "/api/modpacks":
+                packs = app.library.list_modpacks()
+                self._json(200, {"modpacks": [_public_pack(pack) for pack in packs]})
                 return
             if path == "/api/settings":
                 self._json(200, _public_settings(app.library.settings()))
+                return
+            if path == "/api/rawg/search":
+                query = parse_qs(urlparse(self.path).query)
+                q = (query.get("q") or [""])[0]
+                self._json(200, {"results": _rawg_search(app, q)})
+                return
+            if path == "/api/rawg/resolve":
+                query = parse_qs(urlparse(self.path).query)
+                domain = (query.get("domain") or [""])[0]
+                name = (query.get("name") or [""])[0]
+                self._json(200, {"game": _rawg_resolve(app, domain, name)})
                 return
             if path.startswith("/media/"):
                 rel = unquote(path[len("/media/") :])
                 self._media(rel)
                 return
+            if path.startswith("/brand/"):
+                name = Path(path).name
+                kind = _BRAND.get(name)
+                if kind:
+                    self._file(WEB / "brand" / name, kind)
+                    return
             self._json(404, {"error": "No encontrado."})
 
         def _post(self) -> None:
             path = urlparse(self.path).path
+            if path == "/api/login":
+                body = self._json_body()
+                token = app.library.login(str(body.get("username") or ""), str(body.get("password") or ""))
+                self._json(200, self._session_payload(token), token=token)
+                return
+            if path == "/api/users":
+                body = self._json_body()
+                token = app.library.create_user(str(body.get("username") or ""), str(body.get("password") or ""))
+                self._json(200, self._session_payload(token), token=token)
+                return
+            if path == "/api/password/reset":
+                body = self._json_body()
+                token = app.library.reset_password(str(body.get("username") or ""), str(body.get("password") or ""))
+                self._json(200, self._session_payload(token), token=token)
+                return
+            if path == "/api/logout":
+                app.library.logout(self._token())
+                self._json(200, {"ok": True}, clear_cookie=True)
+                return
+            if not self._open():
+                return
             if path == "/api/preview":
                 body = self._json_body()
                 self._json(200, _preview(app, str(body.get("url") or "")))
@@ -128,18 +253,45 @@ def make_handler(app: App):
                 mod = _create(app, body)
                 self._json(201, {"mod": _public_mod(mod)})
                 return
+            if path == "/api/modpacks":
+                body = self._json_body()
+                pack = app.library.add_modpack(body)
+                self._json(201, {"modpack": _public_pack(pack)})
+                return
+            if path == "/api/catalog":
+                body = self._json_body()
+                kind = str(body.get("kind") or "").strip().lower()
+                if kind == "game" and body.get("rawgId") and not body.get("gameDomain"):
+                    body = _enrich_game_from_rawg(app, body)
+                catalog = app.library.add_catalog_item(kind, body)
+                self._json(200, {"catalog": catalog})
+                return
+            if path == "/api/rawg/add":
+                body = self._json_body()
+                game = _add_game_from_rawg(app, body)
+                self._json(201, {"game": game, "catalog": app.library.catalog()})
+                return
+            cat_match = re.fullmatch(r"/api/modpacks/([0-9a-f]{32})/categories", path)
+            if cat_match:
+                body = self._json_body()
+                pack = app.library.add_pack_category(cat_match.group(1), body)
+                if not pack:
+                    self._json(404, {"error": "Modpack no encontrado."})
+                    return
+                self._json(201, {"modpack": _public_pack(pack)})
+                return
             if path == "/api/refresh":
                 self._json(200, _refresh_all(app))
                 return
             if path == "/api/export":
                 body = self._json_body()
-                ids = body.get("ids")
-                if ids is not None and not isinstance(ids, list):
-                    raise ValueError("La selección de mods no es válida.")
-                self._export(ids)
+                self._export(_pack_filter(body))
                 return
             if path == "/api/import":
                 self._json(200, {"result": _import(app, self)})
+                return
+            if path == "/api/localize":
+                self._json(200, _localize_missing(app))
                 return
             if path == "/api/translate":
                 body = self._json_body()
@@ -159,12 +311,8 @@ def make_handler(app: App):
                 body = self._json_body() if length else {}
                 self._json(200, _refresh_one(app, mod_id, apply=bool(body.get("apply"))))
                 return
-            if mod_id and action == "files":
-                mod = _upload(app, self, mod_id)
-                self._json(200, {"mod": _public_mod(mod)})
-                return
-            if mod_id and action == "download":
-                self._json(200, _download_mod(app, mod_id))
+            if mod_id and action in {"files", "download"}:
+                self._json(400, {"error": "Solo informativo. No se guardan archivos del mod."})
                 return
             if mod_id and action == "translate":
                 self._json(200, _translate_mod(app, mod_id))
@@ -172,22 +320,57 @@ def make_handler(app: App):
             self._json(404, {"error": "No encontrado."})
 
         def _put(self) -> None:
+            if not self._open():
+                return
             path = urlparse(self.path).path
             if path != "/api/settings":
                 self._json(404, {"error": "No encontrado."})
                 return
             body = self._json_body()
-            key = str(body.get("apiKey") or "").strip()
-            if not key:
-                app.library.set_api_key("", {})
-                self._json(200, _public_settings(app.library.settings()))
-                return
-            profile = validate_key(key)
-            app.library.set_api_key(key, profile)
+            if "rawgApiKey" in body:
+                rawg_key = str(body.get("rawgApiKey") or "").strip()
+                if rawg_key:
+                    validate_rawg_key(rawg_key)
+                app.library.set_rawg_api_key(rawg_key)
+            if "language" in body:
+                app.library.set_language(str(body.get("language") or "es"))
+                if _lang(app) == "es":
+                    _localize_missing(app)
+            if "theme" in body:
+                app.library.set_theme(str(body.get("theme") or "nexus"))
+            if "apiKey" in body:
+                key = str(body.get("apiKey") or "").strip()
+                if not key:
+                    app.library.set_api_key("", {})
+                else:
+                    profile = validate_key(key)
+                    app.library.set_api_key(key, profile)
             self._json(200, _public_settings(app.library.settings()))
 
         def _patch(self) -> None:
+            if not self._open():
+                return
             path = urlparse(self.path).path
+            pack_cat_match = re.fullmatch(r"/api/modpacks/([0-9a-f]{32})/categories/([0-9a-f]{32})", path)
+            if pack_cat_match:
+                pack = app.library.update_pack_category(
+                    pack_cat_match.group(1),
+                    pack_cat_match.group(2),
+                    self._json_body(),
+                )
+                if not pack:
+                    self._json(404, {"error": "Categoría no encontrada."})
+                    return
+                self._json(200, {"modpack": _public_pack(pack)})
+                return
+            pack_match = re.fullmatch(r"/api/modpacks/([0-9a-f]{32})", path)
+            if pack_match:
+                pack = app.library.update_modpack(pack_match.group(1), self._json_body())
+                if not pack:
+                    self._json(404, {"error": "Modpack no encontrado."})
+                    return
+                self._json(200, {"modpack": _public_pack(pack)})
+                return
             match = re.fullmatch(r"/api/mods/([0-9a-f]{32})", path)
             if not match:
                 self._json(404, {"error": "No encontrado."})
@@ -199,6 +382,8 @@ def make_handler(app: App):
             self._json(200, {"mod": _public_mod(mod)})
 
         def _delete(self) -> None:
+            if not self._open():
+                return
             path = urlparse(self.path).path
             file_match = re.fullmatch(r"/api/mods/([0-9a-f]{32})/files/([0-9a-f]{32})", path)
             if file_match:
@@ -209,6 +394,21 @@ def make_handler(app: App):
                 mod = app.library.get(file_match.group(1))
                 self._json(200, {"mod": _public_mod(mod)})
                 return
+            pack_cat_match = re.fullmatch(r"/api/modpacks/([0-9a-f]{32})/categories/([0-9a-f]{32})", path)
+            if pack_cat_match:
+                pack = app.library.delete_pack_category(pack_cat_match.group(1), pack_cat_match.group(2))
+                if not pack:
+                    self._json(404, {"error": "Categoría no encontrada."})
+                    return
+                self._json(200, {"modpack": _public_pack(pack)})
+                return
+            pack_match = re.fullmatch(r"/api/modpacks/([0-9a-f]{32})", path)
+            if pack_match:
+                if not app.library.delete_modpack(pack_match.group(1)):
+                    self._json(404, {"error": "Modpack no encontrado."})
+                    return
+                self._json(200, {"ok": True})
+                return
             match = re.fullmatch(r"/api/mods/([0-9a-f]{32})", path)
             if not match:
                 self._json(404, {"error": "No encontrado."})
@@ -218,16 +418,36 @@ def make_handler(app: App):
                 return
             self._json(200, {"ok": True})
 
-        def _export(self, ids: list[str] | None) -> None:
+        def _export(self, filt: dict) -> None:
+            ids = filt.get("ids")
             if ids is not None:
                 for item in ids:
                     if not isinstance(item, str) or not _ID.match(item):
                         raise ValueError("Hay un mod seleccionado que no existe.")
             stamp = datetime.now().strftime("%Y%m%d-%H%M")
-            dest = app.tmp / f"wi-mod-{stamp}-{uuid.uuid4().hex[:6]}.zip"
+            pack_name = filt.get("modpack")
+            if filt["scope"] == "modpack" and pack_name:
+                pack = app.library.get_modpack(str(pack_name))
+                if pack:
+                    pack_name = pack.get("name") or pack_name
+            label = export_label(
+                scope=filt["scope"],
+                platform=filt.get("platform"),
+                game=filt.get("game"),
+                modpack=str(pack_name) if pack_name else None,
+            )
+            dest = app.tmp / f"{label}-{stamp}-{uuid.uuid4().hex[:6]}.zip"
             try:
-                export_library(app.library, dest, ids)
-                self._file(dest, "application/zip", f"wi-mod-{stamp}.zip")
+                export_library(
+                    app.library,
+                    dest,
+                    ids,
+                    scope=filt["scope"],
+                    platform=filt.get("platform"),
+                    game=filt.get("game"),
+                    modpack=filt.get("modpack"),
+                )
+                self._file(dest, "application/zip", f"{label}-{stamp}.zip")
             finally:
                 dest.unlink(missing_ok=True)
 
@@ -260,12 +480,16 @@ def make_handler(app: App):
                 raise ValueError("JSON inválido.")
             return data
 
-        def _json(self, code: int, payload: dict) -> None:
+        def _json(self, code: int, payload: dict, token: str | None = None, clear_cookie: bool = False) -> None:
             data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             self.send_response(code)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-store")
+            if token:
+                self.send_header("Set-Cookie", f"wi_session={token}; HttpOnly; Path=/; SameSite=Lax")
+            if clear_cookie:
+                self.send_header("Set-Cookie", "wi_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax")
             self.end_headers()
             self.wfile.write(data)
 
@@ -288,8 +512,20 @@ def make_handler(app: App):
             if isinstance(exc, NexusError):
                 self._json(exc.status or 400, {"error": str(exc)})
                 return
+            if isinstance(exc, RawgError):
+                self._json(exc.status or 400, {"error": str(exc)})
+                return
             if isinstance(exc, TranslateError):
                 self._json(400, {"error": str(exc)})
+                return
+            if isinstance(exc, DuplicateMod):
+                mod = exc.mod or {}
+                self._json(409, {
+                    "error": "Ese mod ya está en la biblioteca.",
+                    "duplicate": True,
+                    "existingId": mod.get("id") or "",
+                    "existingName": mod.get("name") or "",
+                })
                 return
             if isinstance(exc, ValueError):
                 self._json(400, {"error": str(exc)})
@@ -325,18 +561,199 @@ def _api_key(app: App) -> str:
     return key
 
 
+def _lang(app: App) -> str:
+    raw = str(app.library.settings().get("language") or "es").lower()
+    return "en" if raw.startswith("en") else "es"
+
+
+def _theme(app: App) -> str:
+    return _theme_name(app.library.settings().get("theme"))
+
+
+def _theme_name(value: object) -> str:
+    raw = str(value or "nexus").strip().lower()
+    if raw in {"nexus", "modrinth", "curseforge", "steam"}:
+        return raw
+    return "nexus"
+
+
+def _platform_for_url(url: str) -> str:
+    parsed = urlparse(url or "")
+    host = parsed.netloc.lower()
+    path = parsed.path.lower()
+    if "modrinth.com" in host:
+        return "Modrinth"
+    if "curseforge.com" in host:
+        return "CurseForge"
+    if "steamcommunity.com" in host and any(bit in path for bit in ("workshop", "sharedfiles", "filedetails")):
+        return "Steam Workshop"
+    return "Independiente"
+
+
+def _to_es(text: str) -> str:
+    raw = (text or "").strip()
+    if not raw:
+        return ""
+    try:
+        return translate_text(raw[:1800], source="en", target="es")
+    except TranslateError:
+        return ""
+
+
+def _localize_mod_fields(app: App, fields: dict) -> dict:
+    if _lang(app) != "es":
+        return fields
+    summary = str(fields.get("summary") or "").strip()
+    if summary and not str(fields.get("summaryEs") or "").strip():
+        translated = _to_es(summary)
+        if translated:
+            fields["summaryEs"] = translated
+    return fields
+
+
+def _localize_game(app: App, game: dict) -> dict:
+    if _lang(app) != "es" or not isinstance(game, dict):
+        return game
+    description = str(game.get("description") or "").strip()
+    if description and not str(game.get("descriptionEs") or "").strip():
+        translated = _to_es(description)
+        if translated:
+            game["descriptionEs"] = translated
+    return game
+
+
+def _localize_missing(app: App) -> dict:
+    mods_done = 0
+    games_done = 0
+    if _lang(app) != "es":
+        return {"mods": 0, "games": 0, "language": "en"}
+    for mod in app.library.list_mods():
+        summary = str(mod.get("summary") or "").strip()
+        if not summary or str(mod.get("summaryEs") or "").strip():
+            continue
+        translated = _to_es(summary)
+        if not translated:
+            continue
+        app.library.update(mod["id"], {"summaryEs": translated})
+        mods_done += 1
+        if mods_done >= 40:
+            break
+    catalog = app.library.catalog()
+    for item in catalog.get("games") or []:
+        if not isinstance(item, dict):
+            continue
+        description = str(item.get("description") or "").strip()
+        if not description or str(item.get("descriptionEs") or "").strip():
+            continue
+        translated = _to_es(description)
+        if not translated:
+            continue
+        payload = dict(item)
+        payload["descriptionEs"] = translated
+        app.library.add_catalog_item("game", payload)
+        games_done += 1
+        if games_done >= 20:
+            break
+    return {"mods": mods_done, "games": games_done, "language": "es", "catalog": app.library.catalog()}
+
+
 def _preview(app: App, url: str) -> dict:
     parsed = parse_mod_url(url)
     if not parsed:
-        raise ValueError("El enlace no es un mod de nexusmods.com.")
+        return _preview_official(app, url)
     meta = fetch_mod(_api_key(app), parsed[0], parsed[1], app.cache)
-    meta["duplicate"] = app.library.find_nexus(parsed[0], parsed[1]) is not None
-    return meta
+    existing = app.library.find_nexus(parsed[0], parsed[1])
+    meta["duplicate"] = existing is not None
+    if existing:
+        meta["existingId"] = existing.get("id") or ""
+        meta["existingName"] = existing.get("name") or ""
+    return _localize_mod_fields(app, meta)
+
+
+def _preview_official(app: App, url: str) -> dict:
+    page = _official_page(url)
+    existing = app.library.find_page(page["url"])
+    meta = {
+        "nexusUrl": page["url"],
+        "platform": _platform_for_url(page["url"]),
+        "name": page["title"],
+        "summary": page["summary"],
+        "author": page["site"],
+        "gameDomain": "",
+        "gameName": "",
+        "category": "General",
+        "official": True,
+        "duplicate": existing is not None,
+    }
+    if existing:
+        meta["existingId"] = existing.get("id") or ""
+        meta["existingName"] = existing.get("name") or ""
+    return _localize_mod_fields(app, meta)
+
+
+def _official_page(url: str) -> dict:
+    text = (url or "").strip()
+    parsed = urlparse(text)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("Pega un enlace http(s) de la página oficial.")
+    if parse_mod_url(text):
+        raise ValueError("Ese enlace es de Nexus, no una página oficial.")
+    title, summary = _peek_html(text)
+    site = parsed.netloc.lower().removeprefix("www.")
+    return {
+        "url": text,
+        "title": title or site,
+        "summary": summary,
+        "site": site,
+    }
+
+
+def _peek_html(url: str) -> tuple[str, str]:
+    req = urllib.request.Request(url, headers={"User-Agent": "wi-mod/0.1.0"}, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=12) as res:
+            raw = res.read(80_000)
+            charset = "utf-8"
+            content_type = res.headers.get("Content-Type") or ""
+            if "charset=" in content_type.lower():
+                charset = content_type.lower().split("charset=", 1)[1].split(";", 1)[0].strip() or "utf-8"
+            html = raw.decode(charset, errors="replace")
+    except (urllib.error.URLError, TimeoutError, ValueError):
+        return "", ""
+    title = ""
+    summary = ""
+    title_match = re.search(r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
+    if title_match:
+        title = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", title_match.group(1))).strip()[:180]
+    desc_match = re.search(
+        r'<meta[^>]+name=["\']description["\'][^>]+content=["\'](.*?)["\']',
+        html,
+        re.IGNORECASE | re.DOTALL,
+    ) or re.search(
+        r'<meta[^>]+content=["\'](.*?)["\'][^>]+name=["\']description["\']',
+        html,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if desc_match:
+        summary = re.sub(r"\s+", " ", desc_match.group(1)).strip()[:1000]
+    return title, summary
 
 
 def _create(app: App, body: dict) -> dict:
     fields = _fields_from_body(app, body)
-    mod = app.library.add(fields)
+    mode = str(body.get("mode") or "").strip().lower()
+    platform = str(fields.get("platform") or "")
+    if platform in {"Independiente", "Modrinth", "CurseForge", "Steam Workshop"}:
+        existing = app.library.find_page(str(fields.get("nexusUrl") or ""))
+    else:
+        game = str(fields.get("gameDomain") or "")
+        nexus_id = fields.get("modId")
+        existing = app.library.find_nexus(game, nexus_id) if game and isinstance(nexus_id, int) else None
+    if existing and mode not in {"replace", "duplicate"}:
+        raise DuplicateMod(existing)
+    if platform in {"Independiente", "Modrinth", "CurseForge", "Steam Workshop"}:
+        app.library.add_catalog_item("platform", {"name": platform})
+    mod = app.library.add(fields, mode="duplicate" if mode == "duplicate" else "replace")
     return _with_picture(app, mod)
 
 
@@ -350,12 +767,17 @@ def _refresh_one(app: App, mod_id: str, apply: bool = False) -> dict:
     remote = fetch_mod(_api_key(app), parsed[0], parsed[1], app.cache)
     checked = now()
     app.library.set_checked(mod_id, checked)
+    # Las cifras de Nexus siempre se refrescan; no afectan la versión instalada.
+    app.library.sync_stats(mod_id, remote)
     changed = _has_update(mod, remote)
     preview = {
         "name": remote.get("name") or "",
         "version": remote.get("version") or "",
         "updatedAt": remote.get("updatedAt"),
         "category": remote.get("category") or "",
+        "endorsements": remote.get("endorsements") or 0,
+        "downloads": remote.get("downloads") or 0,
+        "uniqueDownloads": remote.get("uniqueDownloads") or 0,
         "primaryFileId": remote.get("primaryFileId"),
         "primaryFileName": remote.get("primaryFileName"),
     }
@@ -383,6 +805,7 @@ def _refresh_one(app: App, mod_id: str, apply: bool = False) -> dict:
         }
     remote["fetchedAt"] = checked
     remote["checkedAt"] = checked
+    _localize_mod_fields(app, remote)
     updated = app.library.apply_remote(mod_id, remote)
     return {
         "changed": True,
@@ -436,7 +859,7 @@ def _fields_from_body(app: App, body: dict) -> dict:
     url = str(body.get("url") or "").strip()
     parsed = parse_mod_url(url) if url else None
     if url and not parsed:
-        raise ValueError("El enlace no es un mod de nexusmods.com.")
+        return _official_fields(app, body, url)
     category = str(body.get("category") or "").strip()
     notes = str(body.get("notes") or "")
     manual = body.get("manual") if isinstance(body.get("manual"), dict) else None
@@ -448,11 +871,19 @@ def _fields_from_body(app: App, body: dict) -> dict:
         fetched["fetchedAt"] = now()
         fetched["categorySource"] = "nexus"
         fetched["platform"] = str(body.get("platform") or fetched.get("platform") or "Nexus").strip() or "Nexus"
+        fetched["modpackId"] = str(body.get("modpackId") or "").strip()
+        fetched["modpackCategoryId"] = str(body.get("modpackCategoryId") or "").strip()
+        fetched["modpackNotes"] = str(body.get("modpackNotes") or "")
         fetched["notes"] = notes
+        fetched["techNotes"] = str(body.get("techNotes") or "")
+        fetched["compatNotes"] = str(body.get("compatNotes") or "")
+        fetched["emoji"] = str(body.get("emoji") or "").strip()[:12]
+        fetched["skill"] = str(body.get("skill") or "").strip()[:80]
+        fetched["rule"] = str(body.get("rule") or "").strip()[:80]
         if category and category != fetched.get("category"):
             fetched["category"] = category
             fetched["categorySource"] = "user"
-        return fetched
+        return _localize_mod_fields(app, fetched)
     source = manual or {}
     name = str(source.get("name") or "").strip()
     if not name:
@@ -463,6 +894,14 @@ def _fields_from_body(app: App, body: dict) -> dict:
     return {
         "nexusUrl": canonical_url(parsed[0], parsed[1]) if parsed else url,
         "platform": str(body.get("platform") or source.get("platform") or "Nexus").strip() or "Nexus",
+        "modpackId": str(body.get("modpackId") or source.get("modpackId") or "").strip(),
+        "modpackCategoryId": str(body.get("modpackCategoryId") or source.get("modpackCategoryId") or "").strip(),
+        "modpackNotes": str(body.get("modpackNotes") or source.get("modpackNotes") or ""),
+        "techNotes": str(body.get("techNotes") or source.get("techNotes") or ""),
+        "compatNotes": str(body.get("compatNotes") or source.get("compatNotes") or ""),
+        "emoji": str(body.get("emoji") or source.get("emoji") or "").strip()[:12],
+        "skill": str(body.get("skill") or source.get("skill") or "").strip()[:80],
+        "rule": str(body.get("rule") or source.get("rule") or "").strip()[:80],
         "gameDomain": game,
         "gameName": str(source.get("gameName") or "").strip(),
         "modId": parsed[1] if parsed else None,
@@ -477,6 +916,44 @@ def _fields_from_body(app: App, body: dict) -> dict:
         "notes": notes,
         "fetchedAt": None,
     }
+
+
+def _official_fields(app: App, body: dict, url: str) -> dict:
+    page = _official_page(url)
+    manual = body.get("manual") if isinstance(body.get("manual"), dict) else {}
+    name = str((manual or {}).get("name") or page["title"] or "").strip()
+    if not name:
+        raise ValueError("Pon el nombre del mod de la página oficial.")
+    game = str(body.get("gameDomain") or (manual or {}).get("gameDomain") or "").strip().lower()
+    game_name = str(body.get("gameName") or (manual or {}).get("gameName") or "").strip()
+    summary = str((manual or {}).get("summary") or page["summary"] or "").strip()
+    fields = {
+        "nexusUrl": page["url"],
+        "platform": _platform_for_url(page["url"]),
+        "modpackId": str(body.get("modpackId") or "").strip(),
+        "modpackCategoryId": str(body.get("modpackCategoryId") or "").strip(),
+        "modpackNotes": str(body.get("modpackNotes") or ""),
+        "techNotes": "",
+        "compatNotes": "",
+        "emoji": "",
+        "skill": "",
+        "rule": "",
+        "gameDomain": game,
+        "gameName": game_name,
+        "modId": None,
+        "name": name,
+        "summary": summary,
+        "author": str((manual or {}).get("author") or page["site"]).strip(),
+        "category": str(body.get("category") or (manual or {}).get("category") or "General").strip() or "General",
+        "categorySource": "user",
+        "version": str((manual or {}).get("version") or "").strip(),
+        "updatedAt": None,
+        "pictureUrl": None,
+        "notes": str(body.get("notes") or ""),
+        "fetchedAt": now(),
+        "official": True,
+    }
+    return _localize_mod_fields(app, fields)
 
 
 def _with_picture(app: App, mod: dict | None) -> dict:
@@ -608,6 +1085,22 @@ def _upload(app: App, handler: BaseHTTPRequestHandler, mod_id: str) -> dict:
     return mod
 
 
+def _pack_filter(body: dict) -> dict:
+    scope = str(body.get("scope") or "all").strip().lower() or "all"
+    if scope not in {"all", "platform", "game", "modpack", "selected"}:
+        raise ValueError("Alcance no válido.")
+    ids = body.get("ids")
+    if ids is not None and not isinstance(ids, list):
+        raise ValueError("La selección de mods no es válida.")
+    return {
+        "scope": scope,
+        "platform": str(body.get("platform") or "").strip() or None,
+        "game": str(body.get("game") or body.get("gameDomain") or "").strip() or None,
+        "modpack": str(body.get("modpack") or "").strip() or None,
+        "ids": ids,
+    }
+
+
 def _import(app: App, handler: BaseHTTPRequestHandler) -> dict:
     length = int(handler.headers.get("Content-Length") or 0)
     work = app.tmp / uuid.uuid4().hex
@@ -616,7 +1109,20 @@ def _import(app: App, handler: BaseHTTPRequestHandler) -> dict:
         archive = next((Path(part["path"]) for part in parts if part.get("filename")), None)
         if archive is None:
             raise ValueError("Elige un paquete .zip de wi-mod.")
-        return import_library(app.library, archive)
+        fields = {
+            str(part.get("name") or ""): str(part.get("text") or "").strip()
+            for part in parts
+            if part.get("filename") is None
+        }
+        filt = _pack_filter(fields)
+        return import_library(
+            app.library,
+            archive,
+            scope=filt["scope"],
+            platform=filt.get("platform"),
+            game=filt.get("game"),
+            modpack=filt.get("modpack"),
+        )
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
@@ -625,17 +1131,31 @@ def _public_mod(mod: dict | None) -> dict:
     return dict(mod) if mod else {}
 
 
+def _public_pack(pack: dict | None) -> dict:
+    return dict(pack) if pack else {}
+
+
 def _public_settings(settings: dict) -> dict:
     key = str(settings.get("apiKey") or "")
+    rawg = str(settings.get("rawgApiKey") or "")
     profile = settings.get("profile") or {}
     hint = ""
     if len(key) > 8:
         hint = f"{key[:4]}…{key[-4:]}"
     elif key:
         hint = "••••"
+    rawg_hint = ""
+    if len(rawg) > 8:
+        rawg_hint = f"{rawg[:4]}…{rawg[-4:]}"
+    elif rawg:
+        rawg_hint = "••••"
     return {
         "hasKey": bool(key),
         "hint": hint,
+        "hasRawgKey": bool(rawg),
+        "rawgHint": rawg_hint,
+        "language": "en" if str(settings.get("language") or "es").lower().startswith("en") else "es",
+        "theme": _theme_name(settings.get("theme")),
         "profile": {
             "name": profile.get("name") or "",
             "isPremium": bool(profile.get("isPremium")),
@@ -643,3 +1163,90 @@ def _public_settings(settings: dict) -> dict:
             "dailyRemaining": profile.get("dailyRemaining"),
         },
     }
+
+
+def _rawg_key(app: App) -> str:
+    key = str(app.library.settings().get("rawgApiKey") or "").strip()
+    if not key:
+        raise ValueError("Falta la clave API de RAWG en Ajustes.")
+    return key
+
+
+def _rawg_search(app: App, query: str) -> list[dict]:
+    try:
+        return search_games(_rawg_key(app), query)
+    except RawgError as exc:
+        raise ValueError(str(exc)) from exc
+
+
+def _enrich_game_from_rawg(app: App, body: dict) -> dict:
+    rawg_id = body.get("rawgId")
+    try:
+        game = get_game(_rawg_key(app), rawg_id)
+    except RawgError as exc:
+        raise ValueError(str(exc)) from exc
+    merged = dict(game)
+    merged.update({k: v for k, v in body.items() if v not in (None, "")})
+    return merged
+
+
+def _add_game_from_rawg(app: App, body: dict) -> dict:
+    rawg_id = body.get("rawgId") or body.get("id")
+    if not rawg_id:
+        raise ValueError("Falta el id de RAWG.")
+    try:
+        game = get_game(_rawg_key(app), rawg_id)
+    except RawgError as exc:
+        raise ValueError(str(exc)) from exc
+    domain_override = str(body.get("gameDomain") or "").strip().lower()
+    if domain_override:
+        game["gameDomain"] = domain_override
+    game = _localize_game(app, game)
+    app.library.add_catalog_item("game", game)
+    return game
+
+
+def _rawg_resolve(app: App, domain: str, name: str) -> dict | None:
+    domain = (domain or "").strip().lower()
+    name = (name or "").strip()
+    catalog = app.library.catalog()
+    existing = next(
+        (
+            item
+            for item in (catalog.get("games") or [])
+            if isinstance(item, dict) and str(item.get("gameDomain") or "").lower() == domain
+        ),
+        None,
+    )
+    if existing and existing.get("description") and existing.get("imageUrl"):
+        game = dict(existing)
+        if _lang(app) == "es" and not str(game.get("descriptionEs") or "").strip():
+            game = _localize_game(app, game)
+            if game.get("descriptionEs"):
+                app.library.add_catalog_item("game", game)
+        return game
+    if existing and existing.get("rawgId"):
+        try:
+            game = get_game(_rawg_key(app), existing["rawgId"])
+            if domain:
+                game["gameDomain"] = domain
+            game = _localize_game(app, game)
+            app.library.add_catalog_item("game", game)
+            return game
+        except RawgError as exc:
+            raise ValueError(str(exc)) from exc
+    try:
+        game = resolve_game(
+            _rawg_key(app),
+            domain=domain,
+            name=name or str((existing or {}).get("gameName") or ""),
+        )
+    except RawgError as exc:
+        raise ValueError(str(exc)) from exc
+    if not game:
+        return existing
+    if domain:
+        game["gameDomain"] = domain
+    game = _localize_game(app, game)
+    app.library.add_catalog_item("game", game)
+    return game

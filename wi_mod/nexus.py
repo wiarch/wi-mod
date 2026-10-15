@@ -117,7 +117,6 @@ def fetch_mod(api_key: str, game: str, mod_id: int, cache: "Cache") -> dict[str,
     description = str(mod.get("description") or "")
     if not summary:
         summary = _plain(description)[:500]
-    deps = extract_dependencies(description, game, mod_id)
     created = _latest_iso(mod.get("created_timestamp"), mod.get("created_time"))
 
     return {
@@ -141,61 +140,7 @@ def fetch_mod(api_key: str, game: str, mod_id: int, cache: "Cache") -> dict[str,
         "pictureUrl": _https_url(mod.get("picture_url")),
         "primaryFileId": primary_file_id,
         "primaryFileName": primary_file_name,
-        "depsRequired": deps["required"],
-        "depsOptional": deps["optional"],
     }
-
-
-def extract_dependencies(description: str, game: str, mod_id: int) -> dict[str, list[dict[str, Any]]]:
-    """Saca mods enlazados en la descripción. Nexus v1 no trae dependencias formales."""
-    text = description or ""
-    required: list[dict[str, Any]] = []
-    optional: list[dict[str, Any]] = []
-    seen: set[tuple[str, int]] = set()
-    markers = [
-        (m.start(), "required" if m.lastindex == 1 else "optional")
-        for m in re.finditer(
-            r"(?i)\b((?:hard\s*)?requir\w*|depends?|dependency|master)|"
-            r"\b(optional|recommended|suggest(?:ed)?|patch(?:es)?|compatible)\b",
-            text,
-        )
-    ]
-    pattern = re.compile(
-        r"(?P<url>https?://(?:www\.)?nexusmods\.com/(?P<game>[A-Za-z0-9_-]+)/mods/(?P<id>\d+)[^\s\]\"']*)"
-        r"(?:\](?P<label>.*?)\[/url\])?",
-        re.IGNORECASE | re.DOTALL,
-    )
-    for match in pattern.finditer(text):
-        dep_game = match.group("game").lower()
-        dep_id = int(match.group("id"))
-        if dep_game == game and dep_id == mod_id:
-            continue
-        key = (dep_game, dep_id)
-        if key in seen:
-            continue
-        seen.add(key)
-        label = _plain(match.group("label") or "")
-        if not label or label.lower().startswith("http") or label.lower().startswith("[img"):
-            label = f"{_title_domain(dep_game)} #{dep_id}"
-        kind = "optional"
-        for pos, marker_kind in markers:
-            if pos < match.start():
-                kind = marker_kind
-            else:
-                break
-        item = {
-            "name": label[:120],
-            "gameDomain": dep_game,
-            "modId": dep_id,
-            "nexusUrl": canonical_url(dep_game, dep_id),
-            "kind": kind,
-            "source": "nexus",
-        }
-        if kind == "required":
-            required.append(item)
-        else:
-            optional.append(item)
-    return {"required": required[:30], "optional": optional[:40]}
 
 
 def download_links(api_key: str, game: str, mod_id: int, file_id: int) -> list[dict[str, Any]]:
