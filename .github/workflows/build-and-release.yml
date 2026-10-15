@@ -213,11 +213,26 @@ jobs:
 
             - **Windows:** instalador NSIS (`.exe`) + binario plano
             - **Linux:** AppImage (+ deb/rpm si se generan)
-
-            Draft release — revisa y publica cuando quieras.
           releaseDraft: true
           prerelease: false
           uploadPlainBinary: true
           includeRelease: true
           includeDebug: false
           args: ${{ matrix.args }}
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [detect, publish-tauri]
+    if: needs.detect.outputs.should_compile == 'true'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Publish draft + create tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.detect.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --draft=false --latest --repo "${{ github.repository }}"
+          echo "Published $TAG"
