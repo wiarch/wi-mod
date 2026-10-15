@@ -1,59 +1,60 @@
 # Migración Python → Tauri v2
 
-Estado: **scaffold** en la rama `tauri`. El frontend vive en `src/` (Vite → `dist/`). El backend Rust aún no reemplaza a `wi_mod/`.
+Rama `tauri`. UI compartida en `web/`; Vite/Tauri entran por `src/`.
 
-## Estructura nueva
+## Estructura
 
 ```
 wi-mod/
-├── src/                 # Frontend (HTML/CSS/JS) — fuente Vite
+├── web/                      # UI canónica (Python + Vite importan de aquí)
+│   ├── index.html            # pywebview
+│   ├── app.js / styles.css
+│   └── brand/
+├── src/                      # Entry Vite / Tauri
 │   ├── index.html
-│   ├── main.js          # entry (importa styles + app)
-│   ├── app.js
-│   └── styles.css
-├── public/brand/        # Iconos estáticos → dist/brand/ (sin hash)
-├── dist/                # Build Vite (gitignore; frontendDist de Tauri)
-├── src-tauri/           # Shell nativo Tauri v2
-│   ├── Cargo.toml
-│   ├── tauri.conf.json  # ventana 1200×800, título wi-mod
-│   ├── capabilities/
-│   ├── icons/
-│   └── src/{main,lib}.rs
-├── package.json
-├── vite.config.js
-├── web/                 # LEGACY pywebview (mantener hasta corte)
-├── wi_mod/              # LEGACY API HTTP → commands Rust
-├── docs/                # GitHub Pages / demo
-└── app.py, wi-mod.spec  # LEGACY PyInstaller
+│   ├── main.js               # import ../web/{styles,app}
+│   └── services/
+│       ├── runtime.ts        # isTauriRuntime()
+│       ├── storage/          # SQLite | IndexedDB
+│       └── api/              # invoke Rust | window.fetch
+├── public/brand/             # estáticos Vite → dist/brand/
+├── src-tauri/                # Rust (SQL plugin + http_proxy)
+├── docs/                     # Landing + demo Pages (docs/app)
+├── wi_mod/ + app.py          # LEGACY Python (activo hasta corte)
+├── package.json / vite.config.js
+└── .github/workflows/        # build-and-release
 ```
 
 ## Comandos
 
 ```bash
 npm install
-# Requiere Rust + WebView2 (Win) o WebKitGTK (Linux): https://v2.tauri.app/start/prerequisites/
+# Rust + WebView2 / WebKitGTK: https://v2.tauri.app/start/prerequisites/
 npm run tauri:dev
 npm run tauri:build
 ```
 
-Portable: el `.exe` de release sale en `src-tauri/target/release/wi-mod.exe` (y el instalador NSIS en `bundle/`). La carpeta `data/` debe vivir junto al ejecutable, igual que hoy.
+Portable Tauri: `src-tauri/target/release/wi-mod.exe` (+ `data/` al lado).
 
-## Obsoleto / no tocar en el corte final
+## Legacy (no borrar aún)
 
-| Archivo / carpeta | Rol actual | Acción |
-|-------------------|------------|--------|
-| `app.py` | Arranque pywebview + servidor | Eliminar al cortar Python |
-| `wi_mod/server.py` | `ThreadingHTTPServer` `/api/*` | Reescribir como `#[tauri::command]` |
-| `wi-mod.spec`, `build/` | PyInstaller | Eliminar |
-| `wi-mod.bat`, `requirements.txt` | Dev Python | Eliminar o archivar |
-| `web/` | UI servida por Python | Tras paridad, borrar; `src/` es la fuente |
-| `dist/wi-mod.exe` (PyInstaller) | Portable viejo | Sustituir por artefacto Tauri; `dist/` pasa a ser solo Vite |
+| Pieza | Rol | Al cortar |
+|-------|-----|-----------|
+| `app.py`, `wi_mod/server.py` | HTTP + pywebview | → commands Rust |
+| `wi-mod.spec`, `wi-mod.bat`, `requirements.txt` | PyInstaller / dev | eliminar |
+| `docs/app` | demo limitada Pages | opcional si gh-pages = `dist/` |
 
-Mantener por ahora: `wi_mod/store.py` y lógica de datos (referencia al portar SQLite/JSON a Rust), `docs/` (Pages), tests Python hasta tener suite nueva.
+## Storage
 
-## Orden sugerido
+`getStorageAdapter()` → Tauri SQLite o IndexedDB. Ver `src/services/storage/`.
 
-1. Scaffold (este commit) + `npm run tauri:dev` con UI estática.
-2. Sustituir `fetch('/api/...')` por commands Tauri / plugin HTTP.
-3. Portar `store`, auth local, Nexus/RAWG/etc. a Rust o a un worker.
-4. Borrar capa Python y regenerar portable desde `tauri build`.
+## HTTP externo
+
+`fetchExternalApi()` → Desktop `invoke('fetch_external_api')` (reqwest) / Web `fetch`. Ver `src/services/api/` + `src-tauri/src/http_proxy.rs`.
+
+## Orden
+
+1. `tauri:dev` con UI estática.
+2. Sustituir `/api/library|settings|mods` por storage.
+3. Sustituir proxies Python por `fetchExternalApi`.
+4. Quitar Python; release con workflow.

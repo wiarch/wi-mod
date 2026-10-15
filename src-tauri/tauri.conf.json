@@ -29,6 +29,11 @@
       "csp": null
     }
   },
+  "plugins": {
+    "sql": {
+      "preload": ["sqlite:wi-mod.db"]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": ["nsis", "deb", "rpm", "appimage"],

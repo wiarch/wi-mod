@@ -1,15 +1,17 @@
 import { defineConfig } from "vite";
 import { resolve } from "node:path";
 
-// Frontend en src/ → estáticos limpios en dist/ (consumidos por Tauri).
+const rootDir = resolve(".");
+
+// Entry en src/; UI compartida en web/; brand en public/ → dist/brand/
 export default defineConfig({
   root: resolve("src"),
-  // Iconos/plataforma sin hash: dist/brand/* (referencias /brand/... en app.js)
   publicDir: resolve("public"),
   clearScreen: false,
   server: {
     port: 1420,
     strictPort: true,
+    fs: { allow: [rootDir] },
   },
   envPrefix: ["VITE_", "TAURI_"],
   build: {
