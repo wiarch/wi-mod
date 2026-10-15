@@ -7,122 +7,139 @@
   <meta name="description" content="wi-mod: gestor local de mods open source para la comunidad. Multi-juego y multi-plataforma.">
   <link rel="icon" href="brand/wi-mod.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="brand/wi-mod.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root, html[data-theme="nexus"] {
-      --bg: #100e0c;
-      --bg-2: #1b1714;
-      --bg-deep: #0c0b0a;
-      --text: #f6efe6;
-      --muted: #c4b4a4;
-      --line: #4a4036;
-      --copper: #e08a2c;
-      --hot: #f0a04a;
-      --ember: #c45c26;
-      --ink: #1a1208;
-      --glow: rgba(196, 92, 38, 0.35);
-      --glow-2: rgba(224, 138, 44, 0.22);
+      --bg: #0f1115;
+      --bg-2: #141820;
+      --bg-deep: #0a0c10;
+      --text: #f4f1ea;
+      --muted: #c9c3b8;
+      --line: rgba(255, 255, 255, 0.08);
+      --copper: #ff6a00;
+      --hot: #ffb300;
+      --ember: #ff6a00;
+      --glow: rgba(255, 106, 0, 0.32);
+      --glow-2: rgba(255, 179, 0, 0.18);
+      --glass: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 166, 0, 0.22);
     }
     html[data-theme="modrinth"] {
-      --bg: #16181c;
-      --bg-2: #1e2126;
-      --bg-deep: #0e1013;
-      --text: #e8eef2;
-      --muted: #a8b3bd;
-      --line: #3d444d;
-      --copper: #1bd96a;
-      --hot: #3eec84;
-      --ember: #0e9f4d;
-      --ink: #06210f;
-      --glow: rgba(27, 217, 106, 0.32);
-      --glow-2: rgba(62, 236, 132, 0.2);
+      --copper: #1bd96a; --hot: #3eec84; --ember: #0e9f4d;
+      --glow: rgba(27, 217, 106, 0.28); --glow-2: rgba(62, 236, 132, 0.16);
+      --glass-border: rgba(27, 217, 106, 0.28);
     }
     html[data-theme="curseforge"] {
-      --bg: #121212;
-      --bg-2: #1a1a1a;
-      --bg-deep: #0a0a0a;
-      --text: #f4ece8;
-      --muted: #c2b2aa;
-      --line: #453833;
-      --copper: #f16436;
-      --hot: #ff8a5b;
-      --ember: #c2410c;
-      --ink: #2a100a;
-      --glow: rgba(241, 100, 54, 0.32);
-      --glow-2: rgba(255, 138, 91, 0.2);
+      --copper: #f16436; --hot: #ff8a5b; --ember: #c2410c;
+      --glow: rgba(241, 100, 54, 0.28); --glow-2: rgba(255, 138, 91, 0.16);
+      --glass-border: rgba(241, 100, 54, 0.28);
     }
     html[data-theme="steam"] {
-      --bg: #171a21;
-      --bg-2: #1b2838;
-      --bg-deep: #0e141b;
-      --text: #e8f4fc;
-      --muted: #8f98a0;
-      --line: #3d556c;
-      --copper: #66c0f4;
-      --hot: #8fd4ff;
-      --ember: #1a9fff;
-      --ink: #0b1b28;
-      --glow: rgba(102, 192, 244, 0.3);
-      --glow-2: rgba(26, 159, 255, 0.2);
+      --copper: #66c0f4; --hot: #8fd4ff; --ember: #1a9fff;
+      --glow: rgba(102, 192, 244, 0.26); --glow-2: rgba(26, 159, 255, 0.16);
+      --glass-border: rgba(102, 192, 244, 0.28);
     }
     html[data-theme="rawg"] {
-      --bg: #151515;
-      --bg-2: #1a1a1a;
-      --bg-deep: #0d0d0d;
-      --text: #ffffff;
-      --muted: rgba(255, 255, 255, 0.55);
-      --line: #3a3a3a;
-      --copper: #ffffff;
-      --hot: #f4f4f4;
-      --ember: #d0d0d0;
-      --ink: #151515;
-      --glow: rgba(255, 255, 255, 0.18);
-      --glow-2: rgba(255, 255, 255, 0.1);
+      --copper: #ffffff; --hot: #f4f4f4; --ember: #d0d0d0;
+      --glow: rgba(255, 255, 255, 0.14); --glow-2: rgba(255, 255, 255, 0.08);
+      --glass-border: rgba(255, 255, 255, 0.18);
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; min-height: 100%; }
     body {
-      font-family: "Segoe UI", sans-serif;
+      position: relative;
+      isolation: isolate;
+      font-family: Inter, "Segoe UI", system-ui, sans-serif;
       color: var(--text);
-      background:
-        radial-gradient(900px 420px at 10% -10%, var(--glow), transparent 55%),
-        radial-gradient(700px 380px at 100% 0%, var(--glow-2), transparent 50%),
-        linear-gradient(165deg, var(--bg-2), var(--bg) 42%, var(--bg-deep));
-      transition: background 0.25s ease, color 0.2s ease;
+      background: var(--bg);
+      overflow-x: hidden;
     }
-    a { color: inherit; }
-    .wrap { width: min(920px, calc(100% - 40px)); margin: 0 auto; }
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      z-index: -1;
+      pointer-events: none;
+      border-radius: 50%;
+      filter: blur(90px);
+    }
+    body::before {
+      width: min(780px, 95vw);
+      height: min(780px, 95vw);
+      top: -22%;
+      left: -18%;
+      background: radial-gradient(circle, rgba(255, 106, 0, 0.28) 0%, transparent 68%);
+    }
+    body::after {
+      width: min(700px, 90vw);
+      height: min(700px, 90vw);
+      top: 12%;
+      right: -20%;
+      background: radial-gradient(circle, rgba(255, 179, 0, 0.16) 0%, transparent 70%);
+    }
+    a { color: inherit; text-decoration: none; }
+    .wrap { width: min(1120px, calc(100% - 40px)); margin: 0 auto; position: relative; z-index: 1; }
+
     header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      padding: 22px 0;
+      gap: 14px;
+      flex-wrap: wrap;
+      padding: 22px 0 8px;
     }
     .mark {
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      font-size: 1.2rem;
     }
-    .head-right {
+    .head-mid {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
+      flex-wrap: wrap;
     }
-    .plat { text-align: right; }
-    .ver { color: var(--muted); font-size: 0.85rem; }
-    .soon {
-      margin-top: 4px;
-      color: var(--hot);
+    .ver-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(20, 22, 28, 0.72);
+      backdrop-filter: blur(10px);
+      color: var(--muted);
       font-size: 0.78rem;
-      font-weight: 650;
-      letter-spacing: 0.02em;
+      font-weight: 600;
+      white-space: nowrap;
     }
+    .ver-badge strong { color: var(--hot); font-weight: 800; }
+    .gh-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(20, 22, 28, 0.55);
+      color: var(--text);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    .gh-link:hover {
+      border-color: rgba(255, 106, 0, 0.55);
+      box-shadow: 0 0 18px rgba(255, 106, 0, 0.22);
+      transform: translateY(-1px);
+    }
+    .gh-link svg { width: 16px; height: 16px; }
     .lang-switch {
       display: inline-flex;
       border-radius: 999px;
       overflow: hidden;
-      border: 1px solid var(--line);
-      background: rgba(255, 248, 240, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(20, 22, 28, 0.55);
     }
     .lang-switch button {
       min-width: 40px;
@@ -136,141 +153,449 @@
       letter-spacing: 0.06em;
       cursor: pointer;
     }
-    .lang-switch button + button { border-left: 1px solid var(--line); }
+    .lang-switch button + button { border-left: 1px solid rgba(255, 255, 255, 0.1); }
     .lang-switch button.on {
-      background: var(--copper);
-      color: var(--ink);
+      background: linear-gradient(120deg, #ff6a00, #ffb300);
+      color: #0f1115;
     }
-    .hero { padding: 48px 0 28px; }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 40px 48px;
+      align-items: center;
+      padding: 36px 0 52px;
+    }
+    .hero-copy { min-width: 0; }
+    .badge-os {
+      display: inline-flex;
+      margin: 0 0 18px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 106, 0, 0.45);
+      color: #ffb300;
+      font-size: 0.8rem;
+      font-weight: 700;
+      background: rgba(255, 106, 0, 0.08);
+    }
     h1 {
-      margin: 0 0 12px;
-      font-size: clamp(2.4rem, 6vw, 4.4rem);
-      line-height: 0.95;
-      letter-spacing: -0.03em;
-    }
-    h1 span {
-      display: block;
-      background: linear-gradient(120deg, var(--hot), var(--ember));
+      margin: 0 0 16px;
+      font-size: clamp(2.2rem, 5.2vw, 3.85rem);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+      font-weight: 800;
+      background: linear-gradient(to right, #ff6a00, #ffb300);
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
     }
-    .lead { max-width: 40rem; color: var(--muted); font-size: 1.12rem; line-height: 1.5; }
-    .pitch {
-      max-width: 42rem;
-      margin: 14px 0 0;
-      color: var(--text);
-      font-size: 1.02rem;
+    .lead {
+      margin: 0;
+      max-width: 34rem;
+      color: var(--muted);
+      font-size: 1.1rem;
       line-height: 1.55;
-      opacity: 0.92;
+      font-weight: 500;
     }
-    .pitch + .pitch { margin-top: 10px; color: var(--muted); }
-    .badge-os {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin: 16px 0 0;
-      padding: 6px 12px;
-      border-radius: 999px;
-      border: 1px solid var(--copper);
-      color: var(--hot);
-      font-size: 0.82rem;
-      font-weight: 750;
-      letter-spacing: 0.03em;
+    .cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 28px;
     }
-    .cta { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; margin-top: 28px; }
     .download {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
+      justify-content: center;
       padding: 14px 22px;
       border-radius: 999px;
       border: 0;
-      text-decoration: none;
-      font-weight: 700;
-      color: var(--ink);
-      background: linear-gradient(120deg, var(--hot), var(--ember));
+      font-weight: 800;
+      color: #0f1115;
+      background: linear-gradient(120deg, #ff6a00, #ffb300);
+      box-shadow: 0 10px 36px rgba(255, 106, 0, 0.42);
+      transition: transform 0.22s ease, filter 0.22s ease, box-shadow 0.22s ease;
     }
-    .download:hover { filter: brightness(1.06); }
+    .download:hover {
+      filter: brightness(1.06);
+      transform: translateY(-2px);
+      box-shadow: 0 16px 44px rgba(255, 106, 0, 0.52);
+    }
     .try {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       padding: 12px 18px;
       border-radius: 999px;
-      border: 1px solid var(--copper);
-      text-decoration: none;
+      border: 1px solid rgba(255, 106, 0, 0.55);
       font-weight: 700;
-      color: var(--hot);
+      color: #ffb300;
+      background: rgba(255, 106, 0, 0.06);
+      backdrop-filter: blur(10px);
+      transition: background 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
     }
-    .try:hover { background: rgba(224, 138, 44, 0.12); }
-    .meta { color: var(--muted); font-size: 0.92rem; }
-    .grid {
+    .try:hover {
+      background: rgba(255, 106, 0, 0.14);
+      box-shadow: 0 0 24px rgba(255, 106, 0, 0.25);
+      transform: translateY(-1px);
+    }
+    .cta-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(20, 22, 28, 0.65);
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .pill svg { width: 14px; height: 14px; color: var(--hot); }
+
+    .hero-mockup {
+      position: relative;
+      min-width: 0;
+      perspective: 1200px;
+    }
+    .hero-mockup::before {
+      content: "";
+      position: absolute;
+      inset: 12% -6% -8% 6%;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 106, 0, 0.4), transparent 68%);
+      filter: blur(28px);
+      z-index: 0;
+    }
+    .mock-frame {
+      position: relative;
+      z-index: 1;
+      transform: perspective(1200px) rotateY(-8deg) rotateX(3deg);
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: #12151c;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(255, 106, 0, 0.22),
+        0 30px 70px rgba(0, 0, 0, 0.55),
+        0 0 56px rgba(255, 106, 0, 0.28);
+      transition: transform 0.35s ease, box-shadow 0.35s ease;
+    }
+    .hero-mockup:hover .mock-frame {
+      transform: perspective(1200px) rotateY(-4deg) rotateX(2deg) translateY(-6px);
+      box-shadow:
+        0 0 0 1px rgba(255, 179, 0, 0.3),
+        0 36px 80px rgba(0, 0, 0, 0.6),
+        0 0 64px rgba(255, 106, 0, 0.35);
+    }
+    .mock-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(0, 0, 0, 0.4);
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .mock-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.15); }
+    .mock-dot:nth-child(1) { background: #e57373; }
+    .mock-dot:nth-child(2) { background: #ffb74d; }
+    .mock-dot:nth-child(3) { background: #81c784; }
+    .mock-body {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      min-height: 280px;
+    }
+    .mock-side {
+      border-right: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 14px 10px;
+      background: rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .mock-chip {
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(255,106,0,0.5), rgba(255,179,0,0.18));
+    }
+    .mock-chip.short { width: 62%; }
+    .mock-chip.dim { opacity: 0.45; }
+    .mock-main { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .mock-bar {
+      height: 28px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .mock-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin: 36px 0 18px;
+      gap: 8px;
+      flex: 1;
     }
-    .card, .step {
-      padding: 16px 16px 18px;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      background: rgba(36, 33, 29, 0.72);
+    .mock-tile {
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      min-height: 88px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      padding: 8px;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.9);
+      text-shadow: 0 1px 4px rgba(0,0,0,0.6);
     }
-    .card strong, .step strong { display: block; margin-bottom: 6px; }
-    .card p, .step p { margin: 0; color: var(--muted); line-height: 1.45; }
+    .mock-tile::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.65));
+      pointer-events: none;
+    }
+    .mock-tile span { position: relative; z-index: 1; }
+    .t1 { background: linear-gradient(145deg, #3a2a18, #c45c26 55%, #1a1208); }
+    .t2 { background: linear-gradient(145deg, #1a2030, #4a6a8a 50%, #0e141b); }
+    .t3 { background: linear-gradient(145deg, #2a1810, #8b3a1a 55%, #120a06); }
+    .t4 { background: linear-gradient(145deg, #102018, #2d6a4a 50%, #08140e); }
+    .t5 { background: linear-gradient(145deg, #201018, #6a2a4a 55%, #10080c); }
+    .t6 { background: linear-gradient(145deg, #181820, #3a3a5a 50%, #0c0c14); }
+
+    .section-title {
+      margin: 8px 0 16px;
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
     .platforms {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      margin: 28px 0 8px;
+      margin: 0 0 44px;
+      padding: 14px;
+      border-radius: 16px;
+      border: 1px solid var(--glass-border);
+      background: var(--glass);
+      backdrop-filter: blur(12px);
+      transition: border-color 0.28s ease, box-shadow 0.28s ease;
+    }
+    .platforms:hover {
+      border-color: rgba(255, 106, 0, 0.4);
+      box-shadow: 0 0 28px rgba(255, 106, 0, 0.1);
     }
     .platforms button {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 12px;
+      padding: 9px 14px;
       border-radius: 999px;
-      border: 1px solid var(--line);
-      background: rgba(255, 248, 240, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(20, 22, 28, 0.55);
       color: var(--text);
       font: inherit;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
+      font-weight: 650;
       cursor: pointer;
-      transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+      transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
     }
     .platforms button:hover {
-      border-color: var(--copper);
-      background: color-mix(in srgb, var(--copper) 14%, transparent);
+      border-color: rgba(255, 106, 0, 0.55);
+      background: rgba(255, 106, 0, 0.12);
+      box-shadow: 0 0 20px rgba(255, 106, 0, 0.25);
+      transform: translateY(-2px);
     }
+    .platforms button:focus-visible { outline: 2px solid #ffb300; outline-offset: 2px; }
     .platforms button.on {
-      border-color: var(--copper);
-      background: color-mix(in srgb, var(--copper) 18%, transparent);
-      box-shadow: 0 0 0 1px color-mix(in srgb, var(--copper) 45%, transparent);
+      border-color: rgba(255, 179, 0, 0.65);
+      background: rgba(255, 106, 0, 0.16);
+      box-shadow: 0 0 0 1px rgba(255, 106, 0, 0.3), 0 0 22px rgba(255, 106, 0, 0.22);
     }
     .platforms img { width: 18px; height: 18px; object-fit: contain; }
+    .platforms .tag-static { cursor: default; opacity: 0.9; }
+    .platforms .tag-static:hover {
+      transform: none;
+      box-shadow: none;
+      border-color: rgba(255, 255, 255, 0.1);
+      background: rgba(20, 22, 28, 0.55);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin: 0 0 40px;
+    }
+    .card {
+      padding: 22px 18px;
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      background: var(--glass);
+      backdrop-filter: blur(10px);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      transition: border-color 0.28s ease, box-shadow 0.28s ease, transform 0.28s ease, background 0.28s ease;
+    }
+    .card:hover {
+      border-color: rgba(255, 106, 0, 0.5);
+      background: rgba(255, 255, 255, 0.05);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3), 0 0 28px rgba(255, 106, 0, 0.14);
+      transform: translateY(-4px);
+    }
+    .card .ico {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 14px;
+      background: rgba(255, 106, 0, 0.12);
+      color: #ffb300;
+      transition: transform 0.28s ease, box-shadow 0.28s ease;
+    }
+    .card:hover .ico {
+      transform: scale(1.08);
+      box-shadow: 0 0 22px rgba(255, 106, 0, 0.28);
+    }
+    .card .ico svg { width: 20px; height: 20px; }
+    .card strong { display: block; margin-bottom: 8px; font-size: 1.05rem; font-weight: 800; }
+    .card p { margin: 0; color: var(--muted); line-height: 1.5; font-weight: 500; }
+
     ol.steps {
       list-style: none;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
+      gap: 14px;
       padding: 0;
-      margin: 12px 0 48px;
+      margin: 0 0 48px;
+    }
+    .step {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 18px 16px;
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      background: transparent;
+      transition: border-color 0.28s ease, box-shadow 0.28s ease, transform 0.28s ease, background 0.28s ease;
+    }
+    .step:hover {
+      border-color: rgba(255, 106, 0, 0.5);
+      background: rgba(255, 255, 255, 0.03);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25), 0 0 24px rgba(255, 106, 0, 0.12);
+      transform: translateY(-3px);
     }
     .step em {
-      display: block;
-      margin-bottom: 8px;
       font-style: normal;
-      font-weight: 700;
-      color: var(--hot);
+      font-weight: 800;
+      font-size: 2.2rem;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      background: linear-gradient(to bottom, #ff6a00, #ffb300);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      opacity: 0.95;
     }
-    footer {
-      padding: 18px 0 28px;
+    .step-body strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.98rem;
+      font-weight: 800;
+    }
+    .step-body p {
+      margin: 0;
       color: var(--muted);
-      font-size: 0.85rem;
-      border-top: 1px solid var(--line);
+      font-size: 0.88rem;
+      line-height: 1.4;
+      font-weight: 500;
+    }
+    .step .ico {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 106, 0, 0.1);
+      color: #ffb300;
+    }
+    .step .ico svg { width: 18px; height: 18px; }
+
+    footer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 20px;
+      padding: 18px 0 32px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    footer a {
+      color: var(--muted);
+      transition: color 0.2s ease;
+    }
+    footer a:hover { color: #ffb300; }
+    .foot-note { margin-left: auto; opacity: 0.85; }
+
+    @media (max-width: 900px) {
+      .hero {
+        grid-template-columns: 1fr;
+        gap: 28px;
+        padding: 20px 0 40px;
+      }
+      .hero-copy { order: 0; }
+      .hero-mockup {
+        order: 1;
+        max-width: 460px;
+        margin: 4px auto 0;
+        width: 100%;
+      }
+      .mock-frame { transform: none; }
+      .hero-mockup:hover .mock-frame { transform: translateY(-4px); }
     }
     @media (max-width: 720px) {
+      .wrap { width: min(1120px, calc(100% - 28px)); }
       .grid, ol.steps { grid-template-columns: 1fr; }
+      header { justify-content: center; text-align: center; }
+      .head-mid { justify-content: center; width: 100%; }
+      .hero-copy { text-align: center; }
+      .lead { margin-left: auto; margin-right: auto; }
+      .cta, .cta-meta { justify-content: center; }
+      .download, .try {
+        width: 100%;
+        max-width: 360px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .platforms { justify-content: center; }
+      h1 { font-size: clamp(1.9rem, 8vw, 2.7rem); }
+      footer { justify-content: center; }
+      .foot-note { margin-left: 0; width: 100%; text-align: center; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+      }
+      .card:hover, .step:hover,
+      .platforms button:hover,
+      .download:hover, .try:hover,
+      .hero-mockup:hover .mock-frame {
+        transform: none;
+      }
     }
   </style>
 </head>
@@ -278,117 +603,212 @@
   <div class="wrap">
     <header>
       <div class="mark">wi-mod</div>
-      <div class="head-right">
+      <div class="head-mid">
         <div class="lang-switch" role="group" aria-label="Language">
           <button type="button" data-lang="es" class="on">ES</button>
           <button type="button" data-lang="en">EN</button>
         </div>
-        <div class="plat">
-          <div class="ver" data-i18n="ver">Windows · portable · open source · v0.7.5</div>
-          <div class="soon" data-i18n="linux">Próximamente en Linux</div>
-        </div>
+        <span class="ver-badge" data-i18n="verBadge"><strong>v0.7.6</strong> · Windows · Linux (beta)</span>
+        <a class="gh-link" href="https://github.com/wiarch/wi-mod" target="_blank" rel="noreferrer" aria-label="GitHub">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2C6.48 2 2 6.58 2 12.26c0 4.52 2.87 8.35 6.84 9.71.5.1.68-.22.68-.48 0-.24-.01-.87-.01-1.71-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.37-2.22-.26-4.55-1.14-4.55-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.73 0 0 .84-.27 2.75 1.05A9.3 9.3 0 0 1 12 6.84c.85 0 1.71.12 2.51.34 1.9-1.32 2.74-1.05 2.74-1.05.55 1.42.21 2.47.1 2.73.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.8-4.57 5.06.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.59.69.48A10.03 10.03 0 0 0 22 12.26C22 6.58 17.52 2 12 2z"/></svg>
+        </a>
       </div>
     </header>
+
     <section class="hero">
-      <h1><span data-i18n="h1a">Tu biblioteca de mods.</span><span data-i18n="h1b">Sin cuenta y sin datos de nadie.</span></h1>
-      <p class="badge-os" data-i18n="badge">Open source · pensado para la comunidad</p>
-      <p class="pitch" data-i18n="pitch1">wi-mod es un gestor local de mods en desarrollo: junta mods de distintos juegos y plataformas (Nexus, Modrinth, CurseForge, Steam, ModDB y más) en un solo lugar en tu PC.</p>
-      <p class="pitch" data-i18n="pitch2">No sustituye a Nexus ni a Mod Organizer 2; es un complemento para buscar, guardar y organizar tu biblioteca multi-juego sin saltar entre webs.</p>
-      <p class="lead" data-i18n="lead">Descárgalo gratis, pruébalo y deja feedback: tu opinión define qué se construye después. Un solo ejecutable; lo que guardes queda en tu PC, en <code>data</code> al lado del programa.</p>
-      <div class="cta">
-        <a class="download" href="wi-mod-portable.zip" data-i18n="download">Descargar wi-mod-portable.zip</a>
-        <a class="try" href="app/" data-i18n="try">Probar en la web</a>
-        <span class="meta" data-i18n="meta1">13 MB · solo el exe y un leeme · nada de biblioteca</span>
-        <span class="meta" data-i18n="meta2">La versión web es solo para probar: 5 juegos, 5 mods por juego, se reinicia cada 5 horas. Las claves del demo ya van incluidas.</span>
+      <div class="hero-copy">
+        <p class="badge-os" data-i18n="badge">Open source · Pensado para la comunidad</p>
+        <h1 data-i18n="h1">Tu biblioteca de mods. Totalmente local. Sin cuentas.</h1>
+        <p class="lead" data-i18n="lead">Junta mods de múltiples plataformas en una sola biblioteca portable, rápida y privada en tu PC.</p>
+        <div class="cta">
+          <a class="download" href="wi-mod-portable.zip" data-i18n="download">Descargar Portable (Windows)</a>
+          <a class="try" href="app/" data-i18n="try">Probar Demo Web</a>
+        </div>
+        <div class="cta-meta">
+          <span class="pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></svg>
+            ~15 MB
+          </span>
+          <span class="pill" data-i18n="powered">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+            Powered by Tauri v2 &amp; Rust
+          </span>
+        </div>
       </div>
-      <div class="platforms" role="group" aria-label="Tema">
-        <button type="button" data-theme="nexus" class="on"><img src="brand/nexus.ico" alt="">Nexus Mods</button>
-        <button type="button" data-theme="modrinth"><img src="brand/modrinth.png" alt="">Modrinth</button>
-        <button type="button" data-theme="curseforge"><img src="brand/curseforge.ico" alt="">CurseForge</button>
-        <button type="button" data-theme="steam"><img src="brand/steam.ico" alt="">Steam Workshop</button>
-        <button type="button" data-theme="rawg"><img src="brand/rawg.png" alt="">RAWG</button>
+
+      <div class="hero-mockup" aria-hidden="true">
+        <div class="mock-frame">
+          <div class="mock-top">
+            <span class="mock-dot"></span>
+            <span class="mock-dot"></span>
+            <span class="mock-dot"></span>
+            <span>wi-mod</span>
+          </div>
+          <div class="mock-body">
+            <div class="mock-side">
+              <div class="mock-chip"></div>
+              <div class="mock-chip short"></div>
+              <div class="mock-chip dim"></div>
+              <div class="mock-chip short dim"></div>
+              <div class="mock-chip dim"></div>
+            </div>
+            <div class="mock-main">
+              <div class="mock-bar"></div>
+              <div class="mock-grid">
+                <div class="mock-tile t1"><span>Skyrim</span></div>
+                <div class="mock-tile t2"><span>Doom</span></div>
+                <div class="mock-tile t3"><span>Fallout</span></div>
+                <div class="mock-tile t4"><span>Minecraft</span></div>
+                <div class="mock-tile t5"><span>Cyberpunk</span></div>
+                <div class="mock-tile t6"><span>Stardew</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
+
+    <h2 class="section-title" data-i18n="platTitle">Plataformas</h2>
+    <div class="platforms" role="group" aria-label="Tema y plataformas">
+      <button type="button" data-theme="nexus" class="on"><img src="brand/nexus.ico" alt="">Nexus Mods</button>
+      <button type="button" data-theme="modrinth"><img src="brand/modrinth.png" alt="">Modrinth</button>
+      <button type="button" data-theme="curseforge"><img src="brand/curseforge.ico" alt="">CurseForge</button>
+      <button type="button" data-theme="steam"><img src="brand/steam.ico" alt="">Steam Workshop</button>
+      <button type="button" class="tag-static" tabindex="-1"><img src="brand/moddb.png" alt="">ModDB</button>
+      <button type="button" data-theme="rawg"><img src="brand/rawg.png" alt="">RAWG</button>
+    </div>
+
+    <h2 class="section-title" data-i18n="whyTitle">Por qué wi-mod</h2>
     <section class="grid">
       <article class="card">
-        <strong data-i18n="c1t">Portable</strong>
-        <p data-i18n="c1p">No hay instalador. La carpeta se puede mover o borrar entera.</p>
+        <div class="ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5M12 22V12"/></svg>
+        </div>
+        <strong data-i18n="c1t">100% Portable</strong>
+        <p data-i18n="c1p">Sin instalador. Mueve o borra la carpeta entera cuando quieras.</p>
       </article>
       <article class="card">
-        <strong data-i18n="c2t">Desde cero</strong>
-        <p data-i18n="c2p">El zip no trae mods, sesiones ni contraseñas. El primer usuario lo creas tú.</p>
+        <div class="ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <strong data-i18n="c2t">Privacidad absoluta</strong>
+        <p data-i18n="c2p">Todo queda en tu PC. Sin cuenta en la nube ni telemetría.</p>
       </article>
       <article class="card">
-        <strong data-i18n="c3t">Solo en tu máquina</strong>
-        <p data-i18n="c3p">Escucha en 127.0.0.1. La biblioteca no sale de esa carpeta.</p>
+        <div class="ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+        </div>
+        <strong data-i18n="c3t">Multiplataforma</strong>
+        <p data-i18n="c3p">Nexus, Modrinth, CurseForge, Steam, ModDB y más en un solo sitio.</p>
       </article>
     </section>
+
+    <h2 class="section-title" data-i18n="stepsTitle">Cómo empezar en 3 pasos</h2>
     <ol class="steps">
-      <li class="step"><em>1</em><strong data-i18n="s1t">Descomprime</strong><p data-i18n="s1p">Deja la carpeta wi-mod donde quieras.</p></li>
-      <li class="step"><em>2</em><strong data-i18n="s2t">Abre wi-mod.exe</strong><p data-i18n="s2p">La ventana arranca maximizada y en blanco.</p></li>
-      <li class="step"><em>3</em><strong data-i18n="s3t">Crea tu clave</strong><p data-i18n="s3p">Escribe un usuario nuevo. Si no existe, la página de entrada te deja crearlo.</p></li>
+      <li class="step">
+        <em data-i18n="s1n">1</em>
+        <div class="step-body">
+          <strong data-i18n="s1t">Descarga y descomprime</strong>
+          <p data-i18n="s1p">Baja el portable y descomprímelo donde quieras.</p>
+        </div>
+        <div class="ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </div>
+      </li>
+      <li class="step">
+        <em data-i18n="s2n">2</em>
+        <div class="step-body">
+          <strong data-i18n="s2t">Abre wi-mod</strong>
+          <p data-i18n="s2p">Ejecuta wi-mod.exe. La ventana arranca lista para usar.</p>
+        </div>
+        <div class="ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </div>
+      </li>
+      <li class="step">
+        <em data-i18n="s3n">3</em>
+        <div class="step-body">
+          <strong data-i18n="s3t">Crea tu usuario</strong>
+          <p data-i18n="s3p">El primer usuario lo creas tú. Tus mods quedan en data/.</p>
+        </div>
+        <div class="ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+      </li>
     </ol>
-    <footer data-i18n="foot">wi-mod 0.7.5 · open source · para la comunidad · Windows · Linux próximamente</footer>
+
+    <footer>
+      <a href="https://github.com/wiarch/wi-mod" target="_blank" rel="noreferrer">GitHub</a>
+      <a href="https://github.com/wiarch/wi-mod#readme" target="_blank" rel="noreferrer" data-i18n="footDocs">Documentación</a>
+      <a href="https://github.com/wiarch/wi-mod/blob/main/LICENSE" target="_blank" rel="noreferrer" data-i18n="footLic">Licencias</a>
+      <span class="foot-note" data-i18n="foot">wi-mod 0.7.6 · open source</span>
+    </footer>
   </div>
   <script>
     const I18N = {
       es: {
         title: "wi-mod — portable",
         desc: "wi-mod: gestor local de mods open source para la comunidad. Multi-juego y multi-plataforma.",
-        ver: "Windows · portable · open source · v0.7.5",
-        linux: "Próximamente en Linux",
-        h1a: "Tu biblioteca de mods.",
-        h1b: "Sin cuenta y sin datos de nadie.",
-        badge: "Open source · pensado para la comunidad",
-        pitch1: "wi-mod es un gestor local de mods en desarrollo: junta mods de distintos juegos y plataformas (Nexus, Modrinth, CurseForge, Steam, ModDB y más) en un solo lugar en tu PC.",
-        pitch2: "No sustituye a Nexus ni a Mod Organizer 2; es un complemento para buscar, guardar y organizar tu biblioteca multi-juego sin saltar entre webs.",
-        lead: "Descárgalo gratis, pruébalo y deja feedback: tu opinión define qué se construye después. Un solo ejecutable; lo que guardes queda en tu PC, en <code>data</code> al lado del programa.",
-        download: "Descargar wi-mod-portable.zip",
-        try: "Probar en la web",
-        meta1: "13 MB · solo el exe y un leeme · nada de biblioteca",
-        meta2: "La versión web es solo para probar: 5 juegos, 5 mods por juego, se reinicia cada 5 horas. Las claves del demo ya van incluidas.",
-        c1t: "Portable",
-        c1p: "No hay instalador. La carpeta se puede mover o borrar entera.",
-        c2t: "Desde cero",
-        c2p: "El zip no trae mods, sesiones ni contraseñas. El primer usuario lo creas tú.",
-        c3t: "Solo en tu máquina",
-        c3p: "Escucha en 127.0.0.1. La biblioteca no sale de esa carpeta.",
-        s1t: "Descomprime",
-        s1p: "Deja la carpeta wi-mod donde quieras.",
-        s2t: "Abre wi-mod.exe",
-        s2p: "La ventana arranca maximizada y en blanco.",
-        s3t: "Crea tu clave",
-        s3p: "Escribe un usuario nuevo. Si no existe, la página de entrada te deja crearlo.",
-        foot: "wi-mod 0.7.5 · open source · para la comunidad · Windows · Linux próximamente",
+        verBadge: "<strong>v0.7.6</strong> · Windows · Linux (beta)",
+        badge: "Open source · Pensado para la comunidad",
+        h1: "Tu biblioteca de mods. Totalmente local. Sin cuentas.",
+        lead: "Junta mods de múltiples plataformas en una sola biblioteca portable, rápida y privada en tu PC.",
+        download: "Descargar Portable (Windows)",
+        try: "Probar Demo Web",
+        powered: "Powered by Tauri v2 &amp; Rust",
+        platTitle: "Plataformas",
+        whyTitle: "Por qué wi-mod",
+        stepsTitle: "Cómo empezar en 3 pasos",
+        c1t: "100% Portable",
+        c1p: "Sin instalador. Mueve o borra la carpeta entera cuando quieras.",
+        c2t: "Privacidad absoluta",
+        c2p: "Todo queda en tu PC. Sin cuenta en la nube ni telemetría.",
+        c3t: "Multiplataforma",
+        c3p: "Nexus, Modrinth, CurseForge, Steam, ModDB y más en un solo sitio.",
+        s1n: "1",
+        s1t: "Descarga y descomprime",
+        s1p: "Baja el portable y descomprímelo donde quieras.",
+        s2n: "2",
+        s2t: "Abre wi-mod",
+        s2p: "Ejecuta wi-mod.exe. La ventana arranca lista para usar.",
+        s3n: "3",
+        s3t: "Crea tu usuario",
+        s3p: "El primer usuario lo creas tú. Tus mods quedan en data/.",
+        footDocs: "Documentación",
+        footLic: "Licencias",
+        foot: "wi-mod 0.7.6 · open source",
       },
       en: {
         title: "wi-mod — portable",
         desc: "wi-mod is an open-source local mod manager for the community. Multi-game, multi-platform.",
-        ver: "Windows · portable · open source · v0.7.5",
-        linux: "Coming soon on Linux",
-        h1a: "Your mod library.",
-        h1b: "No account. Nobody else's data.",
-        badge: "Open source · built for the community",
-        pitch1: "wi-mod is a local mod manager currently in development: it aggregates mods from different games and platforms (Nexus, Modrinth, CurseForge, Steam, ModDB, and more) into a single hub on your PC.",
-        pitch2: "It's not meant to replace Nexus or Mod Organizer 2; rather, it's a complementary tool designed to help you search, save, and organize your multi-game mod library without constantly jumping between different websites.",
-        lead: "Download it for free, try it out, and leave your feedback—your opinions and feature requests will directly shape what gets built next. One executable; whatever you save stays on your PC in a <code>data</code> folder next to the program.",
-        download: "Download wi-mod-portable.zip",
-        try: "Try in the browser",
-        meta1: "13 MB · exe and a readme only · no library inside",
-        meta2: "The web version is a limited trial: 5 games, 5 mods per game, resets every 5 hours. Demo API keys are included.",
-        c1t: "Portable",
-        c1p: "No installer. Move the folder or delete it wholesale.",
-        c2t: "From scratch",
-        c2p: "The zip ships with no mods, sessions, or passwords. You create the first user.",
-        c3t: "On your machine only",
-        c3p: "Listens on 127.0.0.1. The library never leaves that folder.",
-        s1t: "Unzip",
-        s1p: "Put the wi-mod folder wherever you like.",
-        s2t: "Open wi-mod.exe",
-        s2p: "The window opens maximized and blank.",
-        s3t: "Create your key",
-        s3p: "Type a new username. If it doesn't exist, the login page lets you create it.",
-        foot: "wi-mod 0.7.5 · open source · for the community · Windows · Linux coming soon",
+        verBadge: "<strong>v0.7.6</strong> · Windows · Linux (beta)",
+        badge: "Open source · Built for the community",
+        h1: "Your mod library. Fully local. No accounts.",
+        lead: "Gather mods from multiple platforms into one portable, fast, and private library on your PC.",
+        download: "Download Portable (Windows)",
+        try: "Try Web Demo",
+        powered: "Powered by Tauri v2 &amp; Rust",
+        platTitle: "Platforms",
+        whyTitle: "Why wi-mod",
+        stepsTitle: "Get started in 3 steps",
+        c1t: "100% Portable",
+        c1p: "No installer. Move or delete the whole folder anytime.",
+        c2t: "Absolute privacy",
+        c2p: "Everything stays on your PC. No cloud account, no telemetry.",
+        c3t: "Multi-platform",
+        c3p: "Nexus, Modrinth, CurseForge, Steam, ModDB, and more in one place.",
+        s1n: "1",
+        s1t: "Download & unzip",
+        s1p: "Grab the portable build and unzip it wherever you like.",
+        s2n: "2",
+        s2t: "Open wi-mod",
+        s2p: "Run wi-mod.exe. The window opens ready to use.",
+        s3n: "3",
+        s3t: "Create your user",
+        s3p: "You create the first user. Your mods live in data/.",
+        footDocs: "Docs",
+        footLic: "License",
+        foot: "wi-mod 0.7.6 · open source",
       },
     };
 
