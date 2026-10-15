@@ -90,7 +90,9 @@ class Library:
             nexus_id = fields.get("modId")
             existing = None
             page = _norm_url(str(fields.get("nexusUrl") or ""))
-            official = str(fields.get("platform") or "") == "Independiente"
+            official = str(fields.get("platform") or "") in {
+                "Independiente", "Modrinth", "CurseForge", "Steam Workshop",
+            }
             if mode != "duplicate" and official and page:
                 for mod in data["mods"]:
                     if _norm_url(str(mod.get("nexusUrl") or "")) == page:
@@ -397,6 +399,12 @@ class Library:
                     dirty = True
             if dirty:
                 self._write(data)
+
+    def set_curseforge_api_key(self, api_key: str) -> None:
+        with self._lock:
+            current = self._read_settings()
+            current["curseforgeApiKey"] = str(api_key or "").strip()
+            self._kv_set("settings", json.dumps(current, ensure_ascii=False))
 
     def set_rawg_api_key(self, api_key: str) -> None:
         with self._lock:
@@ -1184,13 +1192,14 @@ class Library:
     def _read_settings(self) -> dict[str, Any]:
         raw = self._kv_get("settings")
         if not raw:
-            return {"apiKey": "", "rawgApiKey": "", "language": "es", "theme": "nexus", "profile": {}}
+            return {"apiKey": "", "rawgApiKey": "", "curseforgeApiKey": "", "language": "es", "theme": "nexus", "profile": {}}
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
-            return {"apiKey": "", "rawgApiKey": "", "language": "es", "theme": "nexus", "profile": {}}
+            return {"apiKey": "", "rawgApiKey": "", "curseforgeApiKey": "", "language": "es", "theme": "nexus", "profile": {}}
         data.setdefault("apiKey", "")
         data.setdefault("rawgApiKey", "")
+        data.setdefault("curseforgeApiKey", "")
         data.setdefault("language", "es")
         data.setdefault("theme", "nexus")
         data.setdefault("profile", {})

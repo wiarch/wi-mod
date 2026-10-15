@@ -22,6 +22,7 @@ const state = {
   lang: localStorage.getItem("wi-mod-lang") === "en" ? "en" : "es",
   showEs: localStorage.getItem("wi-mod-lang") !== "en",
   theme: "nexus",
+  keys: { nexus: false, curseforge: false, rawg: false },
 };
 
 function displaySummary(mod) {
@@ -210,6 +211,8 @@ async function load() {
   state.sources = data.sources || {};
   if (data.language === "en" || data.language === "es") applyLang(data.language);
   if (data.theme) applyTheme(data.theme);
+  if (data.keys) state.keys = { nexus: !!data.keys.nexus, curseforge: !!data.keys.curseforge, rawg: !!data.keys.rawg };
+  paintKeys();
   const alive = new Set(state.mods.map((mod) => mod.id));
   state.selected.forEach((id) => { if (!alive.has(id)) state.selected.delete(id); });
   ensureActiveGame();
@@ -247,15 +250,18 @@ function syncDock() {
   document.querySelectorAll(".lang-switch [data-lang]").forEach((button) => {
     button.classList.toggle("on", button.dataset.lang === state.lang);
   });
-  const now = new Date();
-  const locale = state.lang === "en" ? "en" : "es";
-  const time = $("dock-time");
-  const date = $("dock-date");
-  if (time) time.textContent = now.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
-  if (date) {
-    const text = now.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-    date.textContent = text.charAt(0).toUpperCase() + text.slice(1);
-  }
+  paintKeys();
+}
+
+function paintKeys() {
+  const keys = state.keys || {};
+  document.querySelectorAll("#dock-keys [data-key]").forEach((node) => {
+    const id = node.dataset.key;
+    const on = id === "modrinth" || !!keys[id];
+    node.classList.toggle("on", on);
+    const label = node.querySelector("em");
+    if (label) label.textContent = on ? "activa" : "falta";
+  });
 }
 
 async function setLanguage(lang) {
@@ -858,6 +864,7 @@ function remoteTarget() {
   const open = (name) => (!allowed || allowed.includes(name)) && (!pick || pick === name);
   if (open("Nexus") && (pick === "Nexus" || !pick)) return "Nexus";
   if (open("Modrinth") && (pick === "Modrinth" || !pick)) return "Modrinth";
+  if (open("CurseForge") && (pick === "CurseForge" || !pick)) return "CurseForge";
   return "";
 }
 
@@ -1288,7 +1295,10 @@ async function detect() {
   const button = $("detect");
   const status = $("add-status");
   status.className = "status";
-  status.textContent = isNexusUrl($("add-url").value) ? "Olfateando Nexus…" : "Leyendo la página oficial…";
+  const page = $("add-url").value;
+  status.textContent = isNexusUrl(page)
+    ? "Olfateando Nexus…"
+    : (/modrinth\.com/i.test(page) ? "Olfateando Modrinth…" : (/curseforge\.com/i.test(page) ? "Olfateando CurseForge…" : "Leyendo la página oficial…"));
   setLoading(button, true, "Detectando");
   sfx.sniff();
   try {
@@ -1600,7 +1610,11 @@ let probeToken = 0;
 
 async function probeUpdate(id) {
   const mod = state.mods.find((item) => item.id === id);
-  if (!mod || !/nexusmods\.com\/[^/]+\/mods\/\d+/i.test(mod.nexusUrl || "")) return;
+  const page = String(mod?.nexusUrl || "");
+  const tracked = /nexusmods\.com\/[^/]+\/mods\/\d+/i.test(page)
+    || /modrinth\.com\/(?:mod|modpack|resourcepack|datapack|shader|plugin|project)\//i.test(page)
+    || /curseforge\.com\/[^/]+\/[^/]+\/[^/?#]+/i.test(page);
+  if (!mod || !tracked) return;
   const token = ++probeToken;
   try {
     const check = await api(`/api/mods/${id}/refresh`, {
@@ -1701,19 +1715,28 @@ async function dropFile(modId, fileId) {
   openDetail(modId);
 }
 
+function fillSecret(node, value) {
+  if (!node) return;
+  node.value = value || "";
+}
+
 async function openSettings() {
   try {
     const data = await api("/api/settings");
     const who = data.profile && data.profile.name ? ` · ${data.profile.name}` : "";
     $("settings-status").textContent = data.hasKey ? `Nexus: ${data.hint}${who}` : "Nexus: sin clave.";
     $("settings-status").className = "status";
+    if ($("cf-status")) {
+      $("cf-status").textContent = data.hasCurseforgeKey ? `CurseForge: ${data.curseforgeHint}` : "CurseForge: sin clave.";
+    }
     $("rawg-status").textContent = data.hasRawgKey ? `RAWG: ${data.rawgHint}` : "RAWG: sin clave.";
+    fillSecret($("api-key"), data.apiKey);
+    fillSecret($("rawg-key"), data.rawgApiKey);
+    fillSecret($("cf-key"), data.curseforgeApiKey);
     if (data.language) applyLang(data.language);
   } catch (error) {
     $("settings-status").textContent = error.message;
   }
-  $("api-key").value = "";
-  $("rawg-key").value = "";
   $("settings-dialog").showModal();
 }
 
@@ -1902,6 +1925,122 @@ $("add-cat-new").onclick = () => {
 };
 $("dup-form").onsubmit = (event) => event.preventDefault();
 $("settings-open").onclick = () => { sfx.open(); openSettings(); };
+
+const KEY_POPS = {
+  nexus: {
+    label: "Clave Nexus Mods",
+    field: "apiKey",
+    flag: "hasKey",
+    doc: "https://www.nexusmods.com/users/myaccount?tab=api+access",
+    docLabel: "Sacar clave en Nexus",
+  },
+  modrinth: {
+    note: "Modrinth ya está activa. No pide clave.",
+    doc: "https://docs.modrinth.com/api/",
+    docLabel: "Documentación de Modrinth",
+  },
+  curseforge: {
+    label: "Clave CurseForge",
+    field: "curseforgeApiKey",
+    flag: "hasCurseforgeKey",
+    doc: "https://console.curseforge.com/#/api-keys",
+    docLabel: "Sacar clave en CurseForge",
+  },
+  rawg: {
+    label: "Clave RAWG",
+    field: "rawgApiKey",
+    flag: "hasRawgKey",
+    doc: "https://rawg.io/apidocs",
+    docLabel: "Documentación de RAWG",
+  },
+};
+
+function closeKeyPop() {
+  const pop = $("key-pop");
+  if (!pop) return;
+  pop.hidden = true;
+  pop.dataset.key = "";
+}
+
+function openKeyPop(pill) {
+  const id = pill.dataset.key;
+  const spec = KEY_POPS[id];
+  const pop = $("key-pop");
+  if (!spec || !pop) return;
+  if (!pop.hidden && pop.dataset.key === id) {
+    closeKeyPop();
+    return;
+  }
+  pop.dataset.key = id;
+  const needsKey = !!spec.field;
+  $("key-pop-note").hidden = !spec.note;
+  $("key-pop-note").textContent = spec.note || "";
+  $("key-pop-field").hidden = !needsKey;
+  $("key-pop-label").textContent = needsKey ? spec.label : "";
+  $("key-pop-input").value = "";
+  $("key-pop-input").placeholder = state.keys?.[id] ? "Pega otra clave para reemplazarla" : "Pega la clave";
+  $("key-pop-save").hidden = !needsKey;
+  $("key-pop-doc").href = spec.doc;
+  $("key-pop-doc").textContent = spec.docLabel;
+  $("key-pop-status").textContent = "";
+  $("key-pop-status").className = "status";
+  pop.hidden = false;
+  const rect = pill.getBoundingClientRect();
+  const box = pop.getBoundingClientRect();
+  const left = Math.max(8, Math.min(rect.left + rect.width / 2 - box.width / 2, window.innerWidth - box.width - 8));
+  let top = rect.top - box.height - 10;
+  if (top < 8) top = rect.bottom + 10;
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+  if (needsKey) $("key-pop-input").focus();
+}
+
+$("dock-keys").onclick = (event) => {
+  const pill = event.target.closest("[data-key]");
+  if (!pill) return;
+  sfx.open();
+  openKeyPop(pill);
+};
+document.addEventListener("pointerdown", (event) => {
+  const pop = $("key-pop");
+  if (!pop || pop.hidden) return;
+  if (pop.contains(event.target) || event.target.closest("#dock-keys [data-key]")) return;
+  closeKeyPop();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeKeyPop();
+});
+$("key-pop-form").onsubmit = async (event) => {
+  event.preventDefault();
+  const id = $("key-pop").dataset.key;
+  const spec = KEY_POPS[id];
+  if (!spec?.field) return;
+  const value = ($("key-pop-input").value || "").trim();
+  if (!value) return;
+  const button = $("key-pop-save");
+  setLoading(button, true, "Guardando");
+  try {
+    const data = await api("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [spec.field]: value }),
+    });
+    state.keys = {
+      nexus: !!data.hasKey,
+      curseforge: !!data.hasCurseforgeKey,
+      rawg: !!data.hasRawgKey,
+    };
+    paintKeys();
+    closeKeyPop();
+    toast("Clave guardada.");
+  } catch (error) {
+    $("key-pop-status").className = "status bad";
+    $("key-pop-status").textContent = error.message;
+    toast(error.message, "bad");
+  } finally {
+    setLoading(button, false);
+  }
+};
 $("settings-form").onsubmit = async (event) => {
   event.preventDefault();
   const button = event.submitter || event.target.querySelector('button[type="submit"]');
@@ -1910,12 +2049,10 @@ $("settings-form").onsubmit = async (event) => {
     const body = {};
     const nexus = ($("api-key").value || "").trim();
     const rawg = ($("rawg-key").value || "").trim();
-    const lang = document.querySelector('input[name="language"]:checked')?.value || "es";
-    const theme = document.querySelector('input[name="theme"]:checked')?.value || state.theme || "nexus";
-    body.language = lang;
-    body.theme = theme;
+    const curse = ($("cf-key")?.value || "").trim();
     if (nexus) body.apiKey = nexus;
     if (rawg) body.rawgApiKey = rawg;
+    if (curse) body.curseforgeApiKey = curse;
     const data = await api("/api/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -1926,10 +2063,14 @@ $("settings-form").onsubmit = async (event) => {
       ? (data.profile?.name ? `Nexus: ${data.profile.name}` : `Nexus: ${data.hint}`)
       : "Nexus: sin clave.";
     $("rawg-status").textContent = data.hasRawgKey ? `RAWG: ${data.rawgHint}` : "RAWG: sin clave.";
-    $("api-key").value = "";
-    $("rawg-key").value = "";
-    applyLang(data.language || lang);
-    applyTheme(data.theme || theme);
+    if ($("cf-status")) {
+      $("cf-status").textContent = data.hasCurseforgeKey ? `CurseForge: ${data.curseforgeHint}` : "CurseForge: sin clave.";
+    }
+    fillSecret($("api-key"), data.apiKey);
+    fillSecret($("rawg-key"), data.rawgApiKey);
+    fillSecret($("cf-key"), data.curseforgeApiKey);
+    if (data.language) applyLang(data.language);
+    if (data.theme) applyTheme(data.theme);
     await load();
     toast("Ajustes guardados.");
   } catch (error) {
@@ -1947,6 +2088,7 @@ $("clear-key").onclick = async () => {
     body: JSON.stringify({ apiKey: "" }),
   });
   $("settings-status").textContent = "Nexus: sin clave.";
+  fillSecret($("api-key"), "");
   toast("Clave Nexus quitada.", "warn");
 };
 $("game-add").onclick = (event) => {
@@ -2014,8 +2156,10 @@ async function runRemoteSearch() {
   }
   const token = ++remoteToken;
   box.innerHTML = `<p class="hint">Buscando en ${esc(target)}…</p>`;
-  const game = target === "Nexus" ? `&game=${encodeURIComponent(state.game)}` : "";
-  const path = target === "Modrinth" ? "/api/modrinth/search" : "/api/nexus/search";
+  const game = target === "Modrinth" ? "" : `&game=${encodeURIComponent(state.game)}`;
+  const path = target === "Modrinth"
+    ? "/api/modrinth/search"
+    : (target === "CurseForge" ? "/api/curseforge/search" : "/api/nexus/search");
   try {
     const data = await api(`${path}?q=${encodeURIComponent(q)}${game}`);
     if (token !== remoteToken) return;
@@ -2651,7 +2795,6 @@ syncMute();
 syncDock();
 applyTheme("nexus");
 rollAvatar();
-setInterval(syncDock, 1000);
 spinBootLine();
 document.addEventListener("pointerdown", () => sfx.unlock(), { once: true });
 const sessionTimer = setTimeout(() => {

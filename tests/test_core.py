@@ -11,6 +11,7 @@ from wi_mod.archive import export_library, import_library, select_mods
 from wi_mod.multipart import parse_multipart
 from wi_mod.nexus import parse_mod_url, pick_file
 from wi_mod.server import App, _has_update, make_server
+from wi_mod.curseforge import project_ref
 from wi_mod.sources import platforms_for
 from wi_mod.store import Library
 
@@ -247,6 +248,11 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(platforms_for("worldofwarcraft"), ("CurseForge", "Independiente"))
         self.assertEqual(platforms_for("wow"), ("CurseForge", "Independiente"))
         self.assertEqual(platforms_for("otrojuego"), ("Nexus", "Independiente"))
+        self.assertEqual(
+            project_ref("https://www.curseforge.com/minecraft/mc-mods/jei"),
+            ("minecraft", "mc-mods", "jei"),
+        )
+        self.assertIsNone(project_ref("https://www.curseforge.com/minecraft"))
 
 
 def _post(url, payload, opener=None):

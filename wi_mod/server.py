@@ -16,8 +16,9 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from wi_mod.archive import export_label, export_library, import_library
+from wi_mod.curseforge import CurseForgeError, fetch_project as fetch_curseforge, project_ref, search_mods as search_curseforge, validate_key as validate_curseforge_key
 from wi_mod.images import download_picture
-from wi_mod.modrinth import ModrinthError, search_projects
+from wi_mod.modrinth import ModrinthError, fetch_project, project_slug, search_projects
 from wi_mod.multipart import parse_multipart
 from wi_mod.nexus import (
     Cache,
@@ -192,6 +193,7 @@ def make_handler(app: App):
                         "language": _lang(app),
                         "theme": _theme(app),
                         "sources": sources_payload(),
+                        "keys": _key_flags(app),
                     },
                 )
                 return
@@ -233,6 +235,20 @@ def make_handler(app: App):
                     existing = app.library.find_page(str(hit.get("url") or ""))
                     hit["savedId"] = str(existing.get("id") or "") if existing else ""
                 self._json(200, {"results": hits, "supported": True, "platform": "Modrinth"})
+                return
+            if path == "/api/curseforge/search":
+                query = parse_qs(urlparse(self.path).query)
+                q = (query.get("q") or [""])[0]
+                game = (query.get("game") or [""])[0]
+                try:
+                    hits = search_curseforge(_curseforge_key(app), game, q)
+                except CurseForgeError as exc:
+                    self._json(exc.status or 502, {"error": str(exc)})
+                    return
+                for hit in hits:
+                    existing = app.library.find_page(str(hit.get("url") or ""))
+                    hit["savedId"] = str(existing.get("id") or "") if existing else ""
+                self._json(200, {"results": hits, "supported": True, "platform": "CurseForge"})
                 return
             if path == "/api/rawg/resolve":
                 query = parse_qs(urlparse(self.path).query)
@@ -406,6 +422,11 @@ def make_handler(app: App):
                     _localize_missing(app)
             if "theme" in body:
                 app.library.set_theme(str(body.get("theme") or "nexus"))
+            if "curseforgeApiKey" in body:
+                cf_key = str(body.get("curseforgeApiKey") or "").strip()
+                if cf_key:
+                    validate_curseforge_key(cf_key)
+                app.library.set_curseforge_api_key(cf_key)
             if "apiKey" in body:
                 key = str(body.get("apiKey") or "").strip()
                 if not key:
@@ -588,6 +609,12 @@ def make_handler(app: App):
             if isinstance(exc, NexusError):
                 self._json(exc.status or 400, {"error": str(exc)})
                 return
+            if isinstance(exc, ModrinthError):
+                self._json(400, {"error": str(exc)})
+                return
+            if isinstance(exc, CurseForgeError):
+                self._json(exc.status or 400, {"error": str(exc)})
+                return
             if isinstance(exc, RawgError):
                 self._json(exc.status or 400, {"error": str(exc)})
                 return
@@ -644,6 +671,15 @@ def _lang(app: App) -> str:
 
 def _theme(app: App) -> str:
     return _theme_name(app.library.settings().get("theme"))
+
+
+def _key_flags(app: App) -> dict:
+    settings = app.library.settings()
+    return {
+        "nexus": bool(str(settings.get("apiKey") or "").strip()),
+        "curseforge": bool(str(settings.get("curseforgeApiKey") or "").strip()),
+        "rawg": bool(str(settings.get("rawgApiKey") or "").strip()),
+    }
 
 
 def _theme_name(value: object) -> str:
@@ -817,11 +853,38 @@ def _localize_missing(app: App) -> dict:
 
 
 def _preview(app: App, url: str) -> dict:
+    if project_ref(url):
+        return _preview_curseforge(app, url)
+    slug = project_slug(url)
+    if slug:
+        return _preview_modrinth(app, slug)
     parsed = parse_mod_url(url)
     if not parsed:
         return _preview_official(app, url)
     meta = fetch_mod(_api_key(app), parsed[0], parsed[1], app.cache)
     existing = app.library.find_nexus(parsed[0], parsed[1])
+    meta["duplicate"] = existing is not None
+    if existing:
+        meta["existingId"] = existing.get("id") or ""
+        meta["existingName"] = existing.get("name") or ""
+    return _localize_mod_fields(app, meta)
+
+
+def _preview_curseforge(app: App, url: str) -> dict:
+    meta = fetch_curseforge(_curseforge_key(app), url)
+    existing = app.library.find_page(str(meta.get("nexusUrl") or url))
+    meta["official"] = True
+    meta["duplicate"] = existing is not None
+    if existing:
+        meta["existingId"] = existing.get("id") or ""
+        meta["existingName"] = existing.get("name") or ""
+    return _localize_mod_fields(app, meta)
+
+
+def _preview_modrinth(app: App, slug: str) -> dict:
+    meta = fetch_project(slug)
+    existing = app.library.find_page(str(meta.get("nexusUrl") or ""))
+    meta["official"] = True
     meta["duplicate"] = existing is not None
     if existing:
         meta["existingId"] = existing.get("id") or ""
@@ -924,10 +987,21 @@ def _refresh_one(app: App, mod_id: str, apply: bool = False) -> dict:
     mod = app.library.get(mod_id)
     if not mod:
         raise ValueError("Mod no encontrado.")
-    parsed = parse_mod_url(mod.get("nexusUrl") or "")
-    if not parsed:
-        raise ValueError("Este mod no tiene enlace de Nexus.")
-    remote = fetch_mod(_api_key(app), parsed[0], parsed[1], app.cache)
+    page = str(mod.get("nexusUrl") or "")
+    slug = project_slug(page)
+    parsed = parse_mod_url(page)
+    if project_ref(page):
+        remote = fetch_curseforge(_curseforge_key(app), page)
+        remote["gameDomain"] = str(mod.get("gameDomain") or remote.get("gameDomain") or "")
+        remote["gameName"] = str(mod.get("gameName") or remote.get("gameName") or "")
+    elif slug:
+        remote = fetch_project(slug)
+        remote["gameDomain"] = str(mod.get("gameDomain") or remote.get("gameDomain") or "")
+        remote["gameName"] = str(mod.get("gameName") or remote.get("gameName") or "")
+    elif parsed:
+        remote = fetch_mod(_api_key(app), parsed[0], parsed[1], app.cache)
+    else:
+        raise ValueError("Este mod no tiene enlace de Nexus, Modrinth o CurseForge.")
     checked = now()
     app.library.set_checked(mod_id, checked)
     # Las cifras de Nexus siempre se refrescan; no afectan la versión instalada.
@@ -1008,14 +1082,15 @@ def _refresh_all(app: App) -> dict:
     available = 0
     failed = []
     for mod in app.library.list_mods():
-        if not parse_mod_url(mod.get("nexusUrl") or ""):
+        page = str(mod.get("nexusUrl") or "")
+        if not parse_mod_url(page) and not project_slug(page) and not project_ref(page):
             continue
         try:
             result = _refresh_one(app, mod["id"], apply=False)
             checked += 1
             if result.get("changed"):
                 available += 1
-        except (NexusError, ValueError) as exc:
+        except (NexusError, CurseForgeError, ValueError) as exc:
             failed.append({"id": mod["id"], "name": mod.get("name") or "", "error": str(exc)})
             if isinstance(exc, NexusError) and exc.status == 429:
                 break
@@ -1024,6 +1099,11 @@ def _refresh_all(app: App) -> dict:
 
 def _fields_from_body(app: App, body: dict) -> dict:
     url = str(body.get("url") or "").strip()
+    if url and project_ref(url):
+        return _curseforge_fields(app, body, url)
+    slug = project_slug(url) if url else None
+    if slug:
+        return _modrinth_fields(app, body, slug)
     parsed = parse_mod_url(url) if url else None
     if url and not parsed:
         return _official_fields(app, body, url)
@@ -1083,6 +1163,50 @@ def _fields_from_body(app: App, body: dict) -> dict:
         "notes": notes,
         "fetchedAt": None,
     }
+
+
+def _curseforge_fields(app: App, body: dict, url: str) -> dict:
+    manual = body.get("manual") if isinstance(body.get("manual"), dict) else {}
+    fetched = fetch_curseforge(_curseforge_key(app), url)
+    game = str(body.get("gameDomain") or (manual or {}).get("gameDomain") or "").strip().lower()
+    game_name = str(body.get("gameName") or (manual or {}).get("gameName") or "").strip()
+    if game:
+        fetched["gameDomain"] = game
+    if game_name:
+        fetched["gameName"] = game_name
+    fetched["modpackId"] = str(body.get("modpackId") or "").strip()
+    fetched["modpackCategoryId"] = str(body.get("modpackCategoryId") or "").strip()
+    fetched["modpackNotes"] = str(body.get("modpackNotes") or "")
+    fetched["notes"] = str(body.get("notes") or "")
+    fetched["fetchedAt"] = now()
+    category = str(body.get("category") or "").strip()
+    if category and category != "General":
+        fetched["category"] = category
+        fetched["categorySource"] = "user"
+    return _localize_mod_fields(app, fetched)
+
+
+def _modrinth_fields(app: App, body: dict, slug: str) -> dict:
+    manual = body.get("manual") if isinstance(body.get("manual"), dict) else {}
+    try:
+        fetched = fetch_project(slug)
+    except ModrinthError:
+        return _official_fields(app, body, str(body.get("url") or ""))
+    game = str(body.get("gameDomain") or (manual or {}).get("gameDomain") or fetched.get("gameDomain") or "").strip().lower()
+    game_name = str(body.get("gameName") or (manual or {}).get("gameName") or "").strip()
+    fetched["gameDomain"] = game
+    if game_name:
+        fetched["gameName"] = game_name
+    fetched["modpackId"] = str(body.get("modpackId") or "").strip()
+    fetched["modpackCategoryId"] = str(body.get("modpackCategoryId") or "").strip()
+    fetched["modpackNotes"] = str(body.get("modpackNotes") or "")
+    fetched["notes"] = str(body.get("notes") or "")
+    fetched["fetchedAt"] = now()
+    category = str(body.get("category") or "").strip()
+    if category and category != "General":
+        fetched["category"] = category
+        fetched["categorySource"] = "user"
+    return _localize_mod_fields(app, fetched)
 
 
 def _official_fields(app: App, body: dict, url: str) -> dict:
@@ -1330,6 +1454,7 @@ def _public_pack(pack: dict | None) -> dict:
 def _public_settings(settings: dict) -> dict:
     key = str(settings.get("apiKey") or "")
     rawg = str(settings.get("rawgApiKey") or "")
+    curse = str(settings.get("curseforgeApiKey") or "")
     profile = settings.get("profile") or {}
     hint = ""
     if len(key) > 8:
@@ -1341,11 +1466,21 @@ def _public_settings(settings: dict) -> dict:
         rawg_hint = f"{rawg[:4]}…{rawg[-4:]}"
     elif rawg:
         rawg_hint = "••••"
+    curse_hint = ""
+    if len(curse) > 8:
+        curse_hint = f"{curse[:4]}…{curse[-4:]}"
+    elif curse:
+        curse_hint = "••••"
     return {
         "hasKey": bool(key),
         "hint": hint,
         "hasRawgKey": bool(rawg),
         "rawgHint": rawg_hint,
+        "hasCurseforgeKey": bool(curse),
+        "curseforgeHint": curse_hint,
+        "apiKey": key,
+        "rawgApiKey": rawg,
+        "curseforgeApiKey": curse,
         "language": "en" if str(settings.get("language") or "es").lower().startswith("en") else "es",
         "theme": _theme_name(settings.get("theme")),
         "profile": {
@@ -1355,6 +1490,13 @@ def _public_settings(settings: dict) -> dict:
             "dailyRemaining": profile.get("dailyRemaining"),
         },
     }
+
+
+def _curseforge_key(app: App) -> str:
+    key = str(app.library.settings().get("curseforgeApiKey") or "").strip()
+    if not key:
+        raise CurseForgeError("Agrega tu clave API de CurseForge en Ajustes para detectar el mod.", 401)
+    return key
 
 
 def _rawg_key(app: App) -> str:
