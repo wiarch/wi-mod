@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 .pytest_cache/
 *.zip
+!docs/wi-mod-portable.zip
 build/
 dist/
 tmp_*.py
