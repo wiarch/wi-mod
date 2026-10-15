@@ -1,23 +1,30 @@
-# Compila wi-mod (Tauri v2) para Windows/Linux y publica Release + Pages.
-# Trigger: tag v*  |  Actions → Run workflow
+# En cada push a main: build web + deploy gh-pages.
+# Compila Tauri + draft Release solo si cambió la versión, o en tag v*, o a mano.
 
 name: Build and Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Tag/versión del release (ej. v0.7.5). Vacío = usa package.json."
+      force_compile:
+        description: "Forzar compilación desktop aunque no cambie la versión"
         required: false
-        type: string
+        type: boolean
+        default: false
       publish_web:
         description: "Desplegar frontend en gh-pages"
         required: false
         type: boolean
         default: true
+      tag:
+        description: "Tag del release si fuerzas compile (ej. v0.7.5). Vacío = package.json"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -25,13 +32,124 @@ permissions:
   id-token: write
 
 concurrency:
-  group: build-and-release-${{ github.ref }}
-  cancel-in-progress: false
+  group: build-and-release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  # ─── Desktop: Windows + Linux ───────────────────────────────────────────
+  detect:
+    name: Detect version
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
+      should_compile: ${{ steps.meta.outputs.should_compile }}
+      should_web: ${{ steps.meta.outputs.should_web }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version + flags
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VER=$(node -p "require('./package.json').version")
+          TAG="v${VER}"
+          SHOULD_COMPILE=false
+          SHOULD_WEB=false
+
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG="${{ github.ref_name }}"
+            VER="${TAG#v}"
+            SHOULD_COMPILE=true
+            SHOULD_WEB=true
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ -n "${{ inputs.tag }}" ]]; then
+              TAG="${{ inputs.tag }}"
+              VER="${TAG#v}"
+            fi
+            SHOULD_WEB="${{ inputs.publish_web }}"
+            if [[ "${{ inputs.force_compile }}" == "true" ]]; then
+              SHOULD_COMPILE=true
+            fi
+          elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            SHOULD_WEB=true
+            BEFORE="${{ github.event.before }}"
+            if [[ -z "$BEFORE" || "$BEFORE" =~ ^0+$ ]]; then
+              SHOULD_COMPILE=true
+            else
+              PREV_PKG=$(git show "$BEFORE:package.json" 2>/dev/null \
+                | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" \
+                || true)
+              PREV_PY=$(git show "$BEFORE:wi_mod/__init__.py" 2>/dev/null \
+                | python -c "import re,sys; m=re.search(r'__version__\s*=\s*[\"\']([^\"\']+)[\"\']', sys.stdin.read()); print(m.group(1) if m else '')" \
+                || true)
+              if [[ ( -n "$PREV_PKG" && "$PREV_PKG" != "$VER" ) || ( -n "$PREV_PY" && "$PREV_PY" != "$VER" ) ]]; then
+                SHOULD_COMPILE=true
+                echo "Version bump: pkg ${PREV_PKG:-?} / py ${PREV_PY:-?} → ${VER}"
+              else
+                echo "Version unchanged (${VER}) → skip desktop compile"
+              fi
+            fi
+          fi
+
+          # Evita recompilar si el tag ya existe (salvo force o push de tag)
+          if [[ "$SHOULD_COMPILE" == "true" \
+                && "${{ github.ref_type }}" != "tag" \
+                && "${{ inputs.force_compile || false }}" != "true" ]]; then
+            if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+              echo "Tag ${TAG} already exists → skip compile"
+              SHOULD_COMPILE=false
+            fi
+          fi
+
+          {
+            echo "version=${VER}"
+            echo "tag=${TAG}"
+            echo "should_compile=${SHOULD_COMPILE}"
+            echo "should_web=${SHOULD_WEB}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "→ version=${VER} tag=${TAG} compile=${SHOULD_COMPILE} web=${SHOULD_WEB}"
+
+  deploy-web:
+    name: Deploy web (gh-pages)
+    needs: detect
+    if: needs.detect.outputs.should_web == 'true'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install + build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy dist/ → gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: gh-pages
+          force_orphan: true
+          commit_message: "deploy web ${{ github.sha }} (v${{ needs.detect.outputs.version }})"
+
   publish-tauri:
     name: Desktop (${{ matrix.platform }})
+    needs: detect
+    if: needs.detect.outputs.should_compile == 'true'
     permissions:
       contents: write
     strategy:
@@ -42,9 +160,7 @@ jobs:
             args: ""
           - platform: ubuntu-22.04
             args: ""
-
     runs-on: ${{ matrix.platform }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -83,30 +199,15 @@ jobs:
       - name: Install JS dependencies
         run: npm ci
 
-      - name: Resolve release tag
-        id: meta
-        shell: bash
-        run: |
-          if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            TAG="${{ github.ref_name }}"
-          elif [[ -n "${{ inputs.tag }}" ]]; then
-            TAG="${{ inputs.tag }}"
-          else
-            VER=$(node -p "require('./package.json').version")
-            TAG="v${VER}"
-          fi
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "Using tag: ${TAG}"
-
       - name: Build + upload Tauri artifacts
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ steps.meta.outputs.tag }}
-          releaseName: "wi-mod ${{ steps.meta.outputs.tag }}"
+          tagName: ${{ needs.detect.outputs.tag }}
+          releaseName: "wi-mod ${{ needs.detect.outputs.tag }}"
           releaseBody: |
-            ## wi-mod ${{ steps.meta.outputs.tag }}
+            ## wi-mod ${{ needs.detect.outputs.tag }}
 
             Portable desktop builds (Tauri v2).
 
@@ -120,38 +221,3 @@ jobs:
           includeRelease: true
           includeDebug: false
           args: ${{ matrix.args }}
-
-  # ─── Web: Vite → gh-pages ───────────────────────────────────────────────
-  deploy-web:
-    name: Deploy web (gh-pages)
-    needs: []
-    if: >
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_dispatch' && inputs.publish_web != false)
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install + build
-        run: |
-          npm ci
-          npm run build
-
-      - name: Deploy dist/ → gh-pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          publish_branch: gh-pages
-          force_orphan: true
-          commit_message: "deploy web ${{ github.sha }}"

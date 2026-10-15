@@ -52,6 +52,16 @@ Portable Tauri: `src-tauri/target/release/wi-mod.exe` (+ `data/` al lado).
 
 `fetchExternalApi()` → Desktop `invoke('fetch_external_api')` (reqwest) / Web `fetch`. Ver `src/services/api/` + `src-tauri/src/http_proxy.rs`.
 
+## CI (`.github/workflows/build-and-release.yml`)
+
+| Evento | Web (gh-pages) | Desktop Tauri + draft Release |
+|--------|----------------|-------------------------------|
+| Push a `main` | siempre | solo si cambia `package.json` / `wi_mod/__init__.py` versión |
+| Tag `v*` | sí | sí |
+| Actions manual | opcional | con `force_compile` |
+
+Al subir versión: bumpea **a la vez** `wi_mod/__init__.py`, `package.json` y `src-tauri/tauri.conf.json` (misma regla que `docs/index.html`).
+
 ## Orden
 
 1. `tauri:dev` con UI estática.
