@@ -13,6 +13,8 @@ const state = {
   cardSize: ["sm", "md", "lg"].includes(localStorage.getItem("wi-mod-size")) ? localStorage.getItem("wi-mod-size") : "md",
   query: "",
   selected: new Set(),
+  lastCheck: "",
+  picking: false,
   detected: null,
   manual: false,
   packMode: "export",
@@ -75,6 +77,7 @@ function setLoading(button, on, label) {
     button.classList.remove("btn-loading");
     button.disabled = false;
     button.removeAttribute("aria-busy");
+    button.removeAttribute("aria-label");
     if (button.dataset.label) button.innerHTML = button.dataset.label;
   }
 }
@@ -145,7 +148,7 @@ function toast(text, kind = "ok") {
 
 async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
-  const token = localStorage.getItem("wi-mod-session") || "";
+  const token = sessionToken();
   if (token && !headers.has("X-Session")) headers.set("X-Session", token);
   const res = await fetch(path, { ...options, headers, credentials: "same-origin" });
   const type = res.headers.get("content-type") || "";
@@ -297,6 +300,13 @@ function gameCover(domain) {
   return catalogGame(domain)?.imageUrl || "";
 }
 
+function gameMark(domain) {
+  const game = catalogGame(domain);
+  if (game?.logoUrl) return { src: game.logoUrl, logo: true };
+  if (game?.imageUrl) return { src: game.imageUrl, logo: false };
+  return { src: "", logo: false };
+}
+
 function closeGameMenu() {
   const menu = $("game-menu");
   const picker = $("game-picker");
@@ -309,11 +319,15 @@ function renderGameScope() {
   const nameNode = $("game-picker-name");
   const imgNode = $("game-picker-img");
   if (!nameNode) return;
-  nameNode.textContent = gameLabel(state.game);
-  const cover = gameCover(state.game);
+  const gameName = gameLabel(state.game);
+  nameNode.textContent = gameName;
+  nameNode.title = gameName;
+  $("game-picker").title = gameName;
+  const mark = gameMark(state.game);
   if (imgNode) {
-    if (cover) {
-      imgNode.src = cover;
+    imgNode.classList.toggle("is-logo", mark.logo);
+    if (mark.src) {
+      imgNode.src = mark.src;
       imgNode.hidden = false;
     } else {
       imgNode.removeAttribute("src");
@@ -324,9 +338,9 @@ function renderGameScope() {
   if (!menu || menu.hidden) return;
   const options = gameOptions();
   menu.innerHTML = options.map(([id, label]) => {
-    const img = gameCover(id);
+    const mark = gameMark(id);
     return `<button type="button" role="option" data-game="${esc(id)}" class="${id === state.game ? "on" : ""}">
-      ${img ? `<img alt="" src="${esc(img)}" loading="lazy">` : `<img alt="" hidden>`}
+      ${mark.src ? `<img alt="" class="${mark.logo ? "is-logo" : ""}" src="${esc(mark.src)}" loading="lazy">` : `<img alt="" hidden>`}
       <span>${esc(label)}</span>
     </button>`;
   }).join("");
@@ -358,7 +372,7 @@ async function enrichActiveGame() {
   const domain = state.game;
   if (!domain) return;
   const current = catalogGame(domain);
-  if (current?.imageUrl && current?.description) {
+  if (current?.imageUrl && current?.description && "steamAppId" in current) {
     renderGameHero();
     return;
   }
@@ -404,8 +418,7 @@ function renderGameHero() {
     meta.metacritic != null ? `Metacritic ${meta.metacritic}` : "",
   ].filter(Boolean);
   node.hidden = false;
-  if (cover) node.style.backgroundImage = `url("${cover.replace(/"/g, "%22")}")`;
-  else node.style.backgroundImage = "";
+  node.style.backgroundImage = "";
   node.innerHTML = `
     <div class="game-hero-inner">
       ${cover ? `<img class="game-hero-cover" alt="" src="${esc(cover)}">` : `<div class="game-hero-cover"></div>`}
@@ -442,9 +455,8 @@ function packCatById(pack, catId) {
 }
 
 function packCatMark(cat) {
-  if (!cat) return "";
-  if (cat.imageUrl) return `<img class="pc-ico" alt="" src="${esc(cat.imageUrl)}">`;
-  return `<span>${esc(cat.emoji || "📦")}</span>`;
+  if (!cat || !cat.imageUrl) return "";
+  return `<img class="pc-ico" alt="" src="${esc(cat.imageUrl)}">`;
 }
 
 function packLabel(mod) {
@@ -452,8 +464,7 @@ function packLabel(mod) {
   if (!pack) return mod.modpack || "";
   const cat = packCatById(pack, mod.modpackCategoryId);
   if (!cat) return pack.name;
-  const mark = cat.emoji || "📦";
-  return `${pack.name} · ${mark} ${cat.name}`;
+  return `${pack.name} · ${cat.name}`;
 }
 
 function visible() {
@@ -588,13 +599,16 @@ function renderFilters() {
     }
   }
 
-  const platformMap = counts((mod) => mod.platform || "Nexus");
-  (state.catalog.platforms || []).forEach((name) => {
-    if (!platformMap.some((row) => row.id === name)) {
-      platformMap.push({ id: name, label: name, count: 0 });
-    }
+  const platformNames = [...PLATFORMS];
+  scopedMods().forEach((mod) => {
+    const name = mod.platform || "Nexus";
+    if (!platformNames.includes(name)) platformNames.push(name);
   });
-  platformMap.sort((a, b) => a.label.localeCompare(b.label, "es"));
+  const platformMap = platformNames.map((name) => ({
+    id: name,
+    label: name,
+    count: scopedMods().filter((mod) => (mod.platform || "Nexus") === name).length,
+  }));
   $("platforms").innerHTML = chip("Todas", "", state.platform, "platform") + platformMap.map((row) => (
     chip(`${row.label} (${row.count})`, row.id, state.platform, "platform")
   )).join("");
@@ -604,7 +618,24 @@ function renderFilters() {
     const n = scopedMods().filter((mod) => mod.modpackId === pack.id).length;
     return chip(`${pack.name} (${n})`, pack.id, state.modpack, "modpack");
   });
-  $("modpacks").innerHTML = chip("Todos", "", state.modpack, "modpack") + packChips.join("");
+  let inside = "";
+  if (state.modpack) {
+    const pack = packById(state.modpack);
+    const cats = pack ? (pack.categories || []) : [];
+    const rows = cats.map((cat) => {
+      const n = scopedMods().filter((mod) => mod.modpackId === pack.id && mod.modpackCategoryId === cat.id).length;
+      const img = cat.imageUrl ? `<img class="pc-ico" alt="" src="${esc(cat.imageUrl)}">` : "";
+      return `<button type="button" class="pack-cat-chip ${cat.id === state.packCat ? "on" : ""}" data-kind="packCat" data-value="${encodeURIComponent(cat.id)}">${img}<span>${esc(cat.name)} (${n})</span></button>`;
+    }).join("");
+    inside = `<div class="pack-cats">
+      <div class="side-head">
+        <p class="side-label">Dentro del pack</p>
+        <button type="button" class="side-add" data-add="packcat" title="Añadir categoría">+</button>
+      </div>
+      ${chip("Todas", "", state.packCat, "packCat")}${rows}
+    </div>`;
+  }
+  $("modpacks").innerHTML = chip("Todos", "", state.modpack, "modpack") + packChips.join("") + inside;
 
   const cats = counts((mod) => mod.category || "General");
   (state.catalog.categories || []).forEach((name) => {
@@ -627,7 +658,7 @@ function renderFilters() {
       render();
     };
   });
-  document.querySelectorAll(".side-add").forEach((button) => {
+  document.querySelectorAll(".side-add[data-add]").forEach((button) => {
     button.onclick = (event) => {
       event.stopPropagation();
       sideAdd(button.dataset.add);
@@ -635,60 +666,74 @@ function renderFilters() {
   });
 }
 
-async function addCatalogName(kind, title, placeholder) {
-  const name = await askInput({ title, placeholder, okLabel: "Añadir" });
-  if (!name) return;
-  try {
-    await api("/api/catalog", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind, name }),
-    });
-    toast("Añadido.");
-    await load();
-  } catch (error) {
-    toast(error.message, "bad");
-  }
-}
-
 async function sideAdd(kind) {
   sfx.click();
   if (kind === "modpack") {
-    openModpacksDialog();
+    startSideName("modpacks", "Nombre del pack", async (name) => {
+      if (!state.game) throw new Error("Elige un juego arriba.");
+      const saved = await api("/api/modpacks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          gameDomain: state.game,
+          gameName: gameLabel(state.game),
+          notes: "",
+        }),
+      });
+      if (saved.modpack?.id) state.modpack = saved.modpack.id;
+      toast("Modpack creado.");
+    });
     return;
   }
-  if (kind === "platform") {
-    await addCatalogName("platform", "Plataforma", "Nexus, Steam…");
+  if (kind === "packcat") {
+    openPackCatDialog(state.modpack);
     return;
   }
   if (kind === "game") {
-    const options = gameOptionsForPacks();
-    const picked = await askInput({
-      title: "Juego",
-      hint: "Elige uno de la lista.",
-      mode: "select",
-      options,
-      okLabel: "Añadir",
-    });
-    if (!picked) return;
-    const hit = options.find(([id]) => id === picked);
-    if (!hit) return;
-    try {
-      await api("/api/catalog", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "game", gameDomain: hit[0], gameName: hit[1] }),
-      });
-      toast(`${hit[1]} añadido.`);
-      await load();
-    } catch (error) {
-      toast(error.message, "bad");
-    }
+    openGameDialog();
     return;
   }
   if (kind === "category") {
-    await addCatalogName("category", "Categoría Nexus", "Overhauls, Patches…");
+    startSideName("categories", "Overhauls, Patches…", async (name) => {
+      await api("/api/catalog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "category", name }),
+      });
+      toast("Añadido.");
+    });
   }
+}
+
+function startSideName(boxId, placeholder, save) {
+  const box = $(boxId);
+  if (!box || box.querySelector(".side-name")) {
+    box?.querySelector(".side-name input")?.focus();
+    return;
+  }
+  const row = document.createElement("form");
+  row.className = "side-name";
+  row.innerHTML = `<input type="text" maxlength="80" placeholder="${esc(placeholder)}" autocomplete="off" spellcheck="false"><button class="solid" type="submit">OK</button>`;
+  box.prepend(row);
+  const input = row.querySelector("input");
+  input.focus();
+  row.onsubmit = async (event) => {
+    event.preventDefault();
+    const name = input.value.trim();
+    if (!name) return;
+    input.disabled = true;
+    try {
+      await save(name);
+      await load();
+    } catch (error) {
+      input.disabled = false;
+      toast(error.message, "bad");
+    }
+  };
+  input.onkeydown = (event) => {
+    if (event.key === "Escape") row.remove();
+  };
 }
 
 function chip(label, value, current, kind) {
@@ -818,7 +863,7 @@ function fillModpackSelects(packNode, catNode, packId, catId, gameDomain) {
     catNode.innerHTML = `<option value="">Sin categorías (usa +)</option>`;
   } else {
     catNode.innerHTML = cats.map((cat) => (
-      `<option value="${esc(cat.id)}" ${cat.id === catId ? "selected" : ""}>${esc(cat.emoji || "📦")} ${esc(cat.name)}</option>`
+      `<option value="${esc(cat.id)}" ${cat.id === catId ? "selected" : ""}>${esc(cat.name)}</option>`
     )).join("");
   }
   packNode.onchange = () => {
@@ -826,23 +871,61 @@ function fillModpackSelects(packNode, catNode, packId, catId, gameDomain) {
   };
 }
 
-const PACK_EMOJIS = ["📦", "🔧", "✨", "🎨", "⚔️", "💡", "🧩", "⚠️", "📝", "🏠", "🌲", "🔊", "🧊", "🔥"];
-
-function bindEmojiPicks(box, input, current) {
-  if (!box || !input) return;
-  const value = current || input.value || "";
-  if (value && !input.value) input.value = value;
-  box.innerHTML = PACK_EMOJIS.map((emoji) => (
-    `<button type="button" class="${emoji === input.value ? "on" : ""}" data-emoji="${esc(emoji)}">${emoji}</button>`
-  )).join("");
-  box.querySelectorAll("[data-emoji]").forEach((button) => {
-    button.onclick = () => {
-      input.value = button.dataset.emoji === input.value ? "" : button.dataset.emoji;
-      box.querySelectorAll("button").forEach((node) => {
-        node.classList.toggle("on", node.dataset.emoji === input.value);
-      });
-    };
+async function createModpackInline(gameDomain, gameName) {
+  const domain = String(gameDomain || "").trim();
+  if (!domain) {
+    toast("Elige un juego arriba.", "warn");
+    return null;
+  }
+  const name = await askInput({ title: "Modpack", placeholder: "Nombre del pack", okLabel: "Crear" });
+  if (!name) return null;
+  const saved = await api("/api/modpacks", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name,
+      gameDomain: domain,
+      gameName: gameName || gameLabel(domain),
+      notes: "",
+    }),
   });
+  await load();
+  toast("Modpack creado.");
+  return saved.modpack || null;
+}
+
+function refillPackSelects(packNode, catNode, packId, catId, gameDomain) {
+  if (!packNode?.isConnected || !catNode?.isConnected) return;
+  fillModpackSelects(packNode, catNode, packId, catId, gameDomain);
+}
+
+function createCategoryInline(packNode, catNode, gameDomain) {
+  const packId = packNode?.value || "";
+  if (!packId || !packById(packId)) {
+    toast("Crea o elige un modpack.", "warn");
+    return;
+  }
+  const dialog = $("packcat-dialog");
+  const onClose = () => {
+    dialog.removeEventListener("close", onClose);
+    const picked = dialog.dataset.pick || catNode.value || "";
+    dialog.dataset.pick = "";
+    refillPackSelects(packNode, catNode, packNode.value || packId, picked, gameDomain);
+  };
+  dialog.addEventListener("close", onClose);
+  openPackCatDialog(packId);
+}
+
+function paintCatPreview(src) {
+  const preview = $("pc-preview");
+  if (!preview) return;
+  if (!src) {
+    preview.hidden = true;
+    preview.removeAttribute("src");
+    return;
+  }
+  preview.src = src;
+  preview.hidden = false;
 }
 
 function openPackCatDialog(packId, catId) {
@@ -855,25 +938,22 @@ function openPackCatDialog(packId, catId) {
   sfx.open();
   $("packcat-title").textContent = cat ? "Editar categoría" : "Nueva categoría";
   $("packcat-pack").textContent = `Modpack: ${pack.name} · ${pack.gameName || pack.gameDomain}`;
+  $("pc-pack-id").value = pack.id;
   $("pc-edit-id").value = cat ? cat.id : "";
   $("pc-name").value = cat ? cat.name : "";
-  $("pc-emoji").value = cat ? (cat.emoji || "📦") : "📦";
-  $("pc-image").value = cat ? (cat.imageUrl || "") : "";
+  const current = cat?.imageUrl || "";
+  $("pc-image").value = String(current).startsWith("http") ? current : "";
+  $("pc-image").dataset.keep = String(current).startsWith("/") ? current : "";
+  $("pc-file").value = "";
   $("pc-notes").value = cat ? (cat.notes || "") : "";
+  paintCatPreview(current);
   const del = $("pc-delete");
   del.hidden = !cat;
   del.onclick = () => deletePackCat(pack.id, cat?.id);
-  $("pc-emoji-picks").innerHTML = PACK_EMOJIS.map((emoji) => (
-    `<button type="button" class="${emoji === $("pc-emoji").value ? "on" : ""}" data-emoji="${esc(emoji)}">${emoji}</button>`
-  )).join("");
-  $("pc-emoji-picks").querySelectorAll("[data-emoji]").forEach((button) => {
-    button.onclick = () => {
-      $("pc-emoji").value = button.dataset.emoji;
-      $("pc-emoji-picks").querySelectorAll("button").forEach((node) => {
-        node.classList.toggle("on", node.dataset.emoji === button.dataset.emoji);
-      });
-    };
-  });
+  $("pc-file").onchange = () => {
+    const picked = $("pc-file").files?.[0];
+    if (picked) paintCatPreview(URL.createObjectURL(picked));
+  };
   $("packcat-dialog").showModal();
 }
 
@@ -892,18 +972,13 @@ async function deletePackCat(packId, catId) {
 
 async function savePackCatForm(event) {
   event.preventDefault();
-  const packId = state.modpack;
+  const packId = $("pc-pack-id").value || state.modpack;
   if (!packId) {
     toast("Elige un modpack primero.", "warn");
     return;
   }
-  const body = {
-    name: ($("pc-name").value || "").trim(),
-    emoji: ($("pc-emoji").value || "📦").trim() || "📦",
-    imageUrl: ($("pc-image").value || "").trim(),
-    notes: $("pc-notes").value || "",
-  };
-  if (!body.name) {
+  const name = ($("pc-name").value || "").trim();
+  if (!name) {
     toast("Pon un nombre.", "warn");
     return;
   }
@@ -911,23 +986,36 @@ async function savePackCatForm(event) {
   const button = event.submitter || $("packcat-form").querySelector('button[type="submit"]');
   setLoading(button, true, "Guardando");
   try {
+    const file = $("pc-file").files?.[0];
+    let imageUrl = ($("pc-image").value || "").trim() || $("pc-image").dataset.keep || "";
+    if (file) {
+      const upload = new FormData();
+      upload.append("file", file);
+      const uploaded = await api("/api/images", { method: "POST", body: upload });
+      imageUrl = uploaded.imageUrl || "";
+    }
+    const payload = { name, imageUrl, notes: $("pc-notes").value || "" };
+    let saved;
     if (editId) {
-      await api(`/api/modpacks/${packId}/categories/${editId}`, {
+      saved = await api(`/api/modpacks/${packId}/categories/${editId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(payload),
       });
       toast("Categoría actualizada.");
     } else {
-      await api(`/api/modpacks/${packId}/categories`, {
+      saved = await api(`/api/modpacks/${packId}/categories`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(payload),
       });
       toast("Categoría creada.");
     }
-    $("packcat-dialog").close();
+    const cats = saved?.modpack?.categories || [];
+    const match = cats.find((cat) => cat.id === editId) || [...cats].reverse().find((cat) => cat.name === name);
+    $("packcat-dialog").dataset.pick = match?.id || "";
     await load();
+    $("packcat-dialog").close();
   } catch (error) {
     toast(error.message, "bad");
   } finally {
@@ -947,6 +1035,7 @@ function syncViewToggle() {
     grid.classList.toggle("list", state.view === "list");
     grid.classList.remove("size-sm", "size-md", "size-lg");
     grid.classList.add(`size-${state.cardSize}`);
+    grid.classList.toggle("picking", state.picking);
   }
   document.querySelectorAll(".view-toggle [data-view]").forEach((button) => {
     button.classList.toggle("on", button.dataset.view === state.view);
@@ -963,6 +1052,61 @@ function setView(view) {
   syncViewToggle();
 }
 
+function setPicking(on) {
+  state.picking = Boolean(on);
+  if (!state.picking) {
+    state.selected.clear();
+    state.lastCheck = "";
+  }
+  const button = $("pick-mode");
+  if (button) {
+    button.classList.toggle("on", state.picking);
+    button.textContent = state.picking ? "Quitar selección" : "Habilitar selección";
+  }
+  sfx.click();
+  render();
+}
+
+function paintPickAll() {
+  const button = $("pick-all");
+  if (!button) return;
+  button.hidden = !state.picking;
+  const ids = visible().map((mod) => mod.id);
+  const allOn = ids.length > 0 && ids.every((id) => state.selected.has(id));
+  button.textContent = allOn ? "Quitar todo" : "Seleccionar todo";
+}
+
+function selectAllVisible() {
+  if (!state.picking) return;
+  const ids = visible().map((mod) => mod.id);
+  const allOn = ids.length > 0 && ids.every((id) => state.selected.has(id));
+  ids.forEach((id) => {
+    if (allOn) state.selected.delete(id);
+    else state.selected.add(id);
+  });
+  sfx.soft();
+  render();
+}
+
+function togglePick(id, shift) {
+  const ids = visible().map((mod) => mod.id);
+  if (shift && state.lastCheck) {
+    const a = ids.indexOf(state.lastCheck);
+    const b = ids.indexOf(id);
+    if (a >= 0 && b >= 0) {
+      const [from, to] = a < b ? [a, b] : [b, a];
+      ids.slice(from, to + 1).forEach((item) => state.selected.add(item));
+    }
+  } else if (state.selected.has(id)) {
+    state.selected.delete(id);
+  } else {
+    state.selected.add(id);
+  }
+  state.lastCheck = id;
+  sfx.soft();
+  render();
+}
+
 function setCardSize(size) {
   state.cardSize = size === "sm" || size === "lg" ? size : "md";
   localStorage.setItem("wi-mod-size", state.cardSize);
@@ -970,10 +1114,31 @@ function setCardSize(size) {
   syncViewToggle();
 }
 
+function paintBulk() {
+  const bar = $("bulk");
+  const n = state.selected.size;
+  bar.hidden = n === 0;
+  if (!n) return;
+  $("bulk-count").textContent = `${n} marcados`;
+  const visibleIds = visible().map((mod) => mod.id);
+  const allOn = visibleIds.length > 0 && visibleIds.every((id) => state.selected.has(id));
+  $("bulk-all").textContent = allOn ? "Desmarcar visibles" : "Marcar visibles";
+  fillCategorySelect($("bulk-category"), $("bulk-category").value || "General");
+  fillModpackSelects(
+    $("bulk-pack"),
+    $("bulk-pack-cat"),
+    $("bulk-pack").value || state.modpack || "",
+    $("bulk-pack-cat").value || "",
+    state.game
+  );
+}
+
 function render() {
   renderFilters();
   renderGameHero();
   syncViewToggle();
+  paintPickAll();
+  paintBulk();
   const mods = visible();
   const selected = mods.filter((mod) => state.selected.has(mod.id)).length;
   $("count").textContent = selected
@@ -1001,21 +1166,25 @@ function render() {
         <p class="sub">${esc(displaySummary(mod))}${mod.summaryEs ? ` <span class="meta">${state.showEs ? "ES" : "EN"}</span>` : ""}</p>
       </div>
       <footer>
-        <label class="check"><input type="checkbox" data-check="${mod.id}" ${state.selected.has(mod.id) ? "checked" : ""}> incluir</label>
+        ${state.picking ? `<label class="check"><input type="checkbox" data-check="${mod.id}" ${state.selected.has(mod.id) ? "checked" : ""}> marcar</label>` : `<span></span>`}
         <span class="meta">${esc(fmtDate(mod.updatedAt))}</span>
       </footer>
     </article>
   `).join("");
   document.querySelectorAll(".card").forEach((card) => {
-    card.onclick = () => { sfx.open(); openDetail(card.dataset.id); };
+    card.onclick = (event) => {
+      if (state.picking) {
+        togglePick(card.dataset.id, event.shiftKey);
+        return;
+      }
+      sfx.open();
+      openDetail(card.dataset.id);
+    };
   });
   document.querySelectorAll("[data-check]").forEach((box) => {
     box.onclick = (event) => {
       event.stopPropagation();
-      if (box.checked) state.selected.add(box.dataset.check);
-      else state.selected.delete(box.dataset.check);
-      sfx.soft();
-      render();
+      togglePick(box.dataset.check, event.shiftKey);
     };
   });
 }
@@ -1225,8 +1394,18 @@ function openDetail(id) {
     </div>
     <p class="summary" id="detail-summary" title="${esc(mod.summary || "")}">${esc(summaryText || "Sin descripción.")}</p>
     <div class="row">
-      <label style="flex:1">Modpack<select id="detail-modpack"></select></label>
-      <label style="flex:1">Categoría<select id="detail-pack-cat"></select></label>
+      <label style="flex:1">Modpack
+        <span class="pick-add">
+          <select id="detail-modpack"></select>
+          <button type="button" class="side-add" id="detail-pack-new" title="Crear modpack">+</button>
+        </span>
+      </label>
+      <label style="flex:1">Categoría
+        <span class="pick-add">
+          <select id="detail-pack-cat"></select>
+          <button type="button" class="side-add" id="detail-cat-new" title="Crear categoría">+</button>
+        </span>
+      </label>
     </div>
     <p class="hint">${mod.platform === "Independiente" ? "Página oficial. Plataforma independiente." : "Ficha informativa. El archivo no se guarda aquí."}</p>
     <footer>
@@ -1248,6 +1427,14 @@ function openDetail(id) {
   );
   $("detail-dialog").showModal();
   $("detail-close").onclick = () => $("detail-dialog").close();
+  $("detail-pack-new").onclick = async () => {
+    const pack = await createModpackInline(mod.gameDomain, mod.gameName);
+    if (!pack?.id) return;
+    refillPackSelects($("detail-modpack"), $("detail-pack-cat"), pack.id, "", mod.gameDomain);
+  };
+  $("detail-cat-new").onclick = () => {
+    createCategoryInline($("detail-modpack"), $("detail-pack-cat"), mod.gameDomain);
+  };
   $("detail-save").onclick = () => saveDetail(mod.id);
   $("detail-refresh").onclick = () => refreshOne(mod.id);
   $("detail-delete").onclick = () => removeMod(mod.id);
@@ -1301,6 +1488,36 @@ async function downloadMod(id) {
       await load();
       openDetail(id);
     }
+  } catch (error) {
+    toast(error.message, "bad");
+  } finally {
+    setLoading(button, false);
+  }
+}
+
+async function assignMarked(kind) {
+  const ids = [...state.selected];
+  if (!ids.length) {
+    toast("Marca mods primero.", "warn");
+    return;
+  }
+  const body = { ids };
+  const button = kind === "category" ? $("bulk-cat") : $("bulk-move");
+  if (kind === "category") {
+    body.category = $("bulk-category").value || "General";
+  } else {
+    body.modpackId = $("bulk-pack").value || "";
+    body.modpackCategoryId = $("bulk-pack-cat").value || "";
+  }
+  setLoading(button, true, kind === "category" ? "Asignando" : "Moviendo");
+  try {
+    const data = await api("/api/mods/assign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    toast(kind === "category" ? `${data.count} en la categoría.` : `${data.count} movidos.`);
+    await load();
   } catch (error) {
     toast(error.message, "bad");
   } finally {
@@ -1571,6 +1788,16 @@ $("translate-copy").onclick = async () => {
   }
 };
 $("add-open").onclick = () => { sfx.open(); resetAdd(); $("add-dialog").showModal(); };
+$("bulk-cat").onclick = () => assignMarked("category");
+$("bulk-move").onclick = () => assignMarked("pack");
+$("bulk-clear").onclick = () => { state.selected.clear(); sfx.soft(); render(); };
+$("bulk-all").onclick = () => {
+  const ids = visible().map((mod) => mod.id);
+  const allOn = ids.length > 0 && ids.every((id) => state.selected.has(id));
+  ids.forEach((id) => { if (allOn) state.selected.delete(id); else state.selected.add(id); });
+  sfx.soft();
+  render();
+};
 $("add-url").oninput = () => syncAddSource();
 $("detect").onclick = detect;
 $("manual-toggle").onclick = () => {
@@ -1580,6 +1807,14 @@ $("manual-toggle").onclick = () => {
   sfx.click();
 };
 $("add-form").onsubmit = saveMod;
+$("add-pack-new").onclick = async () => {
+  const pack = await createModpackInline(state.game, gameLabel(state.game));
+  if (!pack?.id) return;
+  refillPackSelects($("add-modpack"), $("add-pack-cat"), pack.id, "", state.game);
+};
+$("add-cat-new").onclick = () => {
+  createCategoryInline($("add-modpack"), $("add-pack-cat"), state.game);
+};
 $("dup-form").onsubmit = (event) => event.preventDefault();
 $("settings-open").onclick = () => { sfx.open(); openSettings(); };
 $("settings-form").onsubmit = async (event) => {
@@ -1659,6 +1894,8 @@ $("game-search").oninput = (event) => {
 };
 $("search").oninput = (event) => { state.query = event.target.value; render(); };
 $("sort").onchange = (event) => { state.sort = event.target.value; sfx.click(); render(); };
+$("pick-mode").onclick = () => setPicking(!state.picking);
+$("pick-all").onclick = () => selectAllVisible();
 document.querySelectorAll(".view-toggle [data-view]").forEach((button) => {
   button.onclick = () => setView(button.dataset.view);
 });
@@ -1673,6 +1910,7 @@ $("packs-open").onclick = () => { sfx.open(); openModpacksDialog(); };
 $("mp-reset").onclick = () => resetModpackForm();
 $("modpacks-form").onsubmit = saveModpackForm;
 $("packcat-form").onsubmit = savePackCatForm;
+$("mp-cat-add").onclick = () => addMpCatRow();
 
 function gameOptionsForPacks() {
   return [
@@ -1689,11 +1927,25 @@ function openModpacksDialog() {
   $("modpacks-dialog").showModal();
 }
 
+function mpCatNames() {
+  return [...$("mp-cats").querySelectorAll("input")].map((input) => input.value.trim()).filter(Boolean);
+}
+
+function addMpCatRow(name = "") {
+  const row = document.createElement("div");
+  row.className = "mp-cat-row";
+  row.innerHTML = `<input type="text" placeholder="Ej. Iluminación" value="${esc(name)}" maxlength="80"><button type="button" class="ghost" title="Quitar">✕</button>`;
+  row.querySelector("button").onclick = () => row.remove();
+  $("mp-cats").appendChild(row);
+}
+
 function resetModpackForm() {
   $("mp-edit-id").value = "";
   $("mp-name").value = "";
   $("mp-notes").value = "";
   $("mp-save").textContent = "Guardar modpack";
+  $("mp-cats").innerHTML = "";
+  addMpCatRow();
   const games = gameOptions();
   const current = state.game || games[0]?.[0] || "";
   $("mp-game").innerHTML = games.map(([id, label]) => (
@@ -1736,6 +1988,8 @@ function editModpack(id) {
   $("mp-name").value = pack.name || "";
   $("mp-notes").value = pack.notes || "";
   $("mp-save").textContent = "Actualizar";
+  $("mp-cats").innerHTML = "";
+  addMpCatRow();
   const games = gameOptionsForPacks();
   if (pack.gameDomain && !games.some(([gid]) => gid === pack.gameDomain)) {
     games.unshift([pack.gameDomain, pack.gameName || pack.gameDomain]);
@@ -1775,23 +2029,44 @@ async function saveModpackForm(event) {
     gameName,
     notes: $("mp-notes").value || "",
   };
+  const extra = mpCatNames().map((label) => ({ name: label }));
   const button = $("mp-save");
   setLoading(button, true, "Guardando");
   try {
+    let saved;
     if (editId) {
-      await api(`/api/modpacks/${editId}`, {
+      saved = await api(`/api/modpacks/${editId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      toast("Modpack actualizado.");
+      for (const cat of extra) {
+        saved = await api(`/api/modpacks/${editId}/categories`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(cat),
+        });
+      }
+      toast(extra.length ? "Modpack y categorías guardados." : "Modpack actualizado.");
     } else {
-      await api("/api/modpacks", {
+      if (extra.length) body.categories = extra;
+      saved = await api("/api/modpacks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      toast("Modpack creado.");
+      toast(extra.length ? "Modpack creado con categorías." : "Modpack creado.");
+    }
+    const pack = saved.modpack;
+    if (!editId && pack?.id) {
+      if (pack.gameDomain) {
+        state.game = pack.gameDomain;
+        localStorage.setItem("wi-mod-game", state.game);
+      }
+      state.modpack = pack.id;
+      await load();
+      $("modpacks-dialog").close();
+      return;
     }
     await load();
     openModpacksDialog();
@@ -1964,12 +2239,34 @@ let loginMode = "idle";
 let loginLength = null;
 let lookupSeq = 0;
 
+function sessionToken() {
+  return localStorage.getItem("wi-mod-session") || sessionStorage.getItem("wi-mod-session") || "";
+}
+
+function keepSession(token, remember) {
+  if (remember) {
+    localStorage.setItem("wi-mod-session", token);
+    localStorage.setItem("wi-mod-keep", "1");
+    sessionStorage.removeItem("wi-mod-session");
+  } else {
+    sessionStorage.setItem("wi-mod-session", token);
+    localStorage.removeItem("wi-mod-session");
+  }
+}
+
+function dropSession() {
+  localStorage.removeItem("wi-mod-session");
+  sessionStorage.removeItem("wi-mod-session");
+}
+
 function showLogin() {
   const box = $("login");
   if (!box) return;
   box.hidden = false;
   $("login-status").textContent = "";
   $("login-status").className = "status";
+  const keep = $("login-keep");
+  if (keep) keep.checked = localStorage.getItem("wi-mod-keep") === "1";
   hideBoot();
   refreshLoginUser();
 }
@@ -2055,12 +2352,13 @@ async function submitLogin(event) {
   status.textContent = loginMode === "enter" ? "Entrando…" : "Guardando clave…";
   button.disabled = true;
   try {
+    const remember = Boolean($("login-keep")?.checked);
     const data = await api(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, remember }),
     });
-    if (data.token) localStorage.setItem("wi-mod-session", data.token);
+    if (data.token) keepSession(data.token, remember);
     setDockName(data.username || username);
     rollAvatar();
     $("login-pass").value = "";
@@ -2089,11 +2387,10 @@ $("login-reset").onclick = () => {
 };
 $("logout").onclick = async () => {
   closeAppMenu();
-  const token = localStorage.getItem("wi-mod-session") || "";
   try {
     await api("/api/logout", { method: "POST" });
   } catch (_) { /* sigue el cierre local */ }
-  localStorage.removeItem("wi-mod-session");
+  dropSession();
   state.mods = [];
   $("login-user").value = "";
   $("login-pass").value = "";
@@ -2162,6 +2459,7 @@ api("/api/session")
       setDockName(session.username);
       return enterApp();
     }
+    dropSession();
     showLogin();
     hideBoot();
   })

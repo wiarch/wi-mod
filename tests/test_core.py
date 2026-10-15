@@ -173,6 +173,28 @@ class ArchiveTests(unittest.TestCase):
             self.assertEqual(restored.list_modpacks()[0]["name"], "Lux Stack")
             self.assertEqual(len(restored.list_modpacks()[0]["categories"]), 2)
             self.assertEqual(restored.list_modpacks()[0]["categories"][1]["emoji"], "💡")
+            core = pack["categories"][0]["id"]
+            moved = library.update_many(
+                [library.list_mods()[0]["id"], library.list_mods()[1]["id"]],
+                {"category": "Patches"},
+            )
+            self.assertEqual(len(moved), 2)
+            self.assertTrue(all(mod["category"] == "Patches" for mod in library.list_mods()))
+            sky = next(mod for mod in library.list_mods() if mod["name"] == "A")
+            library.update_many([sky["id"]], {
+                "modpackId": pack["id"],
+                "modpackCategoryId": core,
+            })
+            sky = next(mod for mod in library.list_mods() if mod["name"] == "A")
+            self.assertEqual(sky["modpackCategoryId"], core)
+            other = next(mod for mod in library.list_mods() if mod["name"] == "B")
+            with self.assertRaises(ValueError):
+                library.update_many([other["id"]], {
+                    "modpackId": pack["id"],
+                    "modpackCategoryId": core,
+                })
+            other = next(mod for mod in library.list_mods() if mod["name"] == "B")
+            self.assertEqual(other["modpackId"], "")
 
 
 class ServerTests(unittest.TestCase):

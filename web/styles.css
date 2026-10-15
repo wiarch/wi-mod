@@ -201,7 +201,8 @@ a:hover { color: var(--copper-hot); }
   align-items: center;
   gap: 8px;
   min-width: 12rem;
-  max-width: 18rem;
+  max-width: min(40rem, 52vw);
+  flex: 0 1 auto;
   background: color-mix(in srgb, var(--panel) 90%, black);
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -220,9 +221,24 @@ a:hover { color: var(--copper-hot); }
   width: 36px;
   height: 22px;
   object-fit: cover;
-  border-radius: 999px;
-  background: #2a241c;
+  object-position: center;
+  border-radius: 6px;
+  background: #120e0b;
   flex: 0 0 auto;
+}
+.game-picker img.is-logo,
+.game-menu img.is-logo {
+  object-fit: cover;
+  object-position: center 22%;
+  background: transparent;
+}
+.game-picker img.is-logo {
+  width: 64px;
+  height: 28px;
+}
+.game-menu img.is-logo {
+  width: 84px;
+  height: 36px;
 }
 .game-picker span {
   overflow: hidden;
@@ -279,37 +295,27 @@ a:hover { color: var(--copper-hot); }
   height: 28px !important;
 }
 .game-hero {
-  position: relative;
   border: 1px solid var(--line);
   border-radius: 18px;
   overflow: hidden;
-  min-height: 200px;
   margin-bottom: 16px;
-  background: #1a1511 center/cover no-repeat;
+  background: linear-gradient(180deg, #221c17, #14110e);
   animation: fade-in 0.45s var(--ease);
 }
-.game-hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(90deg, rgba(14, 12, 10, 0.92) 0%, rgba(14, 12, 10, 0.72) 48%, rgba(14, 12, 10, 0.35) 100%),
-    linear-gradient(0deg, rgba(14, 12, 10, 0.85), transparent 55%);
-}
 .game-hero-inner {
-  position: relative;
-  z-index: 1;
   display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 18px;
-  padding: 18px;
-  align-items: start;
+  grid-template-columns: minmax(240px, 38%) 1fr;
+  gap: 16px;
+  padding: 12px;
+  align-items: stretch;
 }
 .game-hero-cover {
-  width: 140px;
-  aspect-ratio: 16/10;
+  width: 100%;
+  height: 100%;
+  min-height: 168px;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: 16px;
   border: 1px solid var(--line);
   background: #2a241c;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
@@ -344,7 +350,7 @@ a:hover { color: var(--copper-hot); }
 }
 @media (max-width: 720px) {
   .game-hero-inner { grid-template-columns: 1fr; }
-  .game-hero-cover { width: min(100%, 220px); }
+  .game-hero-cover { width: 100%; max-height: 220px; }
 }
 .game-results {
   display: flex;
@@ -665,25 +671,18 @@ a:hover { color: var(--copper-hot); }
   border-color: var(--copper) !important;
   background: rgba(226, 164, 92, 0.12) !important;
 }
-.emoji-picks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.emoji-picks button {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border-radius: 10px;
+.pc-preview {
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  border-radius: 12px;
   border: 1px solid var(--line);
-  background: rgba(12, 10, 8, 0.45);
-  font-size: 18px;
+  background: #2a241c;
 }
-.emoji-picks button:hover,
-.emoji-picks button.on {
-  border-color: var(--copper);
-  background: rgba(226, 164, 92, 0.14);
-}
+.mp-cats { display: grid; gap: 6px; margin: 0 0 10px; }
+.mp-cat-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+.mp-cat-row .ghost { width: auto; padding: 8px 10px; }
+.pack-cats { margin: 8px 0 4px 8px; }
 .pack-cat-chip {
   display: flex;
   align-items: center;
@@ -724,6 +723,16 @@ a:hover { color: var(--copper-hot); }
   color: var(--copper-hot);
   box-shadow: inset 3px 0 0 var(--copper);
 }
+.side-name {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px;
+  margin: 0 0 6px;
+}
+.side .side-name button {
+  width: auto;
+  padding: 6px 10px;
+}
 
 main {
   padding: 16px 18px 40px;
@@ -740,6 +749,27 @@ main {
 }
 .bar #count { margin: 0; justify-self: start; }
 .bar-balance { justify-self: end; }
+.bulk[hidden] { display: none; }
+.bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px 10px;
+  margin: 10px 0 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(18, 14, 11, 0.72);
+}
+.bulk p { margin: 0 4px 6px 0; color: var(--copper-hot); }
+.bulk label {
+  display: grid;
+  gap: 4px;
+  min-width: 140px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.bulk select { min-width: 160px; }
 .view-dock {
   justify-self: center;
   display: flex;
@@ -822,8 +852,11 @@ main {
   min-height: 72px;
 }
 .grid.list .card-body {
+  flex: 1;
+  min-width: 0;
   justify-content: center;
-  padding: 10px 12px;
+  padding: 8px 14px;
+  gap: 3px;
 }
 .grid.list .card h3 {
   font-size: 0.95rem;
@@ -832,10 +865,12 @@ main {
   text-overflow: ellipsis;
 }
 .grid.list .card .sub {
-  -webkit-line-clamp: 1;
-  flex: 0;
+  -webkit-line-clamp: 2;
+  flex: 0 1 auto;
+  line-height: 1.35;
 }
-.grid.list .shot span { font-size: 10px; padding: 1px 6px; }
+.grid.list .shot span,
+.grid.list .shot::after { display: none; }
 .grid.list .card footer {
   flex: 0 0 auto;
   border: 0;
@@ -846,6 +881,7 @@ main {
 }
 .grid.list.size-sm .shot { width: 84px; flex-basis: 84px; min-height: 56px; }
 .grid.list.size-sm .card h3 { font-size: 0.88rem; }
+.grid.list.size-sm .card .sub { -webkit-line-clamp: 1; }
 .grid.list.size-lg .shot { width: 210px; flex-basis: 210px; min-height: 118px; }
 .grid.list.size-lg .card h3 { font-size: 1.15rem; white-space: normal; }
 .grid.list.size-lg .card .sub { -webkit-line-clamp: 3; }
@@ -867,6 +903,13 @@ main {
   border-color: color-mix(in srgb, var(--copper) 45%, var(--line));
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(226, 164, 92, 0.08);
 }
+#pick-mode.on {
+  border-color: var(--copper);
+  color: var(--copper-hot);
+  background: rgba(226, 164, 92, 0.14);
+}
+#pick-all[hidden] { display: none !important; }
+.grid.picking .card { cursor: pointer; }
 .card.on {
   border-color: var(--copper);
   box-shadow: 0 0 0 1px var(--glow), 0 12px 28px rgba(0, 0, 0, 0.3);
@@ -981,6 +1024,7 @@ dialog h2 {
   font-family: var(--font-brand);
 }
 label { display: grid; gap: 3px; color: var(--muted); font-size: 12px; }
+label[hidden] { display: none !important; }
 input, textarea, select {
   background: rgba(12, 10, 8, 0.55);
   border: 1px solid var(--line);
@@ -1026,7 +1070,13 @@ select optgroup {
   background-color: rgba(33, 27, 22, 0.9);
   min-width: 168px;
 }
-.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.pick-add {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.pick-add select { flex: 1; min-width: 0; }
+.pick-add .side-add { flex: 0 0 28px; }
 .status { min-height: 1.2em; margin: 0; color: var(--ok); transition: color 0.2s ease; }
 .status.bad { color: var(--danger); }
 .hint { color: var(--muted); margin: 0; font-size: 12px; }
@@ -1134,6 +1184,14 @@ select optgroup {
   border-radius: 18px;
   background: linear-gradient(180deg, #2a221b, #1c1713);
 }
+.login-keep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.login-keep input { width: auto; }
 .login-actions {
   display: flex;
   align-items: center;

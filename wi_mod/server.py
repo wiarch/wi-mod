@@ -225,18 +225,33 @@ def make_handler(app: App):
             path = urlparse(self.path).path
             if path == "/api/login":
                 body = self._json_body()
-                token = app.library.login(str(body.get("username") or ""), str(body.get("password") or ""))
-                self._json(200, self._session_payload(token), token=token)
+                remember = bool(body.get("remember"))
+                token = app.library.login(
+                    str(body.get("username") or ""),
+                    str(body.get("password") or ""),
+                    remember,
+                )
+                self._json(200, self._session_payload(token), token=token, remember=remember)
                 return
             if path == "/api/users":
                 body = self._json_body()
-                token = app.library.create_user(str(body.get("username") or ""), str(body.get("password") or ""))
-                self._json(200, self._session_payload(token), token=token)
+                remember = bool(body.get("remember"))
+                token = app.library.create_user(
+                    str(body.get("username") or ""),
+                    str(body.get("password") or ""),
+                    remember,
+                )
+                self._json(200, self._session_payload(token), token=token, remember=remember)
                 return
             if path == "/api/password/reset":
                 body = self._json_body()
-                token = app.library.reset_password(str(body.get("username") or ""), str(body.get("password") or ""))
-                self._json(200, self._session_payload(token), token=token)
+                remember = bool(body.get("remember"))
+                token = app.library.reset_password(
+                    str(body.get("username") or ""),
+                    str(body.get("password") or ""),
+                    remember,
+                )
+                self._json(200, self._session_payload(token), token=token, remember=remember)
                 return
             if path == "/api/logout":
                 app.library.logout(self._token())
@@ -244,9 +259,31 @@ def make_handler(app: App):
                 return
             if not self._open():
                 return
+            if path == "/api/images":
+                self._json(201, _save_image(app, self))
+                return
             if path == "/api/preview":
                 body = self._json_body()
                 self._json(200, _preview(app, str(body.get("url") or "")))
+                return
+            if path == "/api/mods/assign":
+                body = self._json_body()
+                ids = body.get("ids")
+                if not isinstance(ids, list) or not ids:
+                    raise ValueError("Marca al menos un mod.")
+                for item in ids:
+                    if not isinstance(item, str) or not _ID.match(item):
+                        raise ValueError("Hay un mod marcado que no existe.")
+                fields = {}
+                if "category" in body:
+                    fields["category"] = body.get("category")
+                if "modpackId" in body or "modpackCategoryId" in body:
+                    fields["modpackId"] = body.get("modpackId") or ""
+                    fields["modpackCategoryId"] = body.get("modpackCategoryId") or ""
+                if not fields:
+                    raise ValueError("Elige categoría o modpack.")
+                updated = app.library.update_many(ids, fields)
+                self._json(200, {"mods": [_public_mod(mod) for mod in updated], "count": len(updated)})
                 return
             if path == "/api/mods":
                 body = self._json_body()
@@ -480,14 +517,22 @@ def make_handler(app: App):
                 raise ValueError("JSON inválido.")
             return data
 
-        def _json(self, code: int, payload: dict, token: str | None = None, clear_cookie: bool = False) -> None:
+        def _json(
+            self,
+            code: int,
+            payload: dict,
+            token: str | None = None,
+            clear_cookie: bool = False,
+            remember: bool = False,
+        ) -> None:
             data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
             self.send_response(code)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-store")
             if token:
-                self.send_header("Set-Cookie", f"wi_session={token}; HttpOnly; Path=/; SameSite=Lax")
+                stay = "; Max-Age=5184000" if remember else ""
+                self.send_header("Set-Cookie", f"wi_session={token}; HttpOnly; Path=/; SameSite=Lax{stay}")
             if clear_cookie:
                 self.send_header("Set-Cookie", "wi_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax")
             self.end_headers()
@@ -1062,6 +1107,31 @@ def _fetch_binary(url: str, dest: Path) -> None:
             handle.write(chunk)
 
 
+def _save_image(app: App, handler: BaseHTTPRequestHandler) -> dict:
+    length = int(handler.headers.get("Content-Length") or 0)
+    if length <= 0 or length > 8 * 1024 * 1024:
+        raise ValueError("La imagen tiene que pesar menos de 8 MB.")
+    work = app.tmp / uuid.uuid4().hex
+    try:
+        parts = parse_multipart(handler.rfile, length, handler.headers.get("Content-Type") or "", work)
+        for part in parts:
+            if not part.get("filename") or not part.get("path"):
+                continue
+            ext = Path(part["filename"]).suffix.lower()
+            if ext == ".jpeg":
+                ext = ".jpg"
+            if ext not in {".jpg", ".png", ".webp", ".gif"}:
+                raise ValueError("Usa jpg, png, webp o gif.")
+            name = f"{uuid.uuid4().hex}{ext}"
+            dest = app.root / "images" / name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(part["path"], dest)
+            return {"imageUrl": f"/media/images/{name}"}
+        raise ValueError("Elige una imagen.")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 def _upload(app: App, handler: BaseHTTPRequestHandler, mod_id: str) -> dict:
     if not app.library.get(mod_id):
         raise ValueError("Mod no encontrado.")
@@ -1218,7 +1288,7 @@ def _rawg_resolve(app: App, domain: str, name: str) -> dict | None:
         ),
         None,
     )
-    if existing and existing.get("description") and existing.get("imageUrl"):
+    if existing and existing.get("description") and existing.get("imageUrl") and "steamAppId" in existing:
         game = dict(existing)
         if _lang(app) == "es" and not str(game.get("descriptionEs") or "").strip():
             game = _localize_game(app, game)

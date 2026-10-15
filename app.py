@@ -17,7 +17,7 @@ def main() -> None:
 
 def _run() -> None:
     app = App(ROOT / "data")
-    server = make_server(app)
+    server = _listen(app)
     thread = threading.Thread(target=server.serve_forever, name="wi-mod")
     thread.start()
     host, port = server.server_address
@@ -30,6 +30,13 @@ def _run() -> None:
         server.shutdown()
         server.server_close()
         thread.join(timeout=3)
+
+
+def _listen(app: App):
+    try:
+        return make_server(app, 47621)
+    except OSError:
+        return make_server(app, 0)
 
 
 def _open(url: str) -> None:

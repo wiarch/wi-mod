@@ -118,11 +118,14 @@ def normalize_game(item: dict[str, Any]) -> dict[str, Any]:
     description = str(item.get("description_raw") or "").strip()
     if not description:
         description = _strip_html(str(item.get("description") or ""))
+    steam_id = _steam_app_id(item)
     return {
         "rawgId": rawg_id,
         "rawgSlug": slug,
         "gameName": name,
         "gameDomain": domain,
+        "steamAppId": int(steam_id or 0),
+        "logoUrl": f"https://cdn.cloudflare.steamstatic.com/steam/apps/{steam_id}/logo.png" if steam_id else "",
         "imageUrl": str(item.get("background_image") or "").strip(),
         "released": str(item.get("released") or "").strip()[:10],
         "rating": item.get("rating"),
@@ -134,6 +137,21 @@ def normalize_game(item: dict[str, Any]) -> dict[str, Any]:
         "description": description[:4000],
         "rawgUrl": f"https://rawg.io/games/{slug}" if slug else "",
     }
+
+
+def _steam_app_id(item: dict[str, Any]) -> str:
+    for row in item.get("stores") or []:
+        if not isinstance(row, dict):
+            continue
+        store = row.get("store") if isinstance(row.get("store"), dict) else {}
+        slug = str(store.get("slug") or "").lower()
+        url = str(row.get("url") or "")
+        if slug != "steam" and "steampowered.com" not in url:
+            continue
+        match = re.search(r"/app/(\d+)", url)
+        if match:
+            return match.group(1)
+    return ""
 
 
 def _strip_html(text: str) -> str:

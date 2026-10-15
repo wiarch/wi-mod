@@ -11,11 +11,12 @@ import sqlite3
 import threading
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 ADMIN_USER = "WYDEX"
+REMEMBER_DAYS = 60
 
 
 def now() -> str:
@@ -131,33 +132,63 @@ class Library:
             mod = self._find(data["mods"], mod_id)
             if not mod:
                 return None
-            if "category" in fields:
-                mod["category"] = str(fields["category"] or "General").strip() or "General"
-                mod["categorySource"] = "user"
-            if "notes" in fields:
-                mod["notes"] = str(fields["notes"] or "")
-            if "techNotes" in fields:
-                mod["techNotes"] = str(fields.get("techNotes") or "")[:4000]
-            if "compatNotes" in fields:
-                mod["compatNotes"] = str(fields.get("compatNotes") or "")[:4000]
-            if "emoji" in fields:
-                mod["emoji"] = str(fields.get("emoji") or "").strip()[:12]
-            if "skill" in fields:
-                mod["skill"] = str(fields.get("skill") or "").strip()[:80]
-            if "rule" in fields:
-                mod["rule"] = str(fields.get("rule") or "").strip()[:80]
-            if "name" in fields and str(fields["name"]).strip():
-                mod["name"] = str(fields["name"]).strip()
-            if "summaryEs" in fields:
-                mod["summaryEs"] = str(fields["summaryEs"] or "")
-            if "platform" in fields and str(fields["platform"] or "").strip():
-                mod["platform"] = str(fields["platform"]).strip()
-            if "modpackId" in fields or "modpackCategoryId" in fields or "modpack" in fields:
-                self._assign_pack(mod, fields, data.get("modpacks") or [])
-            if "modpackNotes" in fields:
-                mod["modpackNotes"] = str(fields.get("modpackNotes") or "")[:4000]
+            self._apply_user(mod, fields, data.get("modpacks") or [])
             self._write(data)
             return mod
+
+    def update_many(self, ids: list[Any], fields: dict[str, Any]) -> list[dict[str, Any]]:
+        clean: list[str] = []
+        seen: set[str] = set()
+        for raw in ids or []:
+            mod_id = str(raw or "").strip()
+            if not mod_id or mod_id in seen:
+                continue
+            seen.add(mod_id)
+            clean.append(mod_id)
+        if not clean:
+            raise ValueError("Marca al menos un mod.")
+        if len(clean) > 200:
+            raise ValueError("Demasiados mods a la vez.")
+        with self._lock:
+            data = self._read()
+            self._migrate(data)
+            packs = data.get("modpacks") or []
+            updated: list[dict[str, Any]] = []
+            for mod_id in clean:
+                mod = self._find(data["mods"], mod_id)
+                if not mod:
+                    raise ValueError("Hay un mod marcado que ya no existe.")
+                self._apply_user(mod, fields, packs)
+                updated.append(mod)
+            self._write(data)
+            return updated
+
+    def _apply_user(self, mod: dict[str, Any], fields: dict[str, Any], packs: list[dict[str, Any]]) -> None:
+        if "category" in fields:
+            mod["category"] = str(fields["category"] or "General").strip() or "General"
+            mod["categorySource"] = "user"
+        if "notes" in fields:
+            mod["notes"] = str(fields["notes"] or "")
+        if "techNotes" in fields:
+            mod["techNotes"] = str(fields.get("techNotes") or "")[:4000]
+        if "compatNotes" in fields:
+            mod["compatNotes"] = str(fields.get("compatNotes") or "")[:4000]
+        if "emoji" in fields:
+            mod["emoji"] = str(fields.get("emoji") or "").strip()[:12]
+        if "skill" in fields:
+            mod["skill"] = str(fields.get("skill") or "").strip()[:80]
+        if "rule" in fields:
+            mod["rule"] = str(fields.get("rule") or "").strip()[:80]
+        if "name" in fields and str(fields["name"]).strip():
+            mod["name"] = str(fields["name"]).strip()
+        if "summaryEs" in fields:
+            mod["summaryEs"] = str(fields["summaryEs"] or "")
+        if "platform" in fields and str(fields["platform"] or "").strip():
+            mod["platform"] = str(fields["platform"]).strip()
+        if "modpackId" in fields or "modpackCategoryId" in fields or "modpack" in fields:
+            self._assign_pack(mod, fields, packs)
+        if "modpackNotes" in fields:
+            mod["modpackNotes"] = str(fields.get("modpackNotes") or "")[:4000]
 
     def add_modpack(self, fields: dict[str, Any]) -> dict[str, Any]:
         with self._lock:
@@ -344,7 +375,7 @@ class Library:
             self._kv_set("settings", json.dumps(current, ensure_ascii=False))
 
     def ensure_platforms(self) -> None:
-        names = ("Nexus", "Modrinth", "CurseForge", "Steam Workshop")
+        names = ("Nexus", "Modrinth", "CurseForge", "Steam Workshop", "Independiente")
         with self._lock:
             data = self._read()
             self._migrate(data)
@@ -499,12 +530,10 @@ class Library:
         label = str(raw.get("name") or "").strip()
         if not label:
             raise ValueError("Pon un nombre a la categoría.")
-        emoji = str(raw.get("emoji") or "📦").strip() or "📦"
-        if len(emoji) > 12:
-            emoji = emoji[:12]
         image = str(raw.get("imageUrl") or "").strip()
         if image and not (image.startswith("http://") or image.startswith("https://") or image.startswith("/")):
             image = ""
+        emoji = str(raw.get("emoji") or "").strip()[:12]
         return {
             "id": str(raw.get("id") or uuid.uuid4().hex),
             "name": label[:80],
@@ -551,7 +580,9 @@ class Library:
                 rawg_id = payload.get("rawgId")
                 if rawg_id not in (None, ""):
                     entry["rawgId"] = int(rawg_id)
-                for key in ("rawgSlug", "imageUrl", "released", "rawgUrl", "website", "description", "descriptionEs"):
+                if "steamAppId" in payload:
+                    entry["steamAppId"] = int(payload.get("steamAppId") or 0)
+                for key in ("rawgSlug", "imageUrl", "logoUrl", "released", "rawgUrl", "website", "description", "descriptionEs"):
                     val = str(payload.get(key) or "").strip()
                     if val:
                         entry[key] = val[:4000] if key in {"description", "descriptionEs"} else val
@@ -894,6 +925,9 @@ class Library:
         columns = {row[1] for row in conn.execute("PRAGMA table_info(users)")}
         if "password_len" not in columns:
             conn.execute("ALTER TABLE users ADD COLUMN password_len INTEGER")
+        session_cols = {row[1] for row in conn.execute("PRAGMA table_info(sessions)")}
+        if "expires_at" not in session_cols:
+            conn.execute("ALTER TABLE sessions ADD COLUMN expires_at TEXT")
 
     def _import_legacy(self) -> None:
         if self._kv_get("library") is None and self.path.exists():
@@ -953,7 +987,7 @@ class Library:
             "username": row["username"],
         }
 
-    def create_user(self, username: str, password: str) -> str:
+    def create_user(self, username: str, password: str, remember: bool = False) -> str:
         with self._lock:
             name = self._clean_name(username)
             row = self._user_row(name)
@@ -966,9 +1000,9 @@ class Library:
                 role = "admin" if name.upper() == ADMIN_USER else "user"
                 self._insert_user(name, password, role)
                 canonical = name
-            return self._open_session(canonical)
+            return self._open_session(canonical, remember)
 
-    def reset_password(self, username: str, password: str) -> str:
+    def reset_password(self, username: str, password: str, remember: bool = False) -> str:
         with self._lock:
             row = self._user_row(username)
             if not row:
@@ -976,13 +1010,13 @@ class Library:
             self._write_password(row["username"], password)
             with self._cx() as conn:
                 conn.execute("DELETE FROM sessions WHERE username = ?", (row["username"],))
-            return self._open_session(row["username"])
+            return self._open_session(row["username"], remember)
 
-    def login(self, username: str, password: str) -> str:
+    def login(self, username: str, password: str, remember: bool = False) -> str:
         with self._lock:
-            return self._login(username, password)
+            return self._login(username, password, remember)
 
-    def _login(self, username: str, password: str) -> str:
+    def _login(self, username: str, password: str, remember: bool = False) -> str:
         row = self._user_row(username)
         if not row:
             raise ValueError("Ese usuario no está creado.")
@@ -1002,7 +1036,7 @@ class Library:
                         "UPDATE users SET password_len = ? WHERE username = ?",
                         (len(secret), row["username"]),
                     )
-        return self._open_session(row["username"])
+        return self._open_session(row["username"], remember)
 
     def _user_row(self, username: str):
         name = str(username or "").strip()
@@ -1048,12 +1082,15 @@ class Library:
                 (username, _hash_password(secret), role, now(), len(secret)),
             )
 
-    def _open_session(self, username: str) -> str:
+    def _open_session(self, username: str, remember: bool = False) -> str:
         token = secrets.token_urlsafe(32)
+        expires = ""
+        if remember:
+            expires = (datetime.now(timezone.utc) + timedelta(days=REMEMBER_DAYS)).strftime("%Y-%m-%dT%H:%M:%SZ")
         with self._cx() as conn:
             conn.execute(
-                "INSERT INTO sessions (token, username, created_at) VALUES (?, ?, ?)",
-                (token, username, now()),
+                "INSERT INTO sessions (token, username, created_at, expires_at) VALUES (?, ?, ?, ?)",
+                (token, username, now(), expires),
             )
         return token
 
@@ -1074,14 +1111,18 @@ class Library:
         with self._cx() as conn:
             row = conn.execute(
                 """
-                SELECT users.username, users.role
+                SELECT users.username, users.role, sessions.expires_at
                 FROM sessions JOIN users ON users.username = sessions.username
                 WHERE sessions.token = ?
                 """,
                 (token,),
             ).fetchone()
-        if not row:
-            return None
+            if not row:
+                return None
+            expires = str(row["expires_at"] or "")
+            if expires and expires <= now():
+                conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+                return None
         return {"username": row["username"], "role": row["role"]}
 
     def _kv_get(self, key: str) -> str | None:
