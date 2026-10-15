@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-fetch-external-api"
+description = "Permite al frontend invocar fetch_external_api (proxy HTTP a Nexus/CurseForge/Steam/RAWG/Modrinth)."
+commands.allow = ["fetch_external_api"]

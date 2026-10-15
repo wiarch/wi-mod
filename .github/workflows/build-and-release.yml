@@ -1,0 +1,157 @@
+# Compila wi-mod (Tauri v2) para Windows/Linux y publica Release + Pages.
+# Trigger: tag v*  |  Actions → Run workflow
+
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag/versión del release (ej. v0.7.5). Vacío = usa package.json."
+        required: false
+        type: string
+      publish_web:
+        description: "Desplegar frontend en gh-pages"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: build-and-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ─── Desktop: Windows + Linux ───────────────────────────────────────────
+  publish-tauri:
+    name: Desktop (${{ matrix.platform }})
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: ""
+          - platform: ubuntu-22.04
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install Linux WebKitGTK deps
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Resolve release tag
+        id: meta
+        shell: bash
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG="${{ github.ref_name }}"
+          elif [[ -n "${{ inputs.tag }}" ]]; then
+            TAG="${{ inputs.tag }}"
+          else
+            VER=$(node -p "require('./package.json').version")
+            TAG="v${VER}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Using tag: ${TAG}"
+
+      - name: Build + upload Tauri artifacts
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ steps.meta.outputs.tag }}
+          releaseName: "wi-mod ${{ steps.meta.outputs.tag }}"
+          releaseBody: |
+            ## wi-mod ${{ steps.meta.outputs.tag }}
+
+            Portable desktop builds (Tauri v2).
+
+            - **Windows:** instalador NSIS (`.exe`) + binario plano
+            - **Linux:** AppImage (+ deb/rpm si se generan)
+
+            Draft release — revisa y publica cuando quieras.
+          releaseDraft: true
+          prerelease: false
+          uploadPlainBinary: true
+          includeRelease: true
+          includeDebug: false
+          args: ${{ matrix.args }}
+
+  # ─── Web: Vite → gh-pages ───────────────────────────────────────────────
+  deploy-web:
+    name: Deploy web (gh-pages)
+    needs: []
+    if: >
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish_web != false)
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install + build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy dist/ → gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: gh-pages
+          force_orphan: true
+          commit_message: "deploy web ${{ github.sha }}"
