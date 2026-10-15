@@ -813,7 +813,7 @@ function fillCategorySelect(node, preferred) {
 }
 
 function applyTheme(theme) {
-  const allowed = ["nexus", "modrinth", "curseforge", "steam"];
+  const allowed = ["nexus", "modrinth", "curseforge", "steam", "rawg"];
   state.theme = allowed.includes(theme) ? theme : "nexus";
   document.documentElement.dataset.theme = state.theme;
   document.querySelectorAll(".theme-switch [data-theme]").forEach((button) => {
@@ -1857,26 +1857,56 @@ document.querySelectorAll(".lang-switch [data-lang]").forEach((button) => {
 document.querySelectorAll(".theme-switch [data-theme]").forEach((button) => {
   button.onclick = () => setTheme(button.dataset.theme);
 });
-$("app-menu-btn").onclick = (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  closeGameMenu();
-  const menu = $("app-menu");
-  const open = menu.hidden;
-  menu.hidden = !open;
-  $("app-menu-btn").setAttribute("aria-expanded", open ? "true" : "false");
-  if (open) sfx.click();
-};
-$("app-menu").onclick = (event) => {
-  const item = event.target.closest("button[role='menuitem']");
-  if (item) closeAppMenu();
-};
-$("translate-open").onclick = () => {
+if ($("translate-open")) $("translate-open").onclick = () => {
   sfx.open();
   $("translate-in").value = "";
   $("translate-out").value = "";
   $("translate-dialog").showModal();
 };
+function placePop(pop, anchor) {
+  pop.hidden = false;
+  const rect = anchor.getBoundingClientRect();
+  const box = pop.getBoundingClientRect();
+  const left = Math.max(8, Math.min(rect.left + rect.width / 2 - box.width / 2, window.innerWidth - box.width - 8));
+  let top = rect.top - box.height - 10;
+  if (top < 8) top = rect.bottom + 10;
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+}
+$("more-open").onclick = (event) => {
+  event.stopPropagation();
+  const pop = $("more-pop");
+  const open = pop.hidden;
+  pop.hidden = !open;
+  $("tape-pop").hidden = true;
+  event.currentTarget.setAttribute("aria-expanded", open ? "true" : "false");
+  if (!open) return;
+  sfx.open();
+  placePop(pop, event.currentTarget);
+};
+$("tape-open").onclick = (event) => {
+  event.stopPropagation();
+  const pop = $("tape-pop");
+  $("more-pop").hidden = true;
+  $("more-open").setAttribute("aria-expanded", "false");
+  if (!pop.hidden) {
+    pop.hidden = true;
+    return;
+  }
+  sfx.open();
+  placePop(pop, $("more-open"));
+};
+document.addEventListener("pointerdown", (event) => {
+  const more = $("more-pop");
+  const tape = $("tape-pop");
+  const inMore = more && (more.contains(event.target) || event.target.closest("#more-open"));
+  const inTape = tape && (tape.contains(event.target) || event.target.closest("#tape-open"));
+  if (more && !more.hidden && !inMore && !inTape) {
+    more.hidden = true;
+    $("more-open").setAttribute("aria-expanded", "false");
+  }
+  if (tape && !tape.hidden && !inTape) tape.hidden = true;
+});
 $("translate-form").onsubmit = async (event) => {
   event.preventDefault();
   const button = $("translate-run");
@@ -2020,7 +2050,14 @@ document.addEventListener("pointerdown", (event) => {
   closeKeyPop();
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") closeKeyPop();
+  if (event.key !== "Escape") return;
+  closeKeyPop();
+  const more = $("more-pop");
+  const tape = $("tape-pop");
+  if (more) more.hidden = true;
+  if (tape) tape.hidden = true;
+  const dots = $("more-open");
+  if (dots) dots.setAttribute("aria-expanded", "false");
 });
 $("key-pop-form").onsubmit = async (event) => {
   event.preventDefault();
@@ -2269,8 +2306,8 @@ document.querySelectorAll(".view-toggle [data-view]").forEach((button) => {
 document.querySelectorAll(".view-toggle [data-size]").forEach((button) => {
   button.onclick = () => setCardSize(button.dataset.size);
 });
-$("export").onclick = () => openPackDialog("export");
-$("import").onclick = () => openPackDialog("import");
+$("export").onclick = () => { $("tape-pop").hidden = true; openPackDialog("export"); };
+$("import").onclick = () => { $("tape-pop").hidden = true; openPackDialog("import"); };
 $("pack-scope").onchange = syncPackDialog;
 $("pack-form").onsubmit = runPackAction;
 if ($("packs-open")) $("packs-open").onclick = () => { sfx.open(); openModpacksDialog(); };
@@ -2753,6 +2790,8 @@ $("login-reset").onclick = () => {
   $("login-pass").focus();
 };
 $("logout").onclick = async () => {
+  $("more-pop").hidden = true;
+  $("more-open").setAttribute("aria-expanded", "false");
   closeAppMenu();
   try {
     await api("/api/logout", { method: "POST" });

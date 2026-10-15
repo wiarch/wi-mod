@@ -74,6 +74,23 @@ html[data-theme="steam"] {
   --font-ui: "Motiva Sans", "Exo 2", Arial, Helvetica, sans-serif;
   --font-brand: "Motiva Sans", "Exo 2", Arial, Helvetica, sans-serif;
 }
+html[data-theme="rawg"] {
+  --bg: #151515;
+  --bg-2: #1a1a1a;
+  --bg-deep: #0d0d0d;
+  --panel: #202020;
+  --panel-2: #2a2a2a;
+  --line: #3a3a3a;
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, 0.55);
+  --copper: #ffffff;
+  --copper-hot: #f4f4f4;
+  --copper-ink: #151515;
+  --ember: #d0d0d0;
+  --glow: rgba(255, 255, 255, 0.16);
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-brand: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
 
 * { box-sizing: border-box; }
 
@@ -271,7 +288,7 @@ a:hover { color: var(--copper-hot); }
   max-height: min(50vh, 360px);
   overflow: auto;
   z-index: 40;
-  background: linear-gradient(180deg, #2a221b, #1c1713);
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 6px;
@@ -301,7 +318,7 @@ a:hover { color: var(--copper-hot); }
   height: 28px;
   object-fit: cover;
   border-radius: 6px;
-  background: #2a241c;
+  background: var(--panel-2);
   flex: 0 0 auto;
 }
 .game-scope .side-add {
@@ -315,7 +332,7 @@ a:hover { color: var(--copper-hot); }
   border-radius: 18px;
   overflow: hidden;
   margin-bottom: 16px;
-  background: linear-gradient(180deg, #221c17, #14110e);
+  background: linear-gradient(180deg, var(--panel-2), var(--bg));
   animation: fade-in 0.45s var(--ease);
 }
 .game-hero-inner {
@@ -333,7 +350,7 @@ a:hover { color: var(--copper-hot); }
   object-fit: cover;
   border-radius: 16px;
   border: 1px solid var(--line);
-  background: #2a241c;
+  background: var(--panel-2);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
 }
 .game-hero h2 {
@@ -391,7 +408,7 @@ a:hover { color: var(--copper-hot); }
   height: 42px;
   object-fit: cover;
   border-radius: 8px;
-  background: #2a241c;
+  background: var(--panel-2);
 }
 .game-hit b {
   display: block;
@@ -447,7 +464,7 @@ a:hover { color: var(--copper-hot); }
   max-height: min(52vh, 380px);
   overflow: auto;
   padding: 8px;
-  background: linear-gradient(180deg, #2a221b, #1c1713);
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
   border: 1px solid color-mix(in srgb, var(--copper) 25%, var(--line));
   border-radius: 16px;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
@@ -467,7 +484,7 @@ a:hover { color: var(--copper-hot); }
   height: 42px;
   object-fit: cover;
   border-radius: 8px;
-  background: #2a241c;
+  background: var(--panel-2);
 }
 .search-hit b { display: block; font-size: 0.92rem; }
 .search-hit .meta { margin: 2px 0 0; }
@@ -484,7 +501,7 @@ a:hover { color: var(--copper-hot); }
   right: 0;
   min-width: 180px;
   z-index: 50;
-  background: linear-gradient(180deg, #2a221b, #1c1713);
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 6px;
@@ -685,6 +702,44 @@ button.key-pill { cursor: pointer; }
   gap: 8px;
   min-width: 0;
 }
+.dock-icon {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(36, 24, 12, 0.28);
+  background: rgba(255, 248, 240, 0.28);
+  color: var(--copper-ink);
+}
+.dock-icon:hover { background: rgba(255, 248, 240, 0.5); }
+.dock-icon svg { display: block; }
+.tape-pop {
+  width: auto;
+  min-width: 160px;
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+}
+.tape-pop[hidden] { display: none; }
+.tape-pop button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.more-pop { min-width: 210px; }
+.more-pop svg { flex: 0 0 auto; }
+.tape-pop button:hover {
+  background: rgba(226, 164, 92, 0.14);
+  color: var(--copper-hot);
+}
 @media (max-width: 1080px) {
   .dock {
     grid-template-columns: minmax(0, 1fr) max-content;
@@ -772,7 +827,7 @@ button.key-pill { cursor: pointer; }
 .side {
   border-right: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
   padding: 16px 12px;
-  background: linear-gradient(180deg, rgba(33, 27, 22, 0.55), transparent 70%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 70%, transparent), transparent 70%);
   min-height: 0;
   overflow: auto;
 }
@@ -823,7 +878,7 @@ button.key-pill { cursor: pointer; }
   object-fit: cover;
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: #2a241c;
+  background: var(--panel-2);
 }
 .mp-cats { display: grid; gap: 6px; margin: 0 0 10px; }
 .mp-cat-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
@@ -863,9 +918,9 @@ button.key-pill { cursor: pointer; }
   padding: 8px 10px;
   color: var(--text);
 }
-.side button:not(.side-add):hover { background: rgba(42, 34, 27, 0.75); }
+.side button:not(.side-add):hover { background: color-mix(in srgb, var(--panel-2) 80%, transparent); }
 .side button:not(.side-add).on {
-  background: linear-gradient(90deg, rgba(226, 164, 92, 0.18), transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--copper) 18%, transparent), transparent);
   color: var(--copper-hot);
   box-shadow: inset 3px 0 0 var(--copper);
 }
@@ -1094,7 +1149,7 @@ main {
 
 .shot {
   aspect-ratio: 16/9;
-  background: #2a241c center/cover no-repeat;
+  background: var(--panel-2) center/cover no-repeat;
   position: relative;
   overflow: hidden;
 }
@@ -1163,7 +1218,7 @@ main {
 
 dialog {
   width: min(520px, calc(100vw - 24px));
-  background: linear-gradient(180deg, #2a221b, #1c1713);
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
   color: var(--text);
   border: 1px solid color-mix(in srgb, var(--copper) 25%, var(--line));
   border-radius: 18px;
@@ -1233,7 +1288,7 @@ select:hover {
 }
 select option,
 select optgroup {
-  background: #1e1914;
+  background: var(--panel);
   color: var(--text);
 }
 .bar select {
@@ -1280,7 +1335,7 @@ select optgroup {
   border: 1px solid var(--line);
   animation: card-in 0.35s var(--ease);
 }
-.preview img { width: 100%; height: 100%; object-fit: cover; min-height: 72px; background: #2a241c; }
+.preview img { width: 100%; height: 100%; object-fit: cover; min-height: 72px; background: var(--panel-2); }
 .preview h3 { margin: 8px 8px 4px; font-family: var(--font-brand); }
 .preview p { margin: 0 8px 8px; color: var(--muted); font-size: 13px; }
 
@@ -1304,7 +1359,7 @@ select optgroup {
   height: auto;
   object-fit: contain;
   border-radius: 12px;
-  background: #2a241c;
+  background: var(--panel-2);
 }
 #detail textarea { resize: vertical; min-height: 72px; }
 #detail .summary {
@@ -1400,7 +1455,7 @@ select optgroup {
   padding: 22px;
   border: 1px solid var(--line);
   border-radius: 18px;
-  background: linear-gradient(180deg, #2a221b, #1c1713);
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
 }
 .login-keep {
   display: flex;

@@ -376,7 +376,7 @@ class Library:
             self._kv_set("settings", json.dumps(current, ensure_ascii=False))
 
     def set_theme(self, theme: str) -> None:
-        allowed = {"nexus", "modrinth", "curseforge", "steam"}
+        allowed = {"nexus", "modrinth", "curseforge", "steam", "rawg"}
         picked = str(theme or "").strip().lower()
         if picked not in allowed:
             picked = "nexus"

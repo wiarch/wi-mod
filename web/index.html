@@ -53,18 +53,6 @@
       </div>
       <div id="search-remote" class="search-remote" hidden></div>
     </div>
-    <div class="top-actions">
-      <div class="app-menu-wrap">
-        <button type="button" id="app-menu-btn" class="solid app-menu-btn" aria-haspopup="true" aria-expanded="false">Menú ▾</button>
-        <div id="app-menu" class="app-menu" hidden role="menu">
-          <button type="button" role="menuitem" id="translate-open">Traducir</button>
-          <button type="button" role="menuitem" id="refresh-all">Actualizar</button>
-          <button type="button" role="menuitem" id="export">Comprimir</button>
-          <button type="button" role="menuitem" id="import">Restaurar</button>
-          <button type="button" role="menuitem" id="logout">Salir</button>
-        </div>
-      </div>
-    </div>
   </header>
 
   <div class="layout">
@@ -178,12 +166,18 @@
         <button type="button" data-theme="steam" title="Steam Workshop" aria-label="Steam Workshop">
           <img src="/brand/steam.ico" alt="" width="22" height="22">
         </button>
+        <button type="button" data-theme="rawg" title="RAWG" aria-label="RAWG">
+          <img src="/brand/rawg.png" alt="" width="22" height="22">
+        </button>
       </div>
       <div class="lang-switch" role="group" aria-label="Idioma">
         <button type="button" data-lang="es" title="Español">ES</button>
         <button type="button" data-lang="en" title="English">EN</button>
       </div>
       <button id="mute" class="mute-btn" type="button" title="Sonido">🔊</button>
+      <button type="button" id="more-open" class="dock-icon" title="Más" aria-label="Más" aria-expanded="false">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="6" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="18" cy="12" r="1.6" fill="currentColor"/></svg>
+      </button>
     </div>
   </footer>
 
@@ -447,6 +441,25 @@
   </dialog>
 
   <p id="toast" class="toast" hidden></p>
+  <div id="more-pop" class="key-pop tape-pop more-pop" hidden>
+    <button type="button" id="refresh-all">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 12a8 8 0 1 1-2.2-5.5M20 4v5h-5"/></svg>
+      Actualizar
+    </button>
+    <button type="button" id="tape-open">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="15.5" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.2 12h3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      Comprimir y restaurar
+    </button>
+    <button type="button" id="logout">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2M4 12h11M12 9l3 3-3 3"/></svg>
+      Salir
+    </button>
+  </div>
+  <div id="tape-pop" class="key-pop tape-pop" hidden>
+    <button type="button" id="export">Comprimir</button>
+    <button type="button" id="import">Restaurar</button>
+  </div>
+
   <div id="key-pop" class="key-pop" hidden>
     <form id="key-pop-form">
       <p id="key-pop-note" class="hint" hidden></p>

@@ -685,7 +685,7 @@ def _key_flags(app: App) -> dict:
 
 def _theme_name(value: object) -> str:
     raw = str(value or "nexus").strip().lower()
-    if raw in {"nexus", "modrinth", "curseforge", "steam"}:
+    if raw in {"nexus", "modrinth", "curseforge", "steam", "rawg"}:
         return raw
     return "nexus"
 
