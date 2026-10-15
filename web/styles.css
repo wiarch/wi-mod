@@ -411,11 +411,16 @@ a:hover { color: var(--copper-hot); }
 }
 .search-platform {
   position: absolute;
-  right: 10px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
   pointer-events: none;
-  max-width: 112px;
+  max-width: calc(100% - 28px);
+}
+.search-platform span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -567,26 +572,31 @@ a:hover { color: var(--copper-hot); }
 
 .dock {
   flex: 0 0 auto;
-  display: flex;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  grid-template-areas: "user keys actions";
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: nowrap;
-  gap: 16px;
+  gap: 8px 12px;
+  width: 100%;
+  max-width: 100%;
   min-height: 52px;
-  padding: 8px 18px;
+  padding: 8px 12px;
   background: linear-gradient(120deg, var(--copper-hot), var(--ember));
   color: var(--copper-ink);
   z-index: 60;
 }
 .dock-user {
+  grid-area: user;
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 180px;
 }
 .dock-user img {
   width: 36px;
   height: 36px;
+  flex: 0 0 auto;
   border-radius: 50%;
   background: #fff8f0;
   border: 2px solid rgba(36, 24, 12, 0.28);
@@ -597,13 +607,18 @@ a:hover { color: var(--copper-hot); }
   font-weight: 700;
   font-size: 1.05rem;
   letter-spacing: 0.04em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .dock-keys {
+  grid-area: keys;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 8px;
-  flex: 1 1 auto;
   min-width: 0;
 }
 .key-pill {
@@ -663,10 +678,26 @@ button.key-pill { cursor: pointer; }
 .key-pop .status { min-height: 0; margin: 8px 0 0; }
 .key-pop .status:empty { display: none; }
 .dock-actions {
+  grid-area: actions;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
-  flex: 0 0 auto;
+  min-width: 0;
+}
+@media (max-width: 1080px) {
+  .dock {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    grid-template-areas:
+      "user actions"
+      "keys keys";
+  }
+  .dock-keys { justify-content: flex-start; }
+}
+@media (max-width: 560px) {
+  .key-pill span { display: none; }
+  .dock-user { max-width: 120px; }
+  .lang-switch button { min-width: 32px; padding: 0 8px; }
 }
 .lang-switch {
   display: inline-flex;

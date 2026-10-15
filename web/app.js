@@ -851,11 +851,27 @@ function platformsForGame(domain) {
 }
 
 function searchPlatformLabel() {
-  if (state.platform) return state.platform;
+  return searchPlatforms().join(" y ");
+}
+
+function searchPlatforms() {
+  if (state.platform) return [state.platform];
+  const stores = (platformsForGame(state.game) || []).filter((name) => name !== "Independiente");
+  if (stores.length > 1) return stores;
   const remote = remoteTarget();
-  if (remote) return remote;
-  const allowed = platformsForGame(state.game) || [];
-  return allowed.find((name) => name !== "Independiente") || "Independiente";
+  if (remote) return [remote];
+  return [stores[0] || "Independiente"];
+}
+
+function paintSearchPlatform() {
+  const names = searchPlatforms();
+  if ($("search")) {
+    $("search").placeholder = names.length > 1 ? "Buscar mods" : `Buscar en ${names[0]}`;
+  }
+  const node = $("search-platform");
+  if (!node) return;
+  node.innerHTML = names.map((name) => `<span>${esc(name)}</span>`).join("");
+  if ($("search")) $("search").style.paddingRight = `${node.offsetWidth + 22}px`;
 }
 
 function remoteTarget() {
@@ -1222,11 +1238,7 @@ function render() {
   syncViewToggle();
   paintPickAll();
   paintBulk();
-  if ($("search")) {
-    const where = searchPlatformLabel();
-    $("search").placeholder = `Buscar en ${where}`;
-    if ($("search-platform")) $("search-platform").textContent = where;
-  }
+  paintSearchPlatform();
   const mods = visible();
   const selected = mods.filter((mod) => state.selected.has(mod.id)).length;
   $("count").textContent = selected
@@ -1895,7 +1907,7 @@ $("translate-copy").onclick = async () => {
     toast("Selecciona y copia con Ctrl+C.", "warn");
   }
 };
-$("add-open").onclick = () => { sfx.open(); resetAdd(); $("add-dialog").showModal(); };
+if ($("add-open")) $("add-open").onclick = () => { sfx.open(); resetAdd(); $("add-dialog").showModal(); };
 $("bulk-cat").onclick = () => assignMarked("category");
 $("bulk-move").onclick = () => assignMarked("pack");
 $("bulk-clear").onclick = () => { state.selected.clear(); sfx.soft(); render(); };
@@ -1924,7 +1936,7 @@ $("add-cat-new").onclick = () => {
   createCategoryInline($("add-modpack"), $("add-pack-cat"), state.game);
 };
 $("dup-form").onsubmit = (event) => event.preventDefault();
-$("settings-open").onclick = () => { sfx.open(); openSettings(); };
+if ($("settings-open")) $("settings-open").onclick = () => { sfx.open(); openSettings(); };
 
 const KEY_POPS = {
   nexus: {
@@ -2261,7 +2273,7 @@ $("export").onclick = () => openPackDialog("export");
 $("import").onclick = () => openPackDialog("import");
 $("pack-scope").onchange = syncPackDialog;
 $("pack-form").onsubmit = runPackAction;
-$("packs-open").onclick = () => { sfx.open(); openModpacksDialog(); };
+if ($("packs-open")) $("packs-open").onclick = () => { sfx.open(); openModpacksDialog(); };
 $("mp-reset").onclick = () => resetModpackForm();
 $("modpacks-form").onsubmit = saveModpackForm;
 $("packcat-form").onsubmit = savePackCatForm;

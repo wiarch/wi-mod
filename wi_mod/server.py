@@ -56,6 +56,7 @@ _BRAND = {
     "modrinth.png": "image/png",
     "curseforge.ico": "image/x-icon",
     "steam.ico": "image/x-icon",
+    "rawg.png": "image/png",
 }
 _ID = re.compile(r"^[0-9a-f]{32}$")
 
