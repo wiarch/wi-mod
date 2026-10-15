@@ -15,3 +15,9 @@ tmp_*.txt
 *.log
 Thumbs.db
 docs/app/demo-keys.js
+
+# Tauri / Node
+node_modules/
+src-tauri/target/
+src-tauri/gen/
+.tauri/

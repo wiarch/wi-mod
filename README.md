@@ -19,14 +19,16 @@ En desarrollo. Corre solo en tu máquina (`127.0.0.1`), sin cuenta en la nube. D
 
 ## Tecnologías
 
-| Capa | Stack |
-|------|--------|
-| Runtime | Python 3.12 |
-| UI | HTML/CSS/JS en ventana **pywebview** (WebView2 en Windows) |
-| Servidor local | `http.server` / `ThreadingHTTPServer` en `127.0.0.1` |
-| Datos | JSON + SQLite en `data/` (no va al repo) |
-| Empaquetado | **PyInstaller** → `dist/wi-mod.exe` |
-| Página / demo | estático en `docs/` (GitHub Pages) |
+| Capa | Stack (rama `main`) | Stack (rama `tauri`, en curso) |
+|------|---------------------|--------------------------------|
+| Runtime | Python 3.12 | **Tauri v2** (Rust) |
+| UI | HTML/CSS/JS + **pywebview** | HTML/CSS/JS + **Vite** → WebView2 / WebKitGTK |
+| Backend | `ThreadingHTTPServer` `/api/*` | Commands Rust (pendiente) |
+| Datos | JSON + SQLite en `data/` | igual (portable junto al exe) |
+| Empaquetado | **PyInstaller** | `tauri build` (NSIS / AppImage) |
+| Página / demo | `docs/` (GitHub Pages) | igual |
+
+Guía de migración: [docs/MIGRATION-TAURI.md](docs/MIGRATION-TAURI.md).
 
 APIs externas (opcionales, claves en Ajustes): Nexus Mods, CurseForge, Steam Web API, RAWG. Modrinth es público. ModDB se usa por URL/página (sin API oficial).
 
