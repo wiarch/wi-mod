@@ -701,7 +701,12 @@
     const data = db();
 
     if (path === "/api/session") {
-      return reply(200, { username: "prueba", role: "user", needsPassword: false, admin: "" });
+      return reply(200, {
+        username: "WYDEX",
+        role: "admin",
+        needsPassword: false,
+        admin: "WYDEX",
+      });
     }
     if (path === "/api/logout" && method === "POST") return reply(200, { ok: true });
     if (path === "/api/library") return reply(200, library(data));
@@ -713,10 +718,18 @@
         hasRawgKey: flags.rawg,
         rawgHint: flags.rawg ? "••••demo" : "",
         hasCurseforgeKey: flags.curseforge,
+        curseforgeHint: flags.curseforge ? "••••demo" : "",
         hasSteamKey: flags.steam,
+        steamHint: flags.steam ? "••••demo" : "",
         language: data.language,
         theme: data.theme,
-        profile: { name: "prueba" },
+        profile: { name: "WYDEX" },
+        keys: {
+          nexus: flags.nexus,
+          curseforge: flags.curseforge,
+          steam: flags.steam,
+          rawg: flags.rawg,
+        },
       });
     }
     if (path === "/api/settings" && (method === "PUT" || method === "POST")) {

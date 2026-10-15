@@ -1,0 +1,12 @@
+---
+description: WYDEX es admin y las API keys se precargan sin subir secretos
+alwaysApply: true
+---
+
+# Admin WYDEX + claves
+
+- El usuario admin canónico es **`WYDEX`** (`wi_mod.store.ADMIN_USER`). Siempre rol `admin`. No lo renombres ni lo bajes a `user`.
+- Al arrancar, `App` precarga claves vacías desde env (`WI_MOD_NEXUS_KEY` / `WI_MOD_API_KEY`, `WI_MOD_RAWG_KEY`, `WI_MOD_CURSEFORGE_KEY`, `WI_MOD_STEAM_KEY`) y/o `data/keys.json` (también `.wi-mod-keys.json`). **No pisa** claves ya guardadas en settings.
+- **Nunca** subas claves reales al repo (`data/keys.json`, `keys.json`, `docs/app/demo-keys.js`, `.env`). Usa `keys.example.json` y `docs/app/demo-keys.example.js`.
+- En la demo web, la sesión debe ser `WYDEX` / `admin` con las claves de `demo-keys.js`.
+- Si el usuario pide reset de datos o migraciones, conserva WYDEX como admin y vuelve a aplicar el bootstrap de claves.

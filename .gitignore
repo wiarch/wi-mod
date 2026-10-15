@@ -1,4 +1,5 @@
-data/
+data/*
+!data/.gitkeep
 __pycache__/
 *.pyc
 .venv/
@@ -11,7 +12,14 @@ tmp_*.py
 tmp_*.txt
 .idea/
 .vscode/
-.cursor/
 *.log
 Thumbs.db
 docs/app/demo-keys.js
+keys.json
+.wi-mod-keys.json
+
+# Tauri / Node
+node_modules/
+src-tauri/target/
+src-tauri/gen/
+.tauri/
