@@ -33,6 +33,12 @@ La clave de RAWG se guarda en esa base, desde Ajustes, o con la variable `WI_MOD
 py -3 -m unittest tests.test_core -q
 ```
 
+## Descarga
+
+La página pública está en `docs/index.html`. El zip portable solo incluye `wi-mod.exe` y un leeme. No incluye `data/`.
+
+https://github.com/wiarch/wi-mod/releases/download/v0.2.0/wi-mod-portable.zip
+
 ## Ejecutable
 
 ```bat

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>wi-mod — portable</title>
+  <meta name="description" content="Biblioteca local de mods para Windows. Un ejecutable portable, sin datos.">
+  <link rel="icon" href="brand/nexus.ico">
+  <style>
+    :root {
+      --bg: #100e0c;
+      --bg-2: #1b1714;
+      --text: #f6efe6;
+      --muted: #c4b4a4;
+      --line: #4a4036;
+      --copper: #e08a2c;
+      --hot: #f0a04a;
+      --ember: #c45c26;
+      --ink: #1a1208;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(900px 420px at 10% -10%, rgba(196, 92, 38, 0.35), transparent 55%),
+        radial-gradient(700px 380px at 100% 0%, rgba(224, 138, 44, 0.22), transparent 50%),
+        linear-gradient(165deg, #1c1916, var(--bg) 42%, #0c0b0a);
+    }
+    a { color: inherit; }
+    .wrap { width: min(920px, calc(100% - 40px)); margin: 0 auto; }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 22px 0;
+    }
+    .mark {
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      font-size: 1.15rem;
+    }
+    .ver { color: var(--muted); font-size: 0.85rem; }
+    .hero { padding: 48px 0 28px; }
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2.4rem, 6vw, 4.4rem);
+      line-height: 0.95;
+      letter-spacing: -0.03em;
+    }
+    h1 span {
+      display: block;
+      background: linear-gradient(120deg, var(--hot), var(--ember));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .lead { max-width: 38rem; color: var(--muted); font-size: 1.12rem; line-height: 1.5; }
+    .cta { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; margin-top: 28px; }
+    .download {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 22px;
+      border-radius: 999px;
+      border: 0;
+      text-decoration: none;
+      font-weight: 700;
+      color: var(--ink);
+      background: linear-gradient(120deg, var(--hot), var(--ember));
+    }
+    .download:hover { filter: brightness(1.06); }
+    .meta { color: var(--muted); font-size: 0.92rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 36px 0 18px;
+    }
+    .card, .step {
+      padding: 16px 16px 18px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(36, 33, 29, 0.72);
+    }
+    .card strong, .step strong { display: block; margin-bottom: 6px; }
+    .card p, .step p { margin: 0; color: var(--muted); line-height: 1.45; }
+    .platforms {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 28px 0 8px;
+    }
+    .platforms span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255, 248, 240, 0.06);
+    }
+    .platforms img { width: 18px; height: 18px; object-fit: contain; }
+    ol.steps {
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      padding: 0;
+      margin: 12px 0 48px;
+    }
+    .step em {
+      display: block;
+      margin-bottom: 8px;
+      font-style: normal;
+      font-weight: 700;
+      color: var(--hot);
+    }
+    footer {
+      padding: 18px 0 28px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      border-top: 1px solid var(--line);
+    }
+    @media (max-width: 720px) {
+      .grid, ol.steps { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="mark">wi-mod</div>
+      <div class="ver">Windows · portable · v0.2.0</div>
+    </header>
+    <section class="hero">
+      <h1>Tu biblioteca de mods.<span>Sin cuenta y sin datos de nadie.</span></h1>
+      <p class="lead">Un solo ejecutable. Lo descomprimes, lo abres y empieza vacío: sin mods, sin usuarios y sin claves. Lo que guardes después queda en tu PC, en una carpeta <code>data</code> al lado del programa.</p>
+      <div class="cta">
+        <a class="download" href="https://github.com/wiarch/wi-mod/releases/download/v0.2.0/wi-mod-portable.zip">Descargar wi-mod-portable.zip</a>
+        <span class="meta">13 MB · solo el exe y un leeme · nada de biblioteca</span>
+      </div>
+      <div class="platforms">
+        <span><img src="brand/nexus.ico" alt="">Nexus Mods</span>
+        <span><img src="brand/modrinth.png" alt="">Modrinth</span>
+        <span><img src="brand/curseforge.ico" alt="">CurseForge</span>
+        <span><img src="brand/steam.ico" alt="">Steam Workshop</span>
+      </div>
+    </section>
+    <section class="grid">
+      <article class="card">
+        <strong>Portable</strong>
+        <p>No hay instalador. La carpeta se puede mover o borrar entera.</p>
+      </article>
+      <article class="card">
+        <strong>Desde cero</strong>
+        <p>El zip no trae mods, sesiones ni contraseñas. El primer usuario lo creas tú.</p>
+      </article>
+      <article class="card">
+        <strong>Solo en tu máquina</strong>
+        <p>Escucha en 127.0.0.1. La biblioteca no sale de esa carpeta.</p>
+      </article>
+    </section>
+    <ol class="steps">
+      <li class="step"><em>1</em><strong>Descomprime</strong><p>Deja la carpeta wi-mod donde quieras.</p></li>
+      <li class="step"><em>2</em><strong>Abre wi-mod.exe</strong><p>La ventana arranca maximizada y en blanco.</p></li>
+      <li class="step"><em>3</em><strong>Crea tu clave</strong><p>Escribe un usuario nuevo. Si no existe, la página de entrada te deja crearlo.</p></li>
+    </ol>
+    <footer>wi-mod 0.2.0 · Windows</footer>
+  </div>
+</body>
+</html>
