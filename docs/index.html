@@ -71,6 +71,17 @@
       background: linear-gradient(120deg, var(--hot), var(--ember));
     }
     .download:hover { filter: brightness(1.06); }
+    .try {
+      display: inline-flex;
+      align-items: center;
+      padding: 12px 18px;
+      border-radius: 999px;
+      border: 1px solid var(--copper);
+      text-decoration: none;
+      font-weight: 700;
+      color: var(--hot);
+    }
+    .try:hover { background: rgba(224, 138, 44, 0.12); }
     .meta { color: var(--muted); font-size: 0.92rem; }
     .grid {
       display: grid;
@@ -132,14 +143,16 @@
   <div class="wrap">
     <header>
       <div class="mark">wi-mod</div>
-      <div class="ver">Windows · portable · v0.3.0</div>
+      <div class="ver">Windows · portable · v0.4.0</div>
     </header>
     <section class="hero">
       <h1>Tu biblioteca de mods.<span>Sin cuenta y sin datos de nadie.</span></h1>
       <p class="lead">Un solo ejecutable. Lo descomprimes, lo abres y empieza vacío: sin mods, sin usuarios y sin claves. Lo que guardes después queda en tu PC, en una carpeta <code>data</code> al lado del programa.</p>
       <div class="cta">
         <a class="download" href="wi-mod-portable.zip">Descargar wi-mod-portable.zip</a>
+        <a class="try" href="app/">Probar en la web</a>
         <span class="meta">13 MB · solo el exe y un leeme · nada de biblioteca</span>
+        <span class="meta">La prueba guarda 20 mods y 10 juegos en el navegador.</span>
       </div>
       <div class="platforms">
         <span><img src="brand/nexus.ico" alt="">Nexus Mods</span>
@@ -167,7 +180,7 @@
       <li class="step"><em>2</em><strong>Abre wi-mod.exe</strong><p>La ventana arranca maximizada y en blanco.</p></li>
       <li class="step"><em>3</em><strong>Crea tu clave</strong><p>Escribe un usuario nuevo. Si no existe, la página de entrada te deja crearlo.</p></li>
     </ol>
-    <footer>wi-mod 0.3.0 · Windows</footer>
+    <footer>wi-mod 0.4.0 · Windows</footer>
   </div>
 </body>
 </html>

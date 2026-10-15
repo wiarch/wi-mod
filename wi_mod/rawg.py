@@ -18,6 +18,7 @@ APP_NAME = "wi-mod"
 NEXUS_BY_SLUG = {
     "the-elder-scrolls-v-skyrim-special-edition": "skyrimspecialedition",
     "the-elder-scrolls-v-skyrim": "skyrim",
+    "dark-souls-remastered": "darksoulsremastered",
     "dark-souls-iii": "darksouls3",
     "dark-souls-3": "darksouls3",
     "dark-souls-ii": "darksouls2",
@@ -32,6 +33,7 @@ NEXUS_BY_SLUG = {
     "baldurs-gate-3": "baldursgate3",
     "monster-hunter-world": "monsterhunterworld",
     "hollow-knight": "hollowknight",
+    "world-of-warcraft": "worldofwarcraft",
 }
 
 

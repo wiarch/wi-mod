@@ -46,7 +46,13 @@
       </div>
       <button type="button" id="game-add" class="side-add" title="Añadir juego (RAWG)">+</button>
     </div>
-    <input id="search" type="search" placeholder="Buscar mod o autor" autocomplete="off" spellcheck="false">
+    <div class="search-wrap">
+      <div class="search-field">
+        <input id="search" type="search" placeholder="Buscar mods" autocomplete="off" spellcheck="false">
+        <span id="search-platform" class="search-platform">Nexus</span>
+      </div>
+      <div id="search-remote" class="search-remote" hidden></div>
+    </div>
     <div class="top-actions">
       <div class="app-menu-wrap">
         <button type="button" id="app-menu-btn" class="solid app-menu-btn" aria-haspopup="true" aria-expanded="false">Menú ▾</button>

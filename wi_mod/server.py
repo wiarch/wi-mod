@@ -17,6 +17,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from wi_mod.archive import export_label, export_library, import_library
 from wi_mod.images import download_picture
+from wi_mod.modrinth import ModrinthError, search_projects
 from wi_mod.multipart import parse_multipart
 from wi_mod.nexus import (
     Cache,
@@ -25,6 +26,7 @@ from wi_mod.nexus import (
     download_links,
     fetch_mod,
     parse_mod_url,
+    search_mods,
     validate_key,
 )
 from wi_mod.rawg import (
@@ -34,6 +36,7 @@ from wi_mod.rawg import (
     search_games,
     validate_key as validate_rawg_key,
 )
+from wi_mod.sources import platforms_for, sources_payload
 from wi_mod.store import Library, now, safe_name
 from wi_mod.translate import TranslateError, translate_text
 
@@ -188,6 +191,7 @@ def make_handler(app: App):
                         "catalog": app.library.catalog(),
                         "language": _lang(app),
                         "theme": _theme(app),
+                        "sources": sources_payload(),
                     },
                 )
                 return
@@ -202,6 +206,33 @@ def make_handler(app: App):
                 query = parse_qs(urlparse(self.path).query)
                 q = (query.get("q") or [""])[0]
                 self._json(200, {"results": _rawg_search(app, q)})
+                return
+            if path == "/api/nexus/search":
+                query = parse_qs(urlparse(self.path).query)
+                q = (query.get("q") or [""])[0]
+                game = (query.get("game") or [""])[0]
+                platform = (query.get("platform") or ["Nexus"])[0] or "Nexus"
+                if platform != "Nexus":
+                    self._json(200, {"results": [], "supported": False, "platform": platform})
+                    return
+                hits = search_mods(game, q)
+                for hit in hits:
+                    existing = app.library.find_nexus(str(hit.get("gameDomain") or ""), int(hit.get("modId") or 0))
+                    hit["savedId"] = str(existing.get("id") or "") if existing else ""
+                self._json(200, {"results": hits, "supported": True, "platform": "Nexus"})
+                return
+            if path == "/api/modrinth/search":
+                query = parse_qs(urlparse(self.path).query)
+                q = (query.get("q") or [""])[0]
+                try:
+                    hits = search_projects(q)
+                except ModrinthError as exc:
+                    self._json(502, {"error": str(exc)})
+                    return
+                for hit in hits:
+                    existing = app.library.find_page(str(hit.get("url") or ""))
+                    hit["savedId"] = str(existing.get("id") or "") if existing else ""
+                self._json(200, {"results": hits, "supported": True, "platform": "Modrinth"})
                 return
             if path == "/api/rawg/resolve":
                 query = parse_qs(urlparse(self.path).query)
@@ -645,6 +676,77 @@ def _to_es(text: str) -> str:
         return ""
 
 
+_CATEGORY_ES: dict[str, str] = {}
+_CATEGORY_GLOSSARY = {
+    "overhauls": "Reformas",
+    "user interface": "Interfaz",
+    "gameplay": "Jugabilidad",
+    "models and textures": "Modelos y texturas",
+    "cities, towns, villages, and hamlets": "Ciudades y pueblos",
+    "immersion": "Inmersión",
+    "patches": "Parches",
+    "utilities": "Utilidades",
+    "weapons": "Armas",
+    "armour": "Armaduras",
+    "armor": "Armaduras",
+    "magic - gameplay": "Magia",
+    "audio": "Audio",
+    "visuals": "Visuales",
+    "visuals and graphics": "Visuales",
+    "general": "General",
+    "bug fixes": "Correcciones",
+    "animation": "Animación",
+    "animations": "Animaciones",
+    "creatures and mounts": "Criaturas y monturas",
+    "quests and adventures": "Misiones",
+    "npc": "Personajes",
+    "npcs": "Personajes",
+    "clothing and accessories": "Ropa y accesorios",
+    "environmental": "Entorno",
+    "environment": "Entorno",
+    "items and objects": "Objetos",
+    "skills and leveling": "Habilidades",
+    "combat": "Combate",
+    "alchemy": "Alquimia",
+    "followers": "Seguidores",
+    "locations": "Lugares",
+    "modders resources": "Recursos",
+    "new lands": "Nuevas tierras",
+    "performance": "Rendimiento",
+    "presets": "Preajustes",
+    "stealth": "Sigilo",
+    "survival": "Supervivencia",
+    "weather and lighting": "Clima e iluminación",
+    "lighting": "Iluminación",
+    "hair and face": "Pelo y cara",
+    "body, face, and hair": "Cuerpo y cara",
+    "characters": "Personajes",
+    "buildings": "Edificios",
+    "miscellaneous": "Varios",
+    "player homes": "Casas",
+    "quests": "Misiones",
+    "textures": "Texturas",
+    "weapons and armour": "Armas y armaduras",
+}
+
+
+def _category_es(name: str) -> str:
+    raw = (name or "").strip()
+    if not raw:
+        return ""
+    key = raw.casefold()
+    known = _CATEGORY_GLOSSARY.get(key)
+    if known:
+        return known
+    cached = _CATEGORY_ES.get(key)
+    if cached:
+        return cached
+    translated = _to_es(raw).strip(" .")
+    if translated:
+        _CATEGORY_ES[key] = translated
+    return translated
+
+
 def _localize_mod_fields(app: App, fields: dict) -> dict:
     if _lang(app) != "es":
         return fields
@@ -653,6 +755,11 @@ def _localize_mod_fields(app: App, fields: dict) -> dict:
         translated = _to_es(summary)
         if translated:
             fields["summaryEs"] = translated
+    category = str(fields.get("category") or "").strip()
+    if category and not str(fields.get("categoryEs") or "").strip():
+        translated = _category_es(category)
+        if translated:
+            fields["categoryEs"] = translated
     return fields
 
 
@@ -673,13 +780,20 @@ def _localize_missing(app: App) -> dict:
     if _lang(app) != "es":
         return {"mods": 0, "games": 0, "language": "en"}
     for mod in app.library.list_mods():
+        changes: dict[str, str] = {}
         summary = str(mod.get("summary") or "").strip()
-        if not summary or str(mod.get("summaryEs") or "").strip():
+        if summary and not str(mod.get("summaryEs") or "").strip():
+            translated = _to_es(summary)
+            if translated:
+                changes["summaryEs"] = translated
+        category = str(mod.get("category") or "").strip()
+        if category and not str(mod.get("categoryEs") or "").strip():
+            translated = _category_es(category)
+            if translated:
+                changes["categoryEs"] = translated
+        if not changes:
             continue
-        translated = _to_es(summary)
-        if not translated:
-            continue
-        app.library.update(mod["id"], {"summaryEs": translated})
+        app.library.update(mod["id"], changes)
         mods_done += 1
         if mods_done >= 40:
             break
@@ -788,6 +902,10 @@ def _create(app: App, body: dict) -> dict:
     fields = _fields_from_body(app, body)
     mode = str(body.get("mode") or "").strip().lower()
     platform = str(fields.get("platform") or "")
+    allowed = platforms_for(str(fields.get("gameDomain") or ""))
+    if allowed and platform not in allowed:
+        names = ", ".join(allowed)
+        raise ValueError(f"Este juego solo acepta mods de {names}.")
     if platform in {"Independiente", "Modrinth", "CurseForge", "Steam Workshop"}:
         existing = app.library.find_page(str(fields.get("nexusUrl") or ""))
     else:
@@ -826,8 +944,25 @@ def _refresh_one(app: App, mod_id: str, apply: bool = False) -> dict:
         "primaryFileId": remote.get("primaryFileId"),
         "primaryFileName": remote.get("primaryFileName"),
     }
+    if changed and apply:
+        remote["fetchedAt"] = checked
+        remote["checkedAt"] = checked
+        _localize_mod_fields(app, remote)
+        updated = app.library.apply_remote(mod_id, remote)
+        app.library.update(mod_id, {"updateAvailable": False, "remoteVersion": ""})
+        return {
+            "changed": True,
+            "applied": True,
+            "checkedAt": checked,
+            "remote": preview,
+            "mod": _public_mod(_with_picture(app, app.library.get(mod_id) or updated or mod)),
+        }
+    marked = app.library.update(mod_id, {
+        "updateAvailable": changed,
+        "remoteVersion": str(preview["version"] or "") if changed else "",
+    })
+    fresh = marked or app.library.get(mod_id)
     if not changed:
-        fresh = app.library.get(mod_id)
         return {
             "changed": False,
             "applied": False,
@@ -835,29 +970,16 @@ def _refresh_one(app: App, mod_id: str, apply: bool = False) -> dict:
             "remote": preview,
             "mod": _public_mod(fresh),
         }
-    if not apply:
-        fresh = app.library.get(mod_id)
-        return {
-            "changed": True,
-            "applied": False,
-            "checkedAt": checked,
-            "remote": preview,
-            "local": {
-                "version": mod.get("version") or "",
-                "updatedAt": mod.get("updatedAt"),
-            },
-            "mod": _public_mod(fresh),
-        }
-    remote["fetchedAt"] = checked
-    remote["checkedAt"] = checked
-    _localize_mod_fields(app, remote)
-    updated = app.library.apply_remote(mod_id, remote)
     return {
         "changed": True,
-        "applied": True,
+        "applied": False,
         "checkedAt": checked,
         "remote": preview,
-        "mod": _public_mod(_with_picture(app, updated or mod)),
+        "local": {
+            "version": mod.get("version") or "",
+            "updatedAt": mod.get("updatedAt"),
+        },
+        "mod": _public_mod(fresh),
     }
 
 

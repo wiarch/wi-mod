@@ -165,8 +165,13 @@ class Library:
 
     def _apply_user(self, mod: dict[str, Any], fields: dict[str, Any], packs: list[dict[str, Any]]) -> None:
         if "category" in fields:
-            mod["category"] = str(fields["category"] or "General").strip() or "General"
+            new_cat = str(fields["category"] or "General").strip() or "General"
+            if new_cat != mod.get("category"):
+                mod["categoryEs"] = ""
+            mod["category"] = new_cat
             mod["categorySource"] = "user"
+        if "categoryEs" in fields:
+            mod["categoryEs"] = str(fields["categoryEs"] or "")
         if "notes" in fields:
             mod["notes"] = str(fields["notes"] or "")
         if "techNotes" in fields:
@@ -183,6 +188,10 @@ class Library:
             mod["name"] = str(fields["name"]).strip()
         if "summaryEs" in fields:
             mod["summaryEs"] = str(fields["summaryEs"] or "")
+        if "updateAvailable" in fields:
+            mod["updateAvailable"] = bool(fields["updateAvailable"])
+        if "remoteVersion" in fields:
+            mod["remoteVersion"] = str(fields["remoteVersion"] or "")
         if "platform" in fields and str(fields["platform"] or "").strip():
             mod["platform"] = str(fields["platform"]).strip()
         if "modpackId" in fields or "modpackCategoryId" in fields or "modpack" in fields:
@@ -425,6 +434,7 @@ class Library:
             "summaryEs": "",
             "author": "",
             "category": "General",
+            "categoryEs": "",
             "categorySource": "nexus",
             "version": "",
             "updatedAt": None,
@@ -451,6 +461,8 @@ class Library:
             "addedAt": now(),
             "fetchedAt": None,
             "checkedAt": None,
+            "updateAvailable": False,
+            "remoteVersion": "",
         }
 
     def _blank_pack(self) -> dict[str, Any]:
@@ -813,7 +825,10 @@ class Library:
                 if key in fields and fields[key] is not None and fields[key] != "":
                     mod[key] = fields[key]
             if fields.get("category") and mod.get("categorySource") != "user":
-                mod["category"] = fields["category"]
+                new_cat = fields["category"]
+                if new_cat != mod.get("category"):
+                    mod["categoryEs"] = ""
+                mod["category"] = new_cat
                 mod["categorySource"] = fields.get("categorySource") or "nexus"
             self._write(data)
             return mod
@@ -830,6 +845,7 @@ class Library:
             "name",
             "summary",
             "summaryEs",
+            "categoryEs",
             "author",
             "version",
             "updatedAt",
@@ -858,9 +874,14 @@ class Library:
                 mod["summaryEs"] = ""
             mod[key] = fields[key]
         if fields.get("category") and (overwrite_user or mod.get("categorySource") != "user"):
-            mod["category"] = fields["category"]
+            new_cat = fields["category"]
+            if new_cat != mod.get("category"):
+                mod["categoryEs"] = ""
+            mod["category"] = new_cat
             if overwrite_user or mod.get("categorySource") != "user":
                 mod["categorySource"] = fields.get("categorySource") or "nexus"
+        if fields.get("categoryEs"):
+            mod["categoryEs"] = fields["categoryEs"]
         if fields.get("notes") and overwrite_user:
             mod["notes"] = fields["notes"]
 

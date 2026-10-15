@@ -29,6 +29,14 @@ function displaySummary(mod) {
   return mod.summary || "Sin descripción";
 }
 
+function categoryLabel(name, mod) {
+  const raw = name || mod?.category || "General";
+  if (!state.showEs) return raw;
+  if (mod?.categoryEs && (mod.category || "General") === raw) return mod.categoryEs;
+  const found = state.mods.find((item) => (item.category || "General") === raw && item.categoryEs);
+  return found?.categoryEs || raw;
+}
+
 const $ = (id) => document.getElementById(id);
 
 const sfx = {
@@ -123,9 +131,37 @@ function fmtSize(bytes) {
   return `${(size / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
+function refreshButton(mod) {
+  if (!mod?.updateAvailable) return "";
+  const next = mod.remoteVersion ? `v${mod.remoteVersion}` : "Versión nueva";
+  return `<button class="ghost refresh-btn" type="button" id="detail-refresh">Actualizar<small>${esc(next)}</small></button>`;
+}
+
 function fmtCount(value) {
   const n = Number(value) || 0;
   return n.toLocaleString("es");
+}
+
+function statIcon(kind) {
+  const paths = {
+    trophy: `<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4"/>`,
+    down: `<path d="M12 3v12M7 11l5 5 5-5M5 21h14"/>`,
+    chart: `<path d="M4 19V10M10 19V4M16 19v-6M22 19H2"/>`,
+    tag: `<path d="M20 13l-7 7-9-9V4h7l9 9z"/><circle cx="7.5" cy="7.5" r="1"/>`,
+  };
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[kind] || ""}</svg>`;
+}
+
+function statRow(mod) {
+  const items = [
+    ["trophy", "Apoyos", fmtCount(mod.endorsements)],
+    ["down", "Únicos", fmtCount(mod.uniqueDownloads)],
+    ["chart", "Descargas", fmtCount(mod.downloads)],
+    ["tag", "Versión", mod.version || "?"],
+  ];
+  return `<div class="stat-row">${items.map(([kind, label, value]) => `
+    <div class="stat">${statIcon(kind)}<span>${esc(label)}</span><strong>${esc(value)}</strong></div>
+  `).join("")}</div>`;
 }
 
 function toast(text, kind = "ok") {
@@ -171,6 +207,7 @@ async function load() {
   state.mods = data.mods || [];
   state.modpacks = data.modpacks || [];
   state.catalog = data.catalog || { platforms: [], games: [], categories: [], skills: [], rules: [] };
+  state.sources = data.sources || {};
   if (data.language === "en" || data.language === "es") applyLang(data.language);
   if (data.theme) applyTheme(data.theme);
   const alive = new Set(state.mods.map((mod) => mod.id));
@@ -364,6 +401,7 @@ function selectGame(domain) {
   sfx.click();
   render();
   enrichActiveGame();
+  scheduleRemoteSearch();
 }
 
 let heroResolveToken = 0;
@@ -478,7 +516,7 @@ function visible() {
     if (state.files === "with" && !hasFiles) return false;
     if (state.files === "without" && hasFiles) return false;
     if (!q) return true;
-    const blob = `${mod.name} ${mod.author} ${mod.gameName} ${mod.category} ${mod.platform} ${packLabel(mod)} ${mod.summary} ${mod.summaryEs || ""} ${mod.techNotes || ""} ${mod.compatNotes || ""} ${mod.notes || ""}`.toLowerCase();
+    const blob = `${mod.name} ${mod.author} ${mod.gameName} ${mod.category} ${mod.categoryEs || ""} ${mod.platform} ${packLabel(mod)} ${mod.summary} ${mod.summaryEs || ""} ${mod.techNotes || ""} ${mod.compatNotes || ""} ${mod.notes || ""}`.toLowerCase();
     return blob.includes(q);
   });
   const by = {
@@ -599,7 +637,9 @@ function renderFilters() {
     }
   }
 
-  const platformNames = [...PLATFORMS];
+  const allowed = platformsForGame(state.game);
+  if (state.platform && allowed && !allowed.includes(state.platform)) state.platform = "";
+  const platformNames = allowed ? [...allowed] : [...PLATFORMS];
   scopedMods().forEach((mod) => {
     const name = mod.platform || "Nexus";
     if (!platformNames.includes(name)) platformNames.push(name);
@@ -643,7 +683,7 @@ function renderFilters() {
   });
   cats.sort((a, b) => a.label.localeCompare(b.label, "es"));
   $("categories").innerHTML = chip("Todas", "", state.category, "category") + cats.map((row) => (
-    chip(`${row.label} (${row.count})`, row.id, state.category, "category")
+    chip(`${categoryLabel(row.id)} (${row.count})`, row.id, state.category, "category")
   )).join("");
 
   fillCategorySelect($("add-category"), $("add-category").value || "");
@@ -656,6 +696,7 @@ function renderFilters() {
       if (kind === "modpack") state.packCat = "";
       sfx.click();
       render();
+      if (kind === "platform") scheduleRemoteSearch();
     };
   });
   document.querySelectorAll(".side-add[data-add]").forEach((button) => {
@@ -761,7 +802,7 @@ function fillCategorySelect(node, preferred) {
   if (!node) return;
   const current = preferred || node.value || "General";
   node.innerHTML = categoryOptions(current).map((name) => (
-    `<option value="${esc(name)}" ${name === current ? "selected" : ""}>${esc(name)}</option>`
+    `<option value="${esc(name)}" ${name === current ? "selected" : ""}>${esc(categoryLabel(name))}</option>`
   )).join("");
 }
 
@@ -794,6 +835,32 @@ async function setTheme(theme) {
 
 const PLATFORMS = ["Nexus", "Modrinth", "CurseForge", "Steam Workshop", "Independiente"];
 
+function platformsForGame(domain) {
+  const key = String(domain || "").trim().toLowerCase();
+  const map = state.sources || {};
+  if (map[key]) return map[key];
+  if (key.startsWith("minecraft")) return ["Modrinth", "CurseForge", "Independiente"];
+  if (key === "wow" || key.startsWith("worldofwarcraft")) return ["CurseForge", "Independiente"];
+  return ["Nexus", "Independiente"];
+}
+
+function searchPlatformLabel() {
+  if (state.platform) return state.platform;
+  const remote = remoteTarget();
+  if (remote) return remote;
+  const allowed = platformsForGame(state.game) || [];
+  return allowed.find((name) => name !== "Independiente") || "Independiente";
+}
+
+function remoteTarget() {
+  const allowed = platformsForGame(state.game);
+  const pick = state.platform || "";
+  const open = (name) => (!allowed || allowed.includes(name)) && (!pick || pick === name);
+  if (open("Nexus") && (pick === "Nexus" || !pick)) return "Nexus";
+  if (open("Modrinth") && (pick === "Modrinth" || !pick)) return "Modrinth";
+  return "";
+}
+
 function platformFromUrl(url) {
   const text = String(url || "").toLowerCase();
   if (/nexusmods\.com\/[^/]+\/mods\/\d+/.test(text)) return "Nexus";
@@ -812,7 +879,14 @@ function syncAddSource() {
   const picked = platformFromUrl($("add-url").value);
   const known = picked !== "Nexus";
   const select = $("add-platform");
+  const allowed = platformsForGame(state.game);
   if (!select) return;
+  if (allowed && $("add-url").value.trim() && !allowed.includes(picked)) {
+    fillPlatformSelect(select, allowed[0]);
+    select.disabled = true;
+    if ($("add-status")) $("add-status").textContent = `Este juego solo acepta ${allowed.join(", ")}.`;
+    return;
+  }
   if ($("add-url").value.trim() && known) {
     fillPlatformSelect(select, picked);
     select.value = picked;
@@ -827,8 +901,10 @@ function syncAddSource() {
 
 function fillPlatformSelect(node, preferred) {
   if (!node) return;
-  const current = preferred || node.value || "Nexus";
-  const options = [...PLATFORMS];
+  const allowed = platformsForGame(state.game);
+  const options = allowed ? [...allowed] : [...PLATFORMS];
+  let current = preferred || node.value || options[0] || "Nexus";
+  if (!options.includes(current)) current = options[0] || current;
   if (current && !options.includes(current)) options.push(current);
   node.innerHTML = options.map((name) => (
     `<option value="${esc(name)}" ${name === current ? "selected" : ""}>${esc(name)}</option>`
@@ -1139,6 +1215,11 @@ function render() {
   syncViewToggle();
   paintPickAll();
   paintBulk();
+  if ($("search")) {
+    const where = searchPlatformLabel();
+    $("search").placeholder = `Buscar en ${where}`;
+    if ($("search-platform")) $("search-platform").textContent = where;
+  }
   const mods = visible();
   const selected = mods.filter((mod) => state.selected.has(mod.id)).length;
   $("count").textContent = selected
@@ -1162,7 +1243,7 @@ function render() {
       <div class="shot" ${shot(mod)}><span>${esc(mod.gameName || mod.gameDomain || "Juego")}</span></div>
       <div class="card-body">
         <h3>${esc(mod.name)}</h3>
-        <p class="meta">${esc(mod.platform || "Nexus")}${packLabel(mod) ? ` · ${esc(packLabel(mod))}` : ""} · ${esc(mod.category || "General")} · v${esc(mod.version || "?")}</p>
+        <p class="meta">${esc(mod.platform || "Nexus")}${packLabel(mod) ? ` · ${esc(packLabel(mod))}` : ""} · ${esc(categoryLabel(mod.category, mod))} · v${esc(mod.version || "?")}</p>
         <p class="sub">${esc(displaySummary(mod))}${mod.summaryEs ? ` <span class="meta">${state.showEs ? "ES" : "EN"}</span>` : ""}</p>
       </div>
       <footer>
@@ -1195,7 +1276,7 @@ function fillPreview(mod) {
     <img alt="" src="${esc(mod.pictureUrl || "")}">
     <div>
       <h3>${esc(mod.name)}</h3>
-      <p>${esc(mod.gameName)} · ${esc(mod.category)} · v${esc(mod.version || "?")}<br>
+      <p>${esc(mod.gameName)} · ${esc(categoryLabel(mod.category, mod))} · v${esc(mod.version || "?")}<br>
       ${esc(mod.author)} · ${esc(fmtDate(mod.updatedAt))}<br>${esc(mod.summary || "")}</p>
     </div>`;
   fillCategorySelect($("add-category"), mod.category || "General");
@@ -1287,6 +1368,12 @@ async function saveMod(event) {
   setLoading(button, true, "Guardando");
   const pageUrl = $("add-url").value;
   const picked = platformFromUrl(pageUrl);
+  const allowed = platformsForGame(state.game);
+  if (allowed && !allowed.includes(picked)) {
+    status.textContent = `Este juego solo acepta ${allowed.join(", ")}.`;
+    sfx.warn();
+    return;
+  }
   const official = picked !== "Nexus";
   const body = {
     url: pageUrl,
@@ -1366,33 +1453,21 @@ function openDetail(id) {
   const image = mod.pictureFile
     ? `/media/${encodeURI(mod.pictureFile)}`
     : (mod.pictureUrl || "");
-  const checked = mod.checkedAt || mod.fetchedAt;
   const summaryText = displaySummary(mod);
   $("detail").innerHTML = `
     <header>
       <h2>${esc(mod.name)}</h2>
       <button class="icon" type="button" id="detail-close">✕</button>
     </header>
-    <div class="row" style="align-items:stretch">
-      ${image ? `<img class="hero" alt="" src="${esc(image)}" style="width:42%;flex:0 0 42%">` : ""}
-      <div style="flex:1;display:grid;gap:4px;align-content:start">
+    <div class="detail-head${image ? "" : " solo"}">
+      ${image ? `<img class="hero" alt="" src="${esc(image)}">` : ""}
+      <div class="detail-side">
         <p class="hint">${esc(mod.gameName || "")} · ${esc(mod.author || "?")}</p>
-        <p class="meta">${esc(mod.platform || "Nexus")} · ${esc(mod.category || "General")} · v${esc(mod.version || "?")} · ${esc(fmtDate(mod.updatedAt))}</p>
-        <p class="meta">👍 ${esc(fmtCount(mod.endorsements))} · ↓ ${esc(fmtCount(mod.downloads))} · únicos ${esc(fmtCount(mod.uniqueDownloads))}</p>
-        <p class="row" style="gap:10px">
-          ${mod.nexusUrl ? `<a href="${esc(mod.nexusUrl)}" target="_blank" rel="noreferrer">${esc(mod.platform || "Nexus")}</a>` : ""}
-          ${mod.platform === "Nexus" && (mod.filesUrl || mod.nexusUrl) ? `<a href="${esc(mod.filesUrl || (mod.nexusUrl + "?tab=files"))}" target="_blank" rel="noreferrer">Files</a>` : ""}
-        </p>
+        <p class="meta">${mod.nexusUrl ? `<a href="${esc(mod.nexusUrl)}" target="_blank" rel="noreferrer">${esc(mod.platform || "Nexus")}</a>` : esc(mod.platform || "Nexus")} · ${esc(categoryLabel(mod.category, mod))} · ${esc(fmtDate(mod.updatedAt))}</p>
+        ${statRow(mod)}
+        <p class="summary" id="detail-summary" title="${esc(mod.summary || "")}">${esc(summaryText || "Sin descripción.")}</p>
       </div>
     </div>
-    <div class="row" style="justify-content:space-between">
-      <p class="meta">${mod.summaryEs ? (state.showEs ? "ES" : "EN") : ""}</p>
-      <span class="row">
-        ${mod.summaryEs ? `<button class="ghost" type="button" id="detail-lang">${state.showEs ? "Original" : "Español"}</button>` : ""}
-        <button class="ghost" type="button" id="detail-translate">${mod.summaryEs ? "Retraducir" : "Traducir"}</button>
-      </span>
-    </div>
-    <p class="summary" id="detail-summary" title="${esc(mod.summary || "")}">${esc(summaryText || "Sin descripción.")}</p>
     <div class="row">
       <label style="flex:1">Modpack
         <span class="pick-add">
@@ -1407,14 +1482,13 @@ function openDetail(id) {
         </span>
       </label>
     </div>
-    <p class="hint">${mod.platform === "Independiente" ? "Página oficial. Plataforma independiente." : "Ficha informativa. El archivo no se guarda aquí."}</p>
+    <label>Nota
+      <textarea id="detail-note" rows="3" placeholder="Nota de este mod">${esc(mod.notes || "")}</textarea>
+    </label>
     <footer>
       <button class="danger" type="button" id="detail-delete">Eliminar</button>
       <span class="row">
-        <button class="ghost refresh-btn" type="button" id="detail-refresh">
-          Buscar act.
-          <small>Última: ${esc(fmtWhen(checked))}</small>
-        </button>
+        <span id="detail-refresh-slot">${refreshButton(mod)}</span>
         <button class="solid" type="button" id="detail-save">Guardar</button>
       </span>
     </footer>`;
@@ -1436,37 +1510,11 @@ function openDetail(id) {
     createCategoryInline($("detail-modpack"), $("detail-pack-cat"), mod.gameDomain);
   };
   $("detail-save").onclick = () => saveDetail(mod.id);
-  $("detail-refresh").onclick = () => refreshOne(mod.id);
+  const refresh = $("detail-refresh");
+  if (refresh) refresh.onclick = () => refreshOne(mod.id);
   $("detail-delete").onclick = () => removeMod(mod.id);
-  $("detail-translate").onclick = () => translateMod(mod.id);
-  const langBtn = $("detail-lang");
-  if (langBtn) {
-    langBtn.onclick = () => {
-      state.showEs = !state.showEs;
-      localStorage.setItem("wi-mod-show-es", state.showEs ? "1" : "0");
-      sfx.click();
-      openDetail(mod.id);
-      render();
-    };
-  }
-}
-
-async function translateMod(id) {
-  const button = $("detail-translate");
-  setLoading(button, true, "Traduciendo");
-  sfx.sniff();
-  try {
-    const data = await api(`/api/mods/${id}/translate`, { method: "POST" });
-    state.showEs = true;
-    localStorage.setItem("wi-mod-show-es", "1");
-    toast("Descripción traducida al español.");
-    await load();
-    openDetail(id);
-  } catch (error) {
-    toast(error.message, "bad");
-  } finally {
-    setLoading(button, false);
-  }
+  $("detail").dataset.id = mod.id;
+  probeUpdate(mod.id);
 }
 
 async function downloadMod(id) {
@@ -1535,6 +1583,7 @@ async function saveDetail(id) {
       body: JSON.stringify({
         modpackId: $("detail-modpack").value || "",
         modpackCategoryId: $("detail-pack-cat").value || "",
+        notes: $("detail-note").value || "",
       }),
     });
     toast("Cambios guardados.");
@@ -1544,6 +1593,42 @@ async function saveDetail(id) {
     toast(error.message, "bad");
   } finally {
     setLoading(button, false);
+  }
+}
+
+let probeToken = 0;
+
+async function probeUpdate(id) {
+  const mod = state.mods.find((item) => item.id === id);
+  if (!mod || !/nexusmods\.com\/[^/]+\/mods\/\d+/i.test(mod.nexusUrl || "")) return;
+  const token = ++probeToken;
+  try {
+    const check = await api(`/api/mods/${id}/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apply: false }),
+    });
+    if (token !== probeToken || $("detail")?.dataset.id !== id) return;
+    if (check.mod) {
+      const index = state.mods.findIndex((item) => item.id === id);
+      if (index >= 0) state.mods[index] = check.mod;
+    }
+    const slot = $("detail-refresh-slot");
+    if (!slot) return;
+    if (!check.changed) {
+      slot.innerHTML = "";
+      return;
+    }
+    const current = state.mods.find((item) => item.id === id) || mod;
+    slot.innerHTML = refreshButton({
+      ...current,
+      updateAvailable: true,
+      remoteVersion: check.remote?.version || current.remoteVersion || "",
+    });
+    const button = $("detail-refresh");
+    if (button) button.onclick = () => refreshOne(id);
+  } catch (_) {
+    /* sin aviso si Nexus no responde */
   }
 }
 
@@ -1886,13 +1971,139 @@ $("game-picker").onclick = (event) => {
 document.addEventListener("click", (event) => {
   if (!event.target.closest?.(".game-picker-wrap")) closeGameMenu();
   if (!event.target.closest?.(".app-menu-wrap")) closeAppMenu();
+  if (!event.target.closest?.(".search-wrap")) hideRemoteSearch();
 });
 $("game-form").onsubmit = (event) => event.preventDefault();
 $("game-search").oninput = (event) => {
   clearTimeout(gameSearchTimer);
   gameSearchTimer = setTimeout(() => searchRawgGames(event.target.value), 320);
 };
-$("search").oninput = (event) => { state.query = event.target.value; render(); };
+let remoteTimer = 0;
+let remoteToken = 0;
+
+function hideRemoteSearch() {
+  const box = $("search-remote");
+  if (!box) return;
+  box.hidden = true;
+}
+
+function scheduleRemoteSearch() {
+  clearTimeout(remoteTimer);
+  remoteTimer = setTimeout(runRemoteSearch, 320);
+}
+
+async function runRemoteSearch() {
+  const box = $("search-remote");
+  if (!box) return;
+  const q = state.query.trim();
+  if (q.length < 2) {
+    box.hidden = true;
+    box.innerHTML = "";
+    return;
+  }
+  const target = remoteTarget();
+  box.hidden = false;
+  if (!target) {
+    const label = searchPlatformLabel();
+    box.innerHTML = `<p class="hint">${esc(label)} se añade con el enlace del mod.</p>`;
+    return;
+  }
+  if (!state.game) {
+    box.innerHTML = `<p class="hint">Elige un juego arriba.</p>`;
+    return;
+  }
+  const token = ++remoteToken;
+  box.innerHTML = `<p class="hint">Buscando en ${esc(target)}…</p>`;
+  const game = target === "Nexus" ? `&game=${encodeURIComponent(state.game)}` : "";
+  const path = target === "Modrinth" ? "/api/modrinth/search" : "/api/nexus/search";
+  try {
+    const data = await api(`${path}?q=${encodeURIComponent(q)}${game}`);
+    if (token !== remoteToken) return;
+    paintRemote(data.results || [], target);
+  } catch (error) {
+    if (token !== remoteToken) return;
+    box.innerHTML = `<p class="hint">${esc(error.message)}</p>`;
+  }
+}
+
+function paintRemote(results, label) {
+  const box = $("search-remote");
+  const where = label || "Nexus";
+  if (!results.length) {
+    box.innerHTML = `<p class="hint">Nada en ${esc(where)} para esta búsqueda.</p>`;
+    return;
+  }
+  box.innerHTML = results.map((hit, index) => `
+    <article class="search-hit">
+      ${hit.pictureUrl ? `<img alt="" src="${esc(hit.pictureUrl)}">` : `<span></span>`}
+      <div>
+        <b>${esc(hit.name)}</b>
+        <p class="meta">${esc(where)} · ${esc(hit.author || "?")} · ↓ ${esc(fmtCount(hit.downloads))}</p>
+      </div>
+      <button type="button" class="${hit.savedId ? "ghost" : "solid"}" data-remote="${index}">${hit.savedId ? "Ya está" : "Añadir"}</button>
+    </article>
+  `).join("");
+  box.querySelectorAll("[data-remote]").forEach((button) => {
+    const hit = results[Number(button.dataset.remote)];
+    if (!hit) return;
+    button.onclick = () => {
+      if (hit.savedId) {
+        hideRemoteSearch();
+        openDetail(hit.savedId);
+        return;
+      }
+      addRemoteMod(hit, button);
+    };
+  });
+}
+
+async function addRemoteMod(hit, button) {
+  button.disabled = true;
+  button.textContent = "Añadiendo…";
+  try {
+    const saved = await api("/api/mods", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: hit.url,
+        platform: hit.platform || "Nexus",
+        gameDomain: hit.gameDomain || state.game,
+        gameName: hit.gameName || gameLabel(state.game),
+        manual: hit.platform && hit.platform !== "Nexus" ? {
+          name: hit.name,
+          author: hit.author || "",
+          summary: hit.summary || "",
+          gameDomain: state.game,
+          gameName: gameLabel(state.game),
+          platform: hit.platform,
+        } : undefined,
+      }),
+    });
+    toast("Mod guardado.");
+    hit.savedId = saved.mod?.id || hit.savedId;
+    button.className = "ghost";
+    button.textContent = "Ya está";
+    button.disabled = false;
+    button.onclick = () => {
+      hideRemoteSearch();
+      if (hit.savedId) openDetail(hit.savedId);
+    };
+    await load();
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = "Añadir";
+    toast(error.message, "bad");
+  }
+}
+
+$("search").oninput = (event) => {
+  state.query = event.target.value;
+  render();
+  scheduleRemoteSearch();
+};
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") hideRemoteSearch();
+});
 $("sort").onchange = (event) => { state.sort = event.target.value; sfx.click(); render(); };
 $("pick-mode").onclick = () => setPicking(!state.picking);
 $("pick-all").onclick = () => selectAllVisible();

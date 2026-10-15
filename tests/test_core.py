@@ -11,6 +11,7 @@ from wi_mod.archive import export_library, import_library, select_mods
 from wi_mod.multipart import parse_multipart
 from wi_mod.nexus import parse_mod_url, pick_file
 from wi_mod.server import App, _has_update, make_server
+from wi_mod.sources import platforms_for
 from wi_mod.store import Library
 
 
@@ -233,6 +234,19 @@ class ServerTests(unittest.TestCase):
                 server.shutdown()
                 server.server_close()
                 thread.join(timeout=3)
+
+
+class SourceTests(unittest.TestCase):
+    def test_minecraft_stores(self):
+        self.assertEqual(platforms_for("minecraft"), ("Modrinth", "CurseForge", "Independiente"))
+        self.assertNotIn("Nexus", platforms_for("minecraft"))
+        self.assertEqual(platforms_for("skyrimspecialedition"), ("Nexus", "Independiente"))
+        self.assertEqual(platforms_for("skyrim"), ("Nexus", "Independiente"))
+        self.assertEqual(platforms_for("stardewvalley"), ("Nexus", "Independiente"))
+        self.assertEqual(platforms_for("darksoulsremastered"), ("Nexus", "Independiente"))
+        self.assertEqual(platforms_for("worldofwarcraft"), ("CurseForge", "Independiente"))
+        self.assertEqual(platforms_for("wow"), ("CurseForge", "Independiente"))
+        self.assertEqual(platforms_for("otrojuego"), ("Nexus", "Independiente"))
 
 
 def _post(url, payload, opener=None):

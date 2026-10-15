@@ -1,3 +1,3 @@
 """wi-mod: biblioteca local de mods."""
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

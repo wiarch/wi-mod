@@ -337,6 +337,102 @@ def _title_domain(domain: str) -> str:
     return re.sub(r"[_-]+", " ", domain).strip().title()
 
 
+_GRAPHQL = "https://api.nexusmods.com/v2/graphql"
+_SEARCH = """
+query ($filter: ModsFilter, $count: Int, $sort: [ModsSort!]) {
+  mods(filter: $filter, count: $count, sort: $sort) {
+    nodes {
+      modId
+      name
+      summary
+      author
+      version
+      downloads
+      endorsements
+      thumbnailUrl
+      status
+      game { domainName name }
+    }
+  }
+}
+"""
+
+
+def search_mods(game_domain: str, terms: str, limit: int = 8) -> list[dict[str, Any]]:
+    domain = (game_domain or "").strip().lower()
+    text = " ".join((terms or "").split())[:80]
+    if len(domain) < 2 or len(text) < 2:
+        return []
+    body = json.dumps({
+        "query": _SEARCH,
+        "variables": {
+            "count": 24,
+            "sort": [{"downloads": {"direction": "DESC"}}],
+            "filter": {
+                "op": "AND",
+                "name": [{"op": "WILDCARD", "value": text}],
+                "gameDomainName": [{"op": "EQUALS", "value": domain}],
+            },
+        },
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        _GRAPHQL,
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": f"{APP_NAME}/{__version__}",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=20) as res:
+            payload = json.loads(res.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise NexusError(_error_message(exc), exc.code) from exc
+    except urllib.error.URLError as exc:
+        raise NexusError("Sin conexión con Nexus Mods.") from exc
+    except json.JSONDecodeError as exc:
+        raise NexusError("Nexus respondió con datos ilegibles.") from exc
+    if not isinstance(payload, dict):
+        raise NexusError("Nexus respondió con datos ilegibles.")
+    if payload.get("errors") and not (payload.get("data") or {}).get("mods"):
+        raise NexusError("Nexus no pudo buscar esos mods.")
+    nodes = ((payload.get("data") or {}).get("mods") or {}).get("nodes") or []
+    hits: list[dict[str, Any]] = []
+    needle = text.lower()
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        status = str(node.get("status") or "").lower()
+        if status in {"hidden", "removed", "wastebinned", "unpublished", "not_published"}:
+            continue
+        game = node.get("game") if isinstance(node.get("game"), dict) else {}
+        mod_id = int(node.get("modId") or 0)
+        game_domain = str(game.get("domainName") or domain).strip().lower()
+        if mod_id <= 0 or not game_domain:
+            continue
+        name = str(node.get("name") or "").strip()
+        hits.append({
+            "modId": mod_id,
+            "name": name,
+            "summary": _plain(str(node.get("summary") or ""))[:240],
+            "author": str(node.get("author") or ""),
+            "version": str(node.get("version") or ""),
+            "downloads": int(node.get("downloads") or 0),
+            "endorsements": int(node.get("endorsements") or 0),
+            "pictureUrl": _https_url(node.get("thumbnailUrl")) or "",
+            "url": canonical_url(game_domain, mod_id),
+            "gameDomain": game_domain,
+            "gameName": str(game.get("name") or _title_domain(game_domain)),
+            "_rank": 0 if name.lower() == needle else 1 if name.lower().startswith(needle) else 2 if needle in name.lower() else 3,
+        })
+    hits.sort(key=lambda item: (item["_rank"], -item["downloads"], item["name"].lower()))
+    for item in hits:
+        item.pop("_rank", None)
+    return hits[:limit]
+
+
 def _error_message(exc: urllib.error.HTTPError) -> str:
     try:
         body = json.loads(exc.read().decode("utf-8"))
