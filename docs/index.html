@@ -4,13 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>wi-mod — portable</title>
-  <meta name="description" content="Biblioteca local de mods para Windows. Open source, ejecutable portable, sin datos en la nube.">
+  <meta name="description" content="wi-mod: gestor local de mods open source para la comunidad. Multi-juego y multi-plataforma.">
   <link rel="icon" href="brand/wi-mod.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="brand/wi-mod.svg">
   <style>
-    :root {
+    :root, html[data-theme="nexus"] {
       --bg: #100e0c;
       --bg-2: #1b1714;
+      --bg-deep: #0c0b0a;
       --text: #f6efe6;
       --muted: #c4b4a4;
       --line: #4a4036;
@@ -18,6 +19,64 @@
       --hot: #f0a04a;
       --ember: #c45c26;
       --ink: #1a1208;
+      --glow: rgba(196, 92, 38, 0.35);
+      --glow-2: rgba(224, 138, 44, 0.22);
+    }
+    html[data-theme="modrinth"] {
+      --bg: #16181c;
+      --bg-2: #1e2126;
+      --bg-deep: #0e1013;
+      --text: #e8eef2;
+      --muted: #a8b3bd;
+      --line: #3d444d;
+      --copper: #1bd96a;
+      --hot: #3eec84;
+      --ember: #0e9f4d;
+      --ink: #06210f;
+      --glow: rgba(27, 217, 106, 0.32);
+      --glow-2: rgba(62, 236, 132, 0.2);
+    }
+    html[data-theme="curseforge"] {
+      --bg: #121212;
+      --bg-2: #1a1a1a;
+      --bg-deep: #0a0a0a;
+      --text: #f4ece8;
+      --muted: #c2b2aa;
+      --line: #453833;
+      --copper: #f16436;
+      --hot: #ff8a5b;
+      --ember: #c2410c;
+      --ink: #2a100a;
+      --glow: rgba(241, 100, 54, 0.32);
+      --glow-2: rgba(255, 138, 91, 0.2);
+    }
+    html[data-theme="steam"] {
+      --bg: #171a21;
+      --bg-2: #1b2838;
+      --bg-deep: #0e141b;
+      --text: #e8f4fc;
+      --muted: #8f98a0;
+      --line: #3d556c;
+      --copper: #66c0f4;
+      --hot: #8fd4ff;
+      --ember: #1a9fff;
+      --ink: #0b1b28;
+      --glow: rgba(102, 192, 244, 0.3);
+      --glow-2: rgba(26, 159, 255, 0.2);
+    }
+    html[data-theme="rawg"] {
+      --bg: #151515;
+      --bg-2: #1a1a1a;
+      --bg-deep: #0d0d0d;
+      --text: #ffffff;
+      --muted: rgba(255, 255, 255, 0.55);
+      --line: #3a3a3a;
+      --copper: #ffffff;
+      --hot: #f4f4f4;
+      --ember: #d0d0d0;
+      --ink: #151515;
+      --glow: rgba(255, 255, 255, 0.18);
+      --glow-2: rgba(255, 255, 255, 0.1);
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; min-height: 100%; }
@@ -25,9 +84,10 @@
       font-family: "Segoe UI", sans-serif;
       color: var(--text);
       background:
-        radial-gradient(900px 420px at 10% -10%, rgba(196, 92, 38, 0.35), transparent 55%),
-        radial-gradient(700px 380px at 100% 0%, rgba(224, 138, 44, 0.22), transparent 50%),
-        linear-gradient(165deg, #1c1916, var(--bg) 42%, #0c0b0a);
+        radial-gradient(900px 420px at 10% -10%, var(--glow), transparent 55%),
+        radial-gradient(700px 380px at 100% 0%, var(--glow-2), transparent 50%),
+        linear-gradient(165deg, var(--bg-2), var(--bg) 42%, var(--bg-deep));
+      transition: background 0.25s ease, color 0.2s ease;
     }
     a { color: inherit; }
     .wrap { width: min(920px, calc(100% - 40px)); margin: 0 auto; }
@@ -95,7 +155,29 @@
       background-clip: text;
       color: transparent;
     }
-    .lead { max-width: 38rem; color: var(--muted); font-size: 1.12rem; line-height: 1.5; }
+    .lead { max-width: 40rem; color: var(--muted); font-size: 1.12rem; line-height: 1.5; }
+    .pitch {
+      max-width: 42rem;
+      margin: 14px 0 0;
+      color: var(--text);
+      font-size: 1.02rem;
+      line-height: 1.55;
+      opacity: 0.92;
+    }
+    .pitch + .pitch { margin-top: 10px; color: var(--muted); }
+    .badge-os {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin: 16px 0 0;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--copper);
+      color: var(--hot);
+      font-size: 0.82rem;
+      font-weight: 750;
+      letter-spacing: 0.03em;
+    }
     .cta { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; margin-top: 28px; }
     .download {
       display: inline-flex;
@@ -142,7 +224,7 @@
       gap: 10px;
       margin: 28px 0 8px;
     }
-    .platforms span {
+    .platforms button {
       display: inline-flex;
       align-items: center;
       gap: 8px;
@@ -150,6 +232,20 @@
       border-radius: 999px;
       border: 1px solid var(--line);
       background: rgba(255, 248, 240, 0.06);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+    }
+    .platforms button:hover {
+      border-color: var(--copper);
+      background: color-mix(in srgb, var(--copper) 14%, transparent);
+    }
+    .platforms button.on {
+      border-color: var(--copper);
+      background: color-mix(in srgb, var(--copper) 18%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--copper) 45%, transparent);
     }
     .platforms img { width: 18px; height: 18px; object-fit: contain; }
     ol.steps {
@@ -188,25 +284,29 @@
           <button type="button" data-lang="en">EN</button>
         </div>
         <div class="plat">
-          <div class="ver" data-i18n="ver">Windows · portable · open source · v0.7.1</div>
+          <div class="ver" data-i18n="ver">Windows · portable · open source · v0.7.2</div>
           <div class="soon" data-i18n="linux">Próximamente en Linux</div>
         </div>
       </div>
     </header>
     <section class="hero">
       <h1><span data-i18n="h1a">Tu biblioteca de mods.</span><span data-i18n="h1b">Sin cuenta y sin datos de nadie.</span></h1>
-      <p class="lead" data-i18n="lead">Open source. Un solo ejecutable. Lo descomprimes, lo abres y empieza vacío: sin mods, sin usuarios y sin claves. Lo que guardes después queda en tu PC, en una carpeta <code>data</code> al lado del programa.</p>
+      <p class="badge-os" data-i18n="badge">Open source · pensado para la comunidad</p>
+      <p class="pitch" data-i18n="pitch1">wi-mod es un gestor local de mods en desarrollo: junta mods de distintos juegos y plataformas (Nexus, Modrinth, CurseForge, Steam, ModDB y más) en un solo lugar en tu PC.</p>
+      <p class="pitch" data-i18n="pitch2">No sustituye a Nexus ni a Mod Organizer 2; es un complemento para buscar, guardar y organizar tu biblioteca multi-juego sin saltar entre webs.</p>
+      <p class="lead" data-i18n="lead">Descárgalo gratis, pruébalo y deja feedback: tu opinión define qué se construye después. Un solo ejecutable; lo que guardes queda en tu PC, en <code>data</code> al lado del programa.</p>
       <div class="cta">
         <a class="download" href="wi-mod-portable.zip" data-i18n="download">Descargar wi-mod-portable.zip</a>
         <a class="try" href="app/" data-i18n="try">Probar en la web</a>
         <span class="meta" data-i18n="meta1">13 MB · solo el exe y un leeme · nada de biblioteca</span>
         <span class="meta" data-i18n="meta2">La versión web es solo para probar: 5 juegos, 5 mods por juego, se reinicia cada 5 horas. Las claves del demo ya van incluidas.</span>
       </div>
-      <div class="platforms">
-        <span><img src="brand/nexus.ico" alt="">Nexus Mods</span>
-        <span><img src="brand/modrinth.png" alt="">Modrinth</span>
-        <span><img src="brand/curseforge.ico" alt="">CurseForge</span>
-        <span><img src="brand/steam.ico" alt="">Steam Workshop</span>
+      <div class="platforms" role="group" aria-label="Tema">
+        <button type="button" data-theme="nexus" class="on"><img src="brand/nexus.ico" alt="">Nexus Mods</button>
+        <button type="button" data-theme="modrinth"><img src="brand/modrinth.png" alt="">Modrinth</button>
+        <button type="button" data-theme="curseforge"><img src="brand/curseforge.ico" alt="">CurseForge</button>
+        <button type="button" data-theme="steam"><img src="brand/steam.ico" alt="">Steam Workshop</button>
+        <button type="button" data-theme="rawg"><img src="brand/rawg.png" alt="">RAWG</button>
       </div>
     </section>
     <section class="grid">
@@ -228,18 +328,21 @@
       <li class="step"><em>2</em><strong data-i18n="s2t">Abre wi-mod.exe</strong><p data-i18n="s2p">La ventana arranca maximizada y en blanco.</p></li>
       <li class="step"><em>3</em><strong data-i18n="s3t">Crea tu clave</strong><p data-i18n="s3p">Escribe un usuario nuevo. Si no existe, la página de entrada te deja crearlo.</p></li>
     </ol>
-    <footer data-i18n="foot">wi-mod 0.7.1 · open source · Windows · Linux próximamente</footer>
+    <footer data-i18n="foot">wi-mod 0.7.2 · open source · para la comunidad · Windows · Linux próximamente</footer>
   </div>
   <script>
     const I18N = {
       es: {
         title: "wi-mod — portable",
-        desc: "Biblioteca local de mods para Windows. Open source, ejecutable portable, sin datos en la nube.",
-        ver: "Windows · portable · open source · v0.7.1",
+        desc: "wi-mod: gestor local de mods open source para la comunidad. Multi-juego y multi-plataforma.",
+        ver: "Windows · portable · open source · v0.7.2",
         linux: "Próximamente en Linux",
         h1a: "Tu biblioteca de mods.",
         h1b: "Sin cuenta y sin datos de nadie.",
-        lead: "Open source. Un solo ejecutable. Lo descomprimes, lo abres y empieza vacío: sin mods, sin usuarios y sin claves. Lo que guardes después queda en tu PC, en una carpeta <code>data</code> al lado del programa.",
+        badge: "Open source · pensado para la comunidad",
+        pitch1: "wi-mod es un gestor local de mods en desarrollo: junta mods de distintos juegos y plataformas (Nexus, Modrinth, CurseForge, Steam, ModDB y más) en un solo lugar en tu PC.",
+        pitch2: "No sustituye a Nexus ni a Mod Organizer 2; es un complemento para buscar, guardar y organizar tu biblioteca multi-juego sin saltar entre webs.",
+        lead: "Descárgalo gratis, pruébalo y deja feedback: tu opinión define qué se construye después. Un solo ejecutable; lo que guardes queda en tu PC, en <code>data</code> al lado del programa.",
         download: "Descargar wi-mod-portable.zip",
         try: "Probar en la web",
         meta1: "13 MB · solo el exe y un leeme · nada de biblioteca",
@@ -256,16 +359,19 @@
         s2p: "La ventana arranca maximizada y en blanco.",
         s3t: "Crea tu clave",
         s3p: "Escribe un usuario nuevo. Si no existe, la página de entrada te deja crearlo.",
-        foot: "wi-mod 0.7.1 · open source · Windows · Linux próximamente",
+        foot: "wi-mod 0.7.2 · open source · para la comunidad · Windows · Linux próximamente",
       },
       en: {
         title: "wi-mod — portable",
-        desc: "Local mod library for Windows. One portable executable, no cloud data. Open source.",
-        ver: "Windows · portable · open source · v0.7.1",
+        desc: "wi-mod is an open-source local mod manager for the community. Multi-game, multi-platform.",
+        ver: "Windows · portable · open source · v0.7.2",
         linux: "Coming soon on Linux",
         h1a: "Your mod library.",
         h1b: "No account. Nobody else's data.",
-        lead: "Open source. One executable. Unzip, open, and it starts empty: no mods, no users, no keys. Whatever you save stays on your PC in a <code>data</code> folder next to the program.",
+        badge: "Open source · built for the community",
+        pitch1: "wi-mod is a local mod manager currently in development: it aggregates mods from different games and platforms (Nexus, Modrinth, CurseForge, Steam, ModDB, and more) into a single hub on your PC.",
+        pitch2: "It's not meant to replace Nexus or Mod Organizer 2; rather, it's a complementary tool designed to help you search, save, and organize your multi-game mod library without constantly jumping between different websites.",
+        lead: "Download it for free, try it out, and leave your feedback—your opinions and feature requests will directly shape what gets built next. One executable; whatever you save stays on your PC in a <code>data</code> folder next to the program.",
         download: "Download wi-mod-portable.zip",
         try: "Try in the browser",
         meta1: "13 MB · exe and a readme only · no library inside",
@@ -282,7 +388,7 @@
         s2p: "The window opens maximized and blank.",
         s3t: "Create your key",
         s3p: "Type a new username. If it doesn't exist, the login page lets you create it.",
-        foot: "wi-mod 0.7.1 · open source · Windows · Linux coming soon",
+        foot: "wi-mod 0.7.2 · open source · for the community · Windows · Linux coming soon",
       },
     };
 
@@ -313,6 +419,25 @@
       btn.addEventListener("click", () => applyLang(btn.dataset.lang));
     });
     applyLang(detectLang());
+
+    const THEMES = ["nexus", "modrinth", "curseforge", "steam", "rawg"];
+    function applyTheme(theme) {
+      const next = THEMES.includes(theme) ? theme : "nexus";
+      document.documentElement.dataset.theme = next;
+      document.querySelectorAll(".platforms [data-theme]").forEach((btn) => {
+        btn.classList.toggle("on", btn.dataset.theme === next);
+      });
+      localStorage.setItem("wi-mod-theme", next);
+    }
+    function detectTheme() {
+      const saved = localStorage.getItem("wi-mod-theme");
+      if (THEMES.includes(saved)) return saved;
+      return "nexus";
+    }
+    document.querySelectorAll(".platforms [data-theme]").forEach((btn) => {
+      btn.addEventListener("click", () => applyTheme(btn.dataset.theme));
+    });
+    applyTheme(detectTheme());
   </script>
 </body>
 </html>

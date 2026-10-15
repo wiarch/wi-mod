@@ -609,12 +609,26 @@ a:hover { color: var(--copper-hot); }
   gap: 8px;
   min-width: 0;
 }
-.dock-user {
+button.dock-user {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
-  max-width: 180px;
+  max-width: 220px;
+  margin: 0;
+  padding: 2px 8px 2px 2px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+button.dock-user:hover {
+  background: rgba(255, 248, 240, 0.22);
+}
+button.dock-user[aria-expanded="true"] {
+  background: rgba(255, 248, 240, 0.3);
 }
 .dock-user img {
   width: 36px;
@@ -634,6 +648,15 @@ a:hover { color: var(--copper-hot); }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.dock-caret {
+  flex: 0 0 auto;
+  opacity: 0.78;
+  transition: transform 0.16s var(--ease);
+}
+button.dock-user[aria-expanded="true"] .dock-caret {
+  transform: rotate(180deg);
+  opacity: 1;
 }
 .dock-keys {
   position: relative;
