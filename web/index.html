@@ -66,8 +66,10 @@
       <div class="side-block" data-fold="platforms">
         <div class="side-head">
           <button type="button" class="side-fold" aria-expanded="true">
-            <span class="side-caret" aria-hidden="true"></span>
+            <span class="side-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/></svg></span>
             <span class="side-label">Plataforma</span>
+            <span class="side-count" id="fold-platforms"></span>
+            <span class="side-caret" aria-hidden="true"></span>
           </button>
         </div>
         <div id="platforms"></div>
@@ -75,8 +77,10 @@
       <div class="side-block" data-fold="modpacks">
         <div class="side-head">
           <button type="button" class="side-fold" aria-expanded="true">
-            <span class="side-caret" aria-hidden="true"></span>
+            <span class="side-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z"/><path d="M12 12v8M4 8l8 4 8-4"/></svg></span>
             <span class="side-label">Modpack</span>
+            <span class="side-count" id="fold-modpacks"></span>
+            <span class="side-caret" aria-hidden="true"></span>
           </button>
           <button type="button" class="side-add" data-add="modpack" title="Crear modpack">+</button>
         </div>
@@ -85,20 +89,23 @@
       <div class="side-block" data-fold="categories">
         <div class="side-head">
           <button type="button" class="side-fold" aria-expanded="true">
-            <span class="side-caret" aria-hidden="true"></span>
+            <span class="side-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12V5h7l9 9-7 7-9-9z"/><circle cx="8.5" cy="8.5" r="1.2"/></svg></span>
             <span class="side-label">Categoría</span>
+            <span class="side-count" id="fold-categories"></span>
+            <span class="side-caret" aria-hidden="true"></span>
           </button>
           <button type="button" class="side-add" data-add="category" title="Añadir categoría">+</button>
         </div>
         <div id="categories"></div>
       </div>
-      <button type="button" id="side-rail" class="side-rail" title="Solo iconos" aria-pressed="false">«</button>
+      <button type="button" id="side-rail" class="side-rail" title="Ocultar nombres" aria-pressed="false">Ocultar</button>
     </aside>
     <div class="side-resize" id="side-resize" role="separator" aria-orientation="vertical" title="Arrastra el ancho"></div>
     <main>
       <section id="game-hero" class="game-hero" hidden></section>
       <div class="bar">
         <p id="count"></p>
+        <button type="button" id="update-banner" class="update-banner" hidden>Versión nueva</button>
         <div class="view-dock">
           <div class="pick-tools">
             <button type="button" id="pick-all" class="ghost" hidden>Seleccionar todo</button>
@@ -157,6 +164,8 @@
   </div>
 
   <footer class="dock">
+    <div class="dock-load" id="dock-load" hidden><span id="dock-load-bar"></span></div>
+    <p class="dock-load-meta" id="dock-load-meta" hidden>0% · ~0 s</p>
     <div class="dock-lead">
       <button type="button" id="more-open" class="dock-user" title="Menú" aria-label="Menú" aria-expanded="false">
         <img id="dock-avatar" alt="" width="36" height="36">
@@ -384,27 +393,58 @@
         <h2 id="pack-title">Importar y exportar</h2>
         <button type="button" class="icon" data-close>✕</button>
       </header>
-      <p class="hint" id="pack-hint">Todo guarda juegos, modpacks, mods y archivos. También puedes limitarlo a un juego o a un modpack.</p>
-      <label>Qué
-        <select id="pack-scope">
-          <option value="all">Todo</option>
-          <option value="game">Un juego</option>
-          <option value="modpack">Un modpack</option>
-          <option value="platform">Por plataforma</option>
-          <option value="selected">Solo marcados</option>
-        </select>
-      </label>
-      <label id="pack-value-wrap" hidden>Elige
-        <select id="pack-value"></select>
-      </label>
-      <label id="pack-file-wrap">Paquete .zip
-        <input id="pack-file" type="file" accept=".zip,application/zip">
-      </label>
-      <p id="pack-count" class="meta"></p>
-      <footer>
-        <button id="pack-export" class="ghost" type="button">Exportar</button>
-        <button id="pack-import" class="solid" type="button">Importar</button>
-      </footer>
+      <div id="pack-home" class="pack-cards">
+        <button type="button" class="pack-card" id="pack-go-export">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 16V4M8 8l4-4 4 4M5 20h14"/></svg>
+          <b>Exportar</b>
+        </button>
+        <button type="button" class="pack-card" id="pack-go-import">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 4v12M8 12l4 4 4-4M5 20h14"/></svg>
+          <b>Importar</b>
+        </button>
+      </div>
+      <div id="pack-export-pane" hidden>
+        <p class="hint">Todo, o solo un juego, un modpack, una plataforma o los marcados.</p>
+        <label>Qué exportar
+          <select id="pack-scope">
+            <option value="all">Todo</option>
+            <option value="game">Un juego</option>
+            <option value="modpack">Un modpack</option>
+            <option value="platform">Por plataforma</option>
+            <option value="selected">Solo marcados</option>
+          </select>
+        </label>
+        <label id="pack-value-wrap" hidden>Elige
+          <select id="pack-value"></select>
+        </label>
+        <p id="pack-count" class="meta"></p>
+        <footer>
+          <button type="button" class="ghost" id="pack-back">Volver</button>
+          <button id="pack-export" class="solid" type="button">Exportar</button>
+        </footer>
+      </div>
+      <div id="pack-import-pane" hidden>
+        <label>Archivo .zip
+          <input id="pack-file" type="file" accept=".zip,application/zip">
+        </label>
+        <div id="pack-preview" class="pack-preview" hidden></div>
+        <div id="pack-import-pick" hidden>
+          <label>Qué importar
+            <select id="pack-in-scope">
+              <option value="all">Todo</option>
+              <option value="game">Un juego</option>
+              <option value="modpack">Un modpack</option>
+            </select>
+          </label>
+          <label id="pack-in-wrap" hidden>Elige
+            <select id="pack-in-value"></select>
+          </label>
+        </div>
+        <footer>
+          <button type="button" class="ghost" id="pack-back-2">Volver</button>
+          <button id="pack-import" class="solid" type="button">Importar</button>
+        </footer>
+      </div>
     </form>
   </dialog>
 
@@ -603,6 +643,14 @@
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="15.5" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.2 12h3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
       Importar y exportar
     </button>
+    <button type="button" id="tour-open">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v6M12 7.5h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Tutorial
+    </button>
+    <button type="button" id="name-source">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm-7 8a7 7 0 0 1 14 0"/></svg>
+      <span>Usar nombre del usuario de Windows</span>
+    </button>
     <button type="button" id="logout">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2M4 12h11M12 9l3 3-3 3"/></svg>
       Salir
@@ -625,6 +673,21 @@
       </div>
       <p id="key-pop-status" class="status"></p>
     </form>
+  </div>
+
+  </div>
+
+  <div id="tour" hidden>
+    <div id="tour-ring"></div>
+    <div id="tour-card">
+      <p id="tour-kicker"></p>
+      <h2 id="tour-title"></h2>
+      <p id="tour-text"></p>
+      <div class="tour-actions">
+        <button type="button" id="tour-exit" class="ghost">Salir del tutorial</button>
+        <button type="button" id="tour-next" class="solid">Siguiente</button>
+      </div>
+    </div>
   </div>
 
   <script src="/app.js"></script>

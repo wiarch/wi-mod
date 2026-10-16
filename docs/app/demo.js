@@ -743,6 +743,9 @@
         role: "admin",
         needsPassword: false,
         admin: "WYDEX",
+        machineUser: "WYDEX",
+        windowsUser: "WYDEX",
+        pcName: "PC",
       });
     }
     if (path === "/api/logout" && method === "POST") return reply(200, { ok: true });
@@ -869,6 +872,10 @@
       let version = "";
       let pictureUrl = "";
       const nexusMatch = urlValue.match(/nexusmods\.com\/([^/]+)\/mods\/(\d+)/i);
+      const curseMatch = urlValue.match(/curseforge\.com\/([^/]+)\//i);
+      const gameDomain = nexusMatch
+        ? nexusMatch[1].toLowerCase()
+        : (curseMatch ? curseMatch[1].toLowerCase() : "");
       if (platform === "Nexus" && nexusMatch) {
         try {
           const mod = await fetchNexusMod(nexusMatch[1].toLowerCase(), nexusMatch[2]);
@@ -887,6 +894,8 @@
         summary,
         version,
         platform,
+        gameDomain,
+        gameName: gameDomain,
         official: platform !== "Nexus",
         pictureUrl,
         duplicate: Boolean(saved),
@@ -955,6 +964,19 @@
       save(data);
       return reply(201, { mods: clones, count: clones.length });
     }
+    if (path === "/api/mods/order" && method === "POST") {
+      const body = await readJson(init);
+      const ids = Array.isArray(body.ids) ? body.ids.map((id) => String(id)) : [];
+      const mods = ids.map((id) => findMod(data, id)).filter(Boolean);
+      if (mods.length < 2) return reply(400, { error: "Nada que ordenar." });
+      const packId = String(mods[0].modpackId || "");
+      if (!packId || mods.some((mod) => String(mod.modpackId || "") !== packId)) {
+        return reply(400, { error: "Solo se ordenan mods del mismo modpack." });
+      }
+      mods.forEach((mod, index) => { mod.packOrder = index + 1; });
+      save(data);
+      return reply(200, { mods });
+    }
     if (path === "/api/mods/assign" && method === "POST") {
       const body = await readJson(init);
       const ids = body.ids || [];
@@ -978,6 +1000,12 @@
       if ("category" in body) mod.category = String(body.category || "General");
       if ("modpackId" in body) mod.modpackId = String(body.modpackId || "");
       if ("modpackCategoryId" in body) mod.modpackCategoryId = String(body.modpackCategoryId || "");
+      if ("status" in body) {
+        const status = String(body.status || "");
+        if (!["", "want", "got", "in"].includes(status)) return reply(400, { error: "Estado no válido." });
+        mod.status = status;
+      }
+      if ("packOrder" in body) mod.packOrder = Math.max(0, Number(body.packOrder) || 0);
       const pack = data.modpacks.find((item) => item.id === mod.modpackId);
       mod.modpack = pack ? pack.name : "";
       save(data);
@@ -1244,6 +1272,16 @@
         background: rgba(80, 200, 120, .12);
       }
       #demo-bar .demo-actions { display: flex; gap: 8px; align-items: center; }
+      #demo-bar a.demo-home {
+        color: #f6efe6;
+        text-decoration: none;
+        font-weight: 650;
+        border: 1px solid rgba(255,255,255,.28);
+        border-radius: 999px;
+        padding: 7px 12px;
+        white-space: nowrap;
+      }
+      #demo-bar a.demo-home:hover { border-color: var(--accent, #e08a2c); color: #fff; }
       #demo-bar a.demo-dl {
         color: #1a1208; background: var(--accent, #e08a2c);
         text-decoration: none; font-weight: 700; border-radius: 999px; padding: 7px 12px; white-space: nowrap;
@@ -1272,6 +1310,7 @@
         <span class="demo-chip online" id="demo-online">${en ? "Counting…" : "Contando…"}</span>
       </div>
       <div class="demo-actions">
+        <a class="demo-home" href="../">${en ? "Back to site" : "Volver al inicio"}</a>
         <a class="demo-dl" href="../wi-mod-portable.zip">${en ? "Download desktop" : "Descargar escritorio"}</a>
       </div>
     `;

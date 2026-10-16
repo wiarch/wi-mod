@@ -119,6 +119,7 @@ class Library:
             mod["skill"] = str(fields.get("skill") or "").strip()[:80]
             mod["rule"] = str(fields.get("rule") or "").strip()[:80]
             self._assign_pack(mod, fields, data.get("modpacks") or [])
+            self._stamp_pack_order(mod, data["mods"])
             if "modpackNotes" in fields:
                 mod["modpackNotes"] = str(fields.get("modpackNotes") or "")[:4000]
             mod["addedAt"] = now()
@@ -135,6 +136,7 @@ class Library:
             if not mod:
                 return None
             self._apply_user(mod, fields, data.get("modpacks") or [])
+            self._stamp_pack_order(mod, data["mods"])
             self._write(data)
             return mod
 
@@ -161,6 +163,7 @@ class Library:
                 if not mod:
                     raise ValueError("Hay un mod marcado que ya no existe.")
                 self._apply_user(mod, fields, packs)
+                self._stamp_pack_order(mod, data["mods"])
                 updated.append(mod)
             self._write(data)
             return updated
@@ -242,6 +245,16 @@ class Library:
             mod["updateAvailable"] = bool(fields["updateAvailable"])
         if "remoteVersion" in fields:
             mod["remoteVersion"] = str(fields["remoteVersion"] or "")
+        if "status" in fields:
+            status = str(fields.get("status") or "").strip().lower()
+            if status not in {"", "want", "got", "in"}:
+                raise ValueError("Estado no válido.")
+            mod["status"] = status
+        if "packOrder" in fields:
+            try:
+                mod["packOrder"] = max(0, int(fields.get("packOrder") or 0))
+            except (TypeError, ValueError):
+                mod["packOrder"] = 0
         if "platform" in fields and str(fields["platform"] or "").strip():
             mod["platform"] = str(fields["platform"]).strip()
         if "modpackId" in fields or "modpackCategoryId" in fields or "modpack" in fields:
@@ -581,6 +594,8 @@ class Library:
             "checkedAt": None,
             "updateAvailable": False,
             "remoteVersion": "",
+            "status": "",
+            "packOrder": 0,
         }
 
     def _blank_pack(self) -> dict[str, Any]:
@@ -882,9 +897,11 @@ class Library:
             mod["modpackId"] = ""
             mod["modpackCategoryId"] = ""
             mod["modpack"] = ""
+            mod["packOrder"] = 0
             if "modpackNotes" in fields:
                 mod["modpackNotes"] = str(fields.get("modpackNotes") or "")[:4000]
             return
+        previous = str(mod.get("modpackId") or "")
         pack = self._find_pack(packs, pack_id)
         if not pack:
             raise ValueError("Ese modpack no existe.")
@@ -900,8 +917,48 @@ class Library:
         mod["modpackId"] = pack_id
         mod["modpackCategoryId"] = cat_id
         mod["modpack"] = str(pack.get("name") or "")
+        if previous != pack_id:
+            mod["packOrder"] = 0
         if "modpackNotes" in fields:
             mod["modpackNotes"] = str(fields.get("modpackNotes") or "")[:4000]
+
+    def _stamp_pack_order(self, mod: dict[str, Any], mods: list[dict[str, Any]]) -> None:
+        if not mod.get("modpackId"):
+            mod["packOrder"] = 0
+            return
+        if int(mod.get("packOrder") or 0) > 0:
+            return
+        orders = [
+            int(item.get("packOrder") or 0)
+            for item in mods
+            if item.get("modpackId") == mod.get("modpackId")
+        ]
+        mod["packOrder"] = (max(orders) if orders else 0) + 1
+
+    def order_mods(self, ids: list[Any]) -> list[dict[str, Any]]:
+        clean: list[str] = []
+        seen: set[str] = set()
+        for raw in ids or []:
+            mod_id = str(raw or "").strip()
+            if not mod_id or mod_id in seen:
+                continue
+            seen.add(mod_id)
+            clean.append(mod_id)
+        if len(clean) < 2:
+            raise ValueError("Nada que ordenar.")
+        with self._lock:
+            data = self._read()
+            self._migrate(data)
+            mods = [self._find(data["mods"], mod_id) for mod_id in clean]
+            if any(mod is None for mod in mods):
+                raise ValueError("Hay un mod que ya no existe.")
+            pack_id = str(mods[0].get("modpackId") or "")
+            if not pack_id or any(str(mod.get("modpackId") or "") != pack_id for mod in mods):
+                raise ValueError("Solo se ordenan mods del mismo modpack.")
+            for index, mod in enumerate(mods, start=1):
+                mod["packOrder"] = index
+            self._write(data)
+            return mods
 
     def _migrate(self, data: dict[str, Any]) -> bool:
         dirty = False

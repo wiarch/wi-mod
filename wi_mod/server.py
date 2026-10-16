@@ -37,10 +37,20 @@ from wi_mod.rawg import (
     search_games,
     validate_key as validate_rawg_key,
 )
-from wi_mod.sources import platforms_for, sources_payload
+from wi_mod.sources import GAME_SOURCES, platforms_for, sources_payload
 from wi_mod.steam import SteamError, validate_key as validate_steam_key
 from wi_mod.store import Library, now, safe_name
 from wi_mod.translate import TranslateError, translate_text
+
+
+def _machine_names() -> dict[str, str]:
+    user = (os.environ.get("USERNAME") or os.environ.get("USER") or "").strip()
+    pc = (os.environ.get("COMPUTERNAME") or os.environ.get("HOSTNAME") or "").strip()
+    return {
+        "windowsUser": user,
+        "pcName": pc,
+        "machineUser": user or pc or "wi-mod",
+    }
 
 
 def _locations() -> tuple[Path, Path]:
@@ -52,6 +62,8 @@ def _locations() -> tuple[Path, Path]:
 
 BUNDLE, ROOT = _locations()
 WEB = BUNDLE / "web"
+# De momento la app abre sin usuario ni clave.
+LOGIN_OFF = True
 _BRAND = {
     "nexus.ico": "image/x-icon",
     "modrinth.png": "image/png",
@@ -197,7 +209,7 @@ def make_handler(app: App):
                 return True
             if path.startswith("/brand/") and Path(path).name in _BRAND:
                 return True
-            if app.library.user_for_token(self._token()):
+            if LOGIN_OFF or app.library.user_for_token(self._token()):
                 return True
             self._json(401, {"error": "Inicia sesión."})
             return False
@@ -217,6 +229,9 @@ def make_handler(app: App):
                     "role": user["role"] if user else "",
                     "needsPassword": bool(state.get("needsPassword")),
                     "admin": "WYDEX",
+                    "machineUser": _machine_names()["machineUser"],
+                    "windowsUser": _machine_names()["windowsUser"],
+                    "pcName": _machine_names()["pcName"],
                 })
                 return
             if not self._open():
@@ -361,6 +376,14 @@ def make_handler(app: App):
             if path == "/api/preview":
                 body = self._json_body()
                 self._json(200, _preview(app, str(body.get("url") or "")))
+                return
+            if path == "/api/mods/order":
+                body = self._json_body()
+                ids = body.get("ids")
+                if not isinstance(ids, list) or len(ids) < 2:
+                    raise ValueError("Nada que ordenar.")
+                mods = app.library.order_mods(ids)
+                self._json(200, {"mods": [_public_mod(mod) for mod in mods]})
                 return
             if path == "/api/mods/assign":
                 body = self._json_body()
@@ -1058,12 +1081,39 @@ def _peek_html(url: str) -> tuple[str, str]:
     return title, summary
 
 
+def _ensure_catalog_game(app: App, domain: str, name: str) -> None:
+    domain = str(domain or "").strip().lower()
+    if not domain:
+        return
+    catalog = app.library.catalog()
+    exists = any(
+        isinstance(item, dict) and str(item.get("gameDomain") or "").lower() == domain
+        for item in (catalog.get("games") or [])
+    )
+    if exists:
+        return
+    try:
+        if _rawg_resolve(app, domain, name or domain):
+            return
+    except ValueError:
+        pass
+    app.library.add_catalog_item("game", {"gameDomain": domain, "gameName": name or domain})
+
+
 def _create(app: App, body: dict) -> dict:
     fields = _fields_from_body(app, body)
+    _ensure_catalog_game(app, str(fields.get("gameDomain") or ""), str(fields.get("gameName") or ""))
     mode = str(body.get("mode") or "").strip().lower()
     platform = str(fields.get("platform") or "")
     allowed = platforms_for(str(fields.get("gameDomain") or ""))
-    if allowed and platform not in allowed:
+    domain = str(fields.get("gameDomain") or "").strip().lower()
+    locked = (
+        domain in GAME_SOURCES
+        or domain.startswith("minecraft")
+        or domain in {"worldofwarcraft", "wow"}
+        or domain.startswith("worldofwarcraft")
+    )
+    if locked and allowed and platform not in allowed:
         names = ", ".join(allowed)
         raise ValueError(f"Este juego solo acepta mods de {names}.")
     if platform in {"Independiente", "Modrinth", "CurseForge", "Steam Workshop", "ModDB"}:
@@ -1265,12 +1315,15 @@ def _fields_from_body(app: App, body: dict) -> dict:
 def _curseforge_fields(app: App, body: dict, url: str) -> dict:
     manual = body.get("manual") if isinstance(body.get("manual"), dict) else {}
     fetched = fetch_curseforge(_curseforge_key(app), url)
-    game = str(body.get("gameDomain") or (manual or {}).get("gameDomain") or "").strip().lower()
-    game_name = str(body.get("gameName") or (manual or {}).get("gameName") or "").strip()
+    remote = str(fetched.get("gameDomain") or "").strip().lower()
+    game = remote or str(body.get("gameDomain") or (manual or {}).get("gameDomain") or "").strip().lower()
+    game_name = str(fetched.get("gameName") or body.get("gameName") or (manual or {}).get("gameName") or "").strip()
     if game:
         fetched["gameDomain"] = game
-    if game_name:
+    if game_name and game_name != game:
         fetched["gameName"] = game_name
+    elif game:
+        fetched["gameName"] = game_name or game
     fetched["modpackId"] = str(body.get("modpackId") or "").strip()
     fetched["modpackCategoryId"] = str(body.get("modpackCategoryId") or "").strip()
     fetched["modpackNotes"] = str(body.get("modpackNotes") or "")
@@ -1289,11 +1342,11 @@ def _modrinth_fields(app: App, body: dict, slug: str) -> dict:
         fetched = fetch_project(slug)
     except ModrinthError:
         return _official_fields(app, body, str(body.get("url") or ""))
-    game = str(body.get("gameDomain") or (manual or {}).get("gameDomain") or fetched.get("gameDomain") or "").strip().lower()
+    remote = str(fetched.get("gameDomain") or "").strip().lower()
+    game = remote or str(body.get("gameDomain") or (manual or {}).get("gameDomain") or "").strip().lower()
     game_name = str(body.get("gameName") or (manual or {}).get("gameName") or "").strip()
     fetched["gameDomain"] = game
-    if game_name:
-        fetched["gameName"] = game_name
+    fetched["gameName"] = game_name or str(fetched.get("gameName") or game)
     fetched["modpackId"] = str(body.get("modpackId") or "").strip()
     fetched["modpackCategoryId"] = str(body.get("modpackCategoryId") or "").strip()
     fetched["modpackNotes"] = str(body.get("modpackNotes") or "")

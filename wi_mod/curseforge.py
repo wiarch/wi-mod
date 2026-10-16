@@ -55,7 +55,10 @@ def fetch_project(api_key: str, url: str) -> dict[str, Any]:
     mod = full.get("data") if isinstance(full, dict) else None
     if not isinstance(mod, dict):
         mod = rows[0]
-    return _shape(mod, url)
+    shaped = _shape(mod, url)
+    shaped["gameDomain"] = game_slug
+    shaped["gameName"] = game_slug
+    return shaped
 
 
 def search_mods(api_key: str, game_domain: str, terms: str, limit: int = 8) -> list[dict[str, Any]]:

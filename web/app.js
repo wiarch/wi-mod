@@ -19,6 +19,7 @@ const state = {
     return 1;
   })(),
   query: "",
+  onlyUpdates: false,
   selected: new Set(),
   lastCheck: "",
   picking: false,
@@ -35,6 +36,9 @@ const state = {
   showEs: true,
   theme: "nexus",
   keys: { nexus: false, curseforge: false, steam: false, rawg: false },
+  windowsUser: "",
+  pcName: "",
+  nameSource: localStorage.getItem("wi-mod-name-source") === "pc" ? "pc" : "user",
 };
 state.showEs = state.lang === "es";
 if (localStorage.getItem("wi-mod-lang") !== "en" && localStorage.getItem("wi-mod-lang") !== "es") {
@@ -147,6 +151,7 @@ const sfx = {
 function setLoading(button, on, label) {
   if (!button) return;
   if (on) {
+    beginLoad();
     if (!button.dataset.label) button.dataset.label = button.innerHTML;
     button.classList.add("btn-loading");
     button.disabled = true;
@@ -158,7 +163,76 @@ function setLoading(button, on, label) {
     button.removeAttribute("aria-busy");
     button.removeAttribute("aria-label");
     if (button.dataset.label) button.innerHTML = button.dataset.label;
+    endLoad();
   }
+}
+
+let loadJobs = 0;
+let loadStarted = 0;
+let loadFrame = 0;
+let loadHide = 0;
+let loadShown = false;
+
+function fmtEta(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  if (s < 60) return `${s} s`;
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+function paintLoad(done) {
+  const bar = $("dock-load-bar");
+  const meta = $("dock-load-meta");
+  const box = $("dock-load");
+  if (!bar || !meta || !box) return;
+  const elapsed = performance.now() - loadStarted;
+  const tau = 2400;
+  const goal = -tau * Math.log(0.08);
+  let pct = 100;
+  let eta = 0;
+  if (!done) {
+    if (elapsed < goal) {
+      pct = Math.max(4, Math.min(92, Math.round((1 - Math.exp(-elapsed / tau)) * 100)));
+      eta = goal - elapsed;
+    } else {
+      pct = Math.min(97, 92 + Math.floor((elapsed - goal) / 700));
+      eta = 700;
+    }
+  }
+  bar.style.width = `${pct}%`;
+  meta.textContent = `${pct}% · ~${fmtEta(eta)}`;
+  box.hidden = false;
+  meta.hidden = false;
+  loadShown = true;
+}
+
+function beginLoad() {
+  loadJobs += 1;
+  if (loadJobs !== 1) return;
+  clearTimeout(loadHide);
+  loadShown = false;
+  loadStarted = performance.now();
+  const tick = () => {
+    if (loadJobs <= 0) return;
+    if (performance.now() - loadStarted > 180) paintLoad(false);
+    loadFrame = requestAnimationFrame(tick);
+  };
+  loadFrame = requestAnimationFrame(tick);
+}
+
+function endLoad() {
+  if (loadJobs <= 0) return;
+  loadJobs -= 1;
+  if (loadJobs > 0) return;
+  cancelAnimationFrame(loadFrame);
+  if (!loadShown) return;
+  paintLoad(true);
+  loadHide = setTimeout(() => {
+    const box = $("dock-load");
+    const meta = $("dock-load-meta");
+    if (box) box.hidden = true;
+    if (meta) meta.hidden = true;
+    loadShown = false;
+  }, 360);
 }
 
 function syncMute() {
@@ -254,6 +328,8 @@ function toast(text, kind = "ok") {
 }
 
 async function api(path, options = {}) {
+  beginLoad();
+  try {
   const headers = new Headers(options.headers || {});
   const token = sessionToken();
   if (token && !headers.has("X-Session")) headers.set("X-Session", token);
@@ -283,6 +359,9 @@ async function api(path, options = {}) {
   }
   pushLog("req", `${options.method || "GET"} ${path} · ${res.status}`);
   return res;
+  } finally {
+    endLoad();
+  }
 }
 
 async function load() {
@@ -338,6 +417,33 @@ function rollAvatar() {
 function setDockName(name) {
   const node = $("dock-name");
   if (node && name) node.textContent = name;
+}
+
+function usingPcName() {
+  if (!state.windowsUser) return true;
+  if (!state.pcName) return false;
+  return state.nameSource === "pc";
+}
+
+function applyDockName() {
+  const usingPc = usingPcName();
+  const name = usingPc ? (state.pcName || state.windowsUser) : (state.windowsUser || state.pcName);
+  setDockName(name || "WYDEX");
+  const button = $("name-source");
+  if (!button) return;
+  const label = button.querySelector("span");
+  const text = usingPc ? "Usar nombre del usuario de Windows" : "Usar nombre de la PC";
+  if (label) label.textContent = text;
+  button.hidden = !state.windowsUser || !state.pcName;
+}
+
+function rememberMachineNames(session) {
+  state.windowsUser = String(session?.windowsUser || "").trim();
+  state.pcName = String(session?.pcName || "").trim();
+  if (!state.windowsUser && !state.pcName) {
+    state.windowsUser = String(session?.machineUser || session?.username || "").trim();
+  }
+  applyDockName();
 }
 
 function syncDock() {
@@ -816,6 +922,16 @@ function renderGameHero() {
     localStorage.setItem("wi-mod-hero", "0");
     renderGameHero();
   };
+  const inner = node.querySelector(".game-hero-inner");
+  if (inner) {
+    inner.onclick = (event) => {
+      if (event.target.closest("#hero-toggle")) return;
+      const link = event.target.closest("a");
+      if (link) event.preventDefault();
+      localStorage.setItem("wi-mod-hero", "0");
+      renderGameHero();
+    };
+  }
   bindPackDesc();
 }
 
@@ -883,6 +999,7 @@ function visible() {
     const hasFiles = (mod.files || []).length > 0;
     if (state.files === "with" && !hasFiles) return false;
     if (state.files === "without" && hasFiles) return false;
+    if (state.onlyUpdates && !mod.updateAvailable) return false;
     if (!q) return true;
     const blob = `${mod.name} ${mod.author} ${mod.gameName} ${mod.category} ${mod.categoryEs || ""} ${mod.platform} ${packLabel(mod)} ${mod.summary} ${mod.summaryEs || ""} ${mod.techNotes || ""} ${mod.compatNotes || ""} ${mod.notes || ""}`.toLowerCase();
     return blob.includes(q);
@@ -892,7 +1009,11 @@ function visible() {
     updated: (a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")),
     name: (a, b) => String(a.name).localeCompare(String(b.name), "es"),
   };
-  mods.sort(by[state.sort] || by.added);
+  if (state.modpack) {
+    mods.sort((a, b) => (Number(a.packOrder) || 0) - (Number(b.packOrder) || 0) || String(a.name).localeCompare(String(b.name), "es"));
+  } else {
+    mods.sort(by[state.sort] || by.added);
+  }
   return mods;
 }
 
@@ -1053,6 +1174,13 @@ function renderFilters() {
   $("categories").innerHTML = chip("Todas", "", state.category, "category") + cats.map((row) => (
     chip(`${categoryLabel(row.id)} (${row.count})`, row.id, state.category, "category")
   )).join("");
+  const foldCount = (id, n) => {
+    const node = $(id);
+    if (node) node.textContent = String(n);
+  };
+  foldCount("fold-platforms", platformMap.length);
+  foldCount("fold-modpacks", gamePacks.length);
+  foldCount("fold-categories", cats.length);
 
   fillCategorySelect($("add-category"), $("add-category").value || "");
   fillModpackSelects($("add-modpack"), $("add-pack-cat"), $("add-modpack")?.value || "", $("add-pack-cat")?.value || "", state.game);
@@ -2022,6 +2150,80 @@ function paintBulk() {
   );
 }
 
+const MOD_STATUS = [
+  ["want", "Quiero"],
+  ["got", "Bajado"],
+  ["in", "En juego"],
+];
+
+function statusPicks(mod) {
+  return `<span class="status-picks">${MOD_STATUS.map(([id, label]) => (
+    `<button type="button" class="status-pick ${mod.status === id ? "on" : ""}" data-status="${id}" title="${label}">${label}</button>`
+  )).join("")}</span>`;
+}
+
+function packMoves() {
+  if (!state.modpack) return "";
+  return `<span class="pack-moves"><button type="button" data-pack-move="-1" title="Subir en el pack">↑</button><button type="button" data-pack-move="1" title="Bajar en el pack">↓</button></span>`;
+}
+
+function paintUpdateBanner() {
+  const banner = $("update-banner");
+  if (!banner) return;
+  const pending = scopedMods().filter((mod) => mod.updateAvailable);
+  banner.hidden = !pending.length;
+  banner.classList.toggle("on", state.onlyUpdates);
+  banner.textContent = state.onlyUpdates
+    ? `Viendo ${pending.length} con versión nueva`
+    : `${pending.length} con versión nueva`;
+  banner.onclick = () => {
+    state.onlyUpdates = !state.onlyUpdates;
+    render();
+  };
+}
+
+async function setModStatus(id, status) {
+  const mod = state.mods.find((item) => item.id === id);
+  if (!mod) return;
+  const next = mod.status === status ? "" : status;
+  mod.status = next;
+  render();
+  try {
+    const data = await api(`/api/mods/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: next }),
+    });
+    if (data.mod) Object.assign(mod, data.mod);
+  } catch (error) {
+    toast(error.message, "bad");
+  }
+}
+
+async function moveInPack(id, dir) {
+  if (!state.modpack) return;
+  const shown = visible();
+  const index = shown.findIndex((mod) => mod.id === id);
+  const target = index + dir;
+  if (index < 0 || target < 0 || target >= shown.length) return;
+  const next = shown.slice();
+  const [row] = next.splice(index, 1);
+  next.splice(target, 0, row);
+  const hidden = state.mods.filter((mod) => mod.modpackId === state.modpack && !next.some((item) => item.id === mod.id));
+  const order = next.concat(hidden);
+  order.forEach((mod, n) => { mod.packOrder = n + 1; });
+  render();
+  try {
+    await api("/api/mods/order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: order.map((mod) => mod.id) }),
+    });
+  } catch (error) {
+    toast(error.message, "bad");
+  }
+}
+
 function render() {
   renderFilters();
   renderGameHero();
@@ -2029,6 +2231,7 @@ function render() {
   paintPickAll();
   paintBulk();
   paintSearchPlatform();
+  paintUpdateBanner();
   const mods = visible();
   $("count").textContent = "";
   if (!mods.length) {
@@ -2038,7 +2241,7 @@ function render() {
       $("grid").innerHTML = `<p class="empty">Hay ${inGame} mod(s) ocultos por el filtro. <button type="button" class="ghost" id="clear-filters">Quitar filtros</button></p>`;
       $("clear-filters").onclick = () => { clearFilters(); render(); };
     } else if (other) {
-      $("grid").innerHTML = `<p class="empty">Sin mods en este juego. Hay ${other} en otros — cambia el select de arriba.</p>`;
+      $("grid").innerHTML = `<p class="empty">Sin mods en este juego.</p>`;
     } else {
       $("grid").innerHTML = `<p class="empty">Pega un enlace de Nexus con Añadir mod. La ficha trae imagen, resumen, categoría, versión y última actualización.</p>`;
     }
@@ -2048,11 +2251,13 @@ function render() {
     <article class="card ${state.selected.has(mod.id) ? "on" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 35}ms">
       <div class="shot" ${shot(mod)}><span>${esc(mod.gameName || mod.gameDomain || "Juego")}</span></div>
       <div class="card-body">
-        <h3>${esc(mod.name)}</h3>
+        <h3>${esc(mod.name)}${mod.updateAvailable ? `<span class="ver-new">nueva</span>` : ""}</h3>
         <p class="meta">${esc(mod.platform || "Nexus")}${packLabel(mod) ? ` · ${esc(packLabel(mod))}` : ""} · ${esc(categoryLabel(mod.category, mod))} · v${esc(mod.version || "?")}</p>
         <p class="sub">${esc(displaySummary(mod))}${mod.summaryEs ? ` <span class="meta">${state.showEs ? "ES" : "EN"}</span>` : ""}</p>
       </div>
       <footer>
+        ${statusPicks(mod)}
+        ${packMoves()}
         ${state.picking ? `<label class="check"><input type="checkbox" data-check="${mod.id}" ${state.selected.has(mod.id) ? "checked" : ""}> marcar</label>` : `<span></span>`}
         <span class="meta">${esc(fmtDate(mod.updatedAt))}</span>
       </footer>
@@ -2090,6 +2295,20 @@ function render() {
     };
     card.onclick = (event) => {
       if (state.dragged) return;
+      const status = event.target.closest("[data-status]");
+      if (status) {
+        event.preventDefault();
+        event.stopPropagation();
+        setModStatus(card.dataset.id, status.dataset.status);
+        return;
+      }
+      const move = event.target.closest("[data-pack-move]");
+      if (move) {
+        event.preventDefault();
+        event.stopPropagation();
+        moveInPack(card.dataset.id, Number(move.dataset.packMove));
+        return;
+      }
       if (event.ctrlKey || event.metaKey || event.shiftKey || state.picking) {
         pickClick(card.dataset.id, event);
         return;
@@ -2113,6 +2332,42 @@ function render() {
       pickClick(box.dataset.check, { ctrlKey: true, shiftKey: event.shiftKey, metaKey: event.metaKey });
     };
   });
+}
+
+async function ensurePastedGame(domain, name) {
+  const id = String(domain || "").trim().toLowerCase();
+  if (!id || catalogGame(id)) return;
+  const label = String(name || id).trim() || id;
+  try {
+    const data = await api(
+      `/api/rawg/resolve?domain=${encodeURIComponent(id)}&name=${encodeURIComponent(label)}`
+    );
+    if (data.game) {
+      const list = [...(state.catalog.games || [])];
+      const idx = list.findIndex((item) => String(item.gameDomain || "").toLowerCase() === id);
+      if (idx >= 0) list[idx] = { ...list[idx], ...data.game };
+      else list.push(data.game);
+      state.catalog = { ...state.catalog, games: list };
+      return;
+    }
+  } catch (_) { /* sin RAWG igual entra el juego */ }
+  const list = [...(state.catalog.games || [])];
+  list.push({ gameDomain: id, gameName: label });
+  state.catalog = { ...state.catalog, games: list };
+}
+
+let ingestingUrl = false;
+
+async function ingestPastedMod() {
+  if (ingestingUrl) return;
+  ingestingUrl = true;
+  try {
+    await detect();
+    if (!state.detected || !state.detected.name) return;
+    await saveMod({ preventDefault() {} });
+  } finally {
+    ingestingUrl = false;
+  }
 }
 
 function fillPreview(mod) {
@@ -2217,13 +2472,21 @@ async function saveMod(event) {
   status.textContent = "Guardando en la guarida…";
   setLoading(button, true, "Guardando");
   const pageUrl = $("add-url").value;
-  const picked = platformFromUrl(pageUrl);
-  const allowed = platformsForGame(state.game);
-  if (allowed && !allowed.includes(picked)) {
+  const targetGame = String(state.detected?.gameDomain || "").trim().toLowerCase() || state.game || "";
+  const targetName = state.detected?.gameName || gameLabel(targetGame);
+  const picked = state.detected?.platform || platformFromUrl(pageUrl);
+  const allowed = platformsForGame(targetGame);
+  const locked = Boolean((state.sources || {})[targetGame])
+    || targetGame.startsWith("minecraft")
+    || targetGame === "wow"
+    || targetGame.startsWith("worldofwarcraft");
+  if (locked && allowed.length && picked && !allowed.includes(picked)) {
     status.textContent = `Este juego solo acepta ${allowed.join(", ")}.`;
     sfx.warn();
+    setLoading(button, false);
     return;
   }
+  await ensurePastedGame(targetGame, targetName);
   const official = picked !== "Nexus";
   const body = {
     url: pageUrl,
@@ -2231,15 +2494,15 @@ async function saveMod(event) {
     category: $("add-category").value,
     modpackId: $("add-modpack").value || "",
     modpackCategoryId: $("add-pack-cat").value || "",
-    gameDomain: state.game || "",
-    gameName: gameLabel(state.game),
+    gameDomain: targetGame,
+    gameName: targetName,
     mode,
   };
   if (!state.detected || official) {
     body.manual = {
       name: $("manual-name").value || state.detected?.name || "",
-      gameName: $("manual-game").value || gameLabel(state.game),
-      gameDomain: state.game || "",
+      gameName: $("manual-game").value || targetName,
+      gameDomain: targetGame,
       author: $("manual-author").value || state.detected?.author || "",
       version: $("manual-version").value,
       summary: $("manual-summary").value || state.detected?.summary || "",
@@ -2257,6 +2520,7 @@ async function saveMod(event) {
     clearFilters();
     toast(mode === "duplicate" ? "Copia guardada." : mode === "replace" ? "Ficha sustituida." : "Mod guardado.");
     await load();
+    if (saved.mod?.gameDomain) selectGame(saved.mod.gameDomain);
     if (saved.mod && saved.mod.id) openDetail(saved.mod.id);
   } catch (error) {
     if (error.payload?.duplicate) {
@@ -2278,6 +2542,7 @@ async function saveMod(event) {
         clearFilters();
         toast(mode === "duplicate" ? "Copia guardada." : "Ficha sustituida.");
         await load();
+        if (saved.mod?.gameDomain) selectGame(saved.mod.gameDomain);
         if (saved.mod && saved.mod.id) openDetail(saved.mod.id);
         return;
       } catch (retryError) {
@@ -2794,6 +3059,7 @@ function placePop(pop, anchor) {
 }
 $("more-open").onclick = (event) => {
   event.stopPropagation();
+  rollAvatar();
   const pop = $("more-pop");
   const open = pop.hidden;
   pop.hidden = !open;
@@ -3030,6 +3296,13 @@ $("bulk-move").onclick = () => assignMarked("pack");
 $("bulk-refresh").onclick = () => refreshMarked();
 $("bulk-delete").onclick = () => deleteMarked();
 $("add-url").oninput = () => syncAddSource();
+$("add-url").addEventListener("paste", (event) => {
+  const text = (event.clipboardData && event.clipboardData.getData("text") || "").trim();
+  if (!/^https?:\/\//i.test(text)) return;
+  event.preventDefault();
+  $("add-url").value = text;
+  ingestPastedMod();
+});
 $("detect").onclick = detect;
 $("manual-toggle").onclick = () => {
   state.manual = true;
@@ -3428,6 +3701,11 @@ $("pack-file").onchange = previewPackFile;
 $("pack-form").onsubmit = (event) => event.preventDefault();
 $("pack-export").onclick = (event) => runPackAction(event, "export");
 $("pack-import").onclick = (event) => runPackAction(event, "import");
+$("pack-go-export").onclick = () => showPackPane("export");
+$("pack-go-import").onclick = () => showPackPane("import");
+$("pack-back").onclick = () => showPackPane("home");
+$("pack-back-2").onclick = () => showPackPane("home");
+$("pack-in-scope").onchange = fillImportChoices;
 if ($("packs-open")) $("packs-open").onclick = () => { sfx.open(); openModpacksDialog(); };
 $("mp-reset").onclick = () => resetModpackForm();
 $("modpacks-form").onsubmit = saveModpackForm;
@@ -3627,15 +3905,31 @@ $("refresh-all").onclick = async () => {
 function openPackDialog() {
   state.packPreview = null;
   sfx.open();
-  $("pack-title").textContent = "Importar y exportar";
-  $("pack-hint").textContent = "Todo guarda juegos, modpacks, mods y archivos. También puedes limitarlo a un juego o a un modpack.";
   $("pack-file").value = "";
   if ($("pack-scope").value === "selected" && !state.selected.size) $("pack-scope").value = "all";
-  syncPackDialog();
+  showPackPane("home");
   $("pack-dialog").showModal();
 }
 
+function showPackPane(mode) {
+  state.packMode = mode;
+  $("pack-home").hidden = mode !== "home";
+  $("pack-export-pane").hidden = mode !== "export";
+  $("pack-import-pane").hidden = mode !== "import";
+  $("pack-title").textContent = mode === "export" ? "Exportar" : mode === "import" ? "Importar" : "Importar y exportar";
+  if (mode === "export") syncPackDialog();
+  if (mode === "import") paintImportPreview();
+}
+
 function packFilter() {
+  if (state.packMode === "import") {
+    const scope = $("pack-in-scope")?.value || "all";
+    const value = $("pack-in-value")?.value || "";
+    const filt = { scope };
+    if (scope === "game") filt.game = value;
+    if (scope === "modpack") filt.modpack = value;
+    return filt;
+  }
   const scope = $("pack-scope").value;
   const value = $("pack-value").value || "";
   const filt = { scope };
@@ -3661,7 +3955,7 @@ async function previewPackFile() {
   const file = $("pack-file").files?.[0];
   state.packPreview = null;
   if (!file) {
-    syncPackDialog();
+    paintImportPreview();
     return;
   }
   const form = new FormData();
@@ -3672,7 +3966,44 @@ async function previewPackFile() {
   } catch (error) {
     toast(error.message, "bad");
   }
-  syncPackDialog();
+  paintImportPreview();
+}
+
+function paintImportPreview() {
+  const box = $("pack-preview");
+  const pick = $("pack-import-pick");
+  const preview = state.packPreview;
+  if (!box || !pick) return;
+  if (!preview) {
+    box.hidden = true;
+    box.innerHTML = "";
+    pick.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  pick.hidden = false;
+  const games = (preview.games || []).map((row) => esc(row.name)).join(", ") || "ninguno";
+  const packs = (preview.modpacks || []).map((row) => esc(row.name)).join(", ") || "ninguno";
+  box.innerHTML = `<p><b>${preview.mods}</b> mods</p><p><b>${(preview.games || []).length}</b> juegos: ${games}</p><p><b>${(preview.modpacks || []).length}</b> modpacks: ${packs}</p>`;
+  fillImportChoices();
+}
+
+function fillImportChoices() {
+  const preview = state.packPreview;
+  const scope = $("pack-in-scope");
+  const wrap = $("pack-in-wrap");
+  const select = $("pack-in-value");
+  if (!preview || !scope || !select || !wrap) return;
+  const kind = scope.value;
+  const needs = kind === "game" || kind === "modpack";
+  wrap.hidden = !needs;
+  if (!needs) return;
+  const rows = kind === "game" ? (preview.games || []) : (preview.modpacks || []);
+  const current = select.value;
+  select.innerHTML = rows.length
+    ? rows.map((row) => `<option value="${esc(row.id)}">${esc(row.name)}${row.game ? ` · ${row.game}` : ""} (${row.count})</option>`).join("")
+    : `<option value="">(vacío)</option>`;
+  if (current && [...select.options].some((opt) => opt.value === current)) select.value = current;
 }
 
 function syncPackDialog() {
@@ -3772,7 +4103,7 @@ async function runPackAction(event, mode) {
     toast("Elige el .zip a importar.", "warn");
     return;
   }
-  if ((filt.scope === "game" || filt.scope === "modpack" || filt.scope === "platform") && !($("pack-value").value || "")) {
+  if ((filt.scope === "game" || filt.scope === "modpack") && !($("pack-in-value").value || "")) {
     toast("Elige uno.", "warn");
     return;
   }
@@ -3821,7 +4152,13 @@ function dropSession() {
   sessionStorage.removeItem("wi-mod-session");
 }
 
+const SKIP_LOGIN = true;
+
 function showLogin() {
+  if (SKIP_LOGIN) {
+    hideLogin();
+    return;
+  }
   const box = $("login");
   if (!box) return;
   box.hidden = false;
@@ -3985,12 +4322,18 @@ function spinBootLine() {
   }, 1400);
 }
 
+const bootAt = performance.now();
+
 function hideBoot() {
   const boot = $("boot");
-  if (!boot || boot.classList.contains("hide")) return;
-  boot.classList.add("hide");
-  setTimeout(() => boot.remove(), 400);
-  window.dispatchEvent(new Event("wimod-ready"));
+  if (!boot || boot.classList.contains("hide") || boot.dataset.leaving) return;
+  boot.dataset.leaving = "1";
+  const wait = Math.max(0, 3000 - (performance.now() - bootAt));
+  setTimeout(() => {
+    boot.classList.add("hide");
+    setTimeout(() => boot.remove(), 400);
+    window.dispatchEvent(new Event("wimod-ready"));
+  }, wait);
 }
 
 async function enterApp() {
@@ -4006,35 +4349,23 @@ rollAvatar();
 spinBootLine();
 document.addEventListener("pointerdown", () => sfx.unlock(), { once: true });
 const sessionTimer = setTimeout(() => {
-  hideBoot();
-    showLogin();
-  const status = $("login-status");
-  if (status) {
-    status.className = "status bad";
-    status.textContent = "La guarida no responde. Cierra wi-mod y ábrelo otra vez.";
-    pushLog("error", "La guarida no responde.");
-  }
+  const line = $("boot-line");
+  if (line) line.textContent = "La guarida no responde. Cierra wi-mod y ábrelo otra vez.";
+  pushLog("error", "La guarida no responde.");
 }, 12000);
 api("/api/session")
   .then((session) => {
     clearTimeout(sessionTimer);
-    if (session.username) {
-      setDockName(session.username);
-      return enterApp();
-    }
-    dropSession();
-    showLogin();
-    hideBoot();
+    rememberMachineNames(session);
+    return enterApp();
   })
   .catch((error) => {
     clearTimeout(sessionTimer);
-    hideBoot();
-    showLogin();
-    const status = $("login-status");
-    if (status) {
-      status.className = "status bad";
-      status.textContent = error.message || "No se pudo abrir la guarida.";
-    }
+    setDockName("WYDEX");
+    enterApp().catch(() => {
+      hideBoot();
+      pushLog("error", error.message || "No se pudo abrir la guarida.");
+    });
   });
 
 const appLogs = [];
@@ -4403,32 +4734,63 @@ function bindSideSize() {
   const handle = $("side-resize");
   const rail = $("side-rail");
   if (!layout || !handle || !rail) return;
-  const saved = Number(localStorage.getItem("wi-mod-side-w"));
-  if (saved >= 160 && saved <= 480) layout.style.setProperty("--side-w", `${saved}px`);
+  const normalWidth = () => {
+    const saved = Number(localStorage.getItem("wi-mod-side-w"));
+    return saved >= 180 && saved <= 480 ? saved : 230;
+  };
+  const rememberWidth = () => {
+    if (layout.classList.contains("side-icons")) return;
+    const side = layout.querySelector(".side");
+    const width = Math.round(side ? side.getBoundingClientRect().width : 0);
+    if (width >= 180 && width <= 480) localStorage.setItem("wi-mod-side-w", String(width));
+  };
   const paintRail = (icons) => {
     layout.classList.toggle("side-icons", icons);
     rail.setAttribute("aria-pressed", icons ? "true" : "false");
-    rail.title = icons ? "Mostrar nombres" : "Solo iconos";
-    rail.textContent = icons ? "»" : "«";
+    rail.title = icons ? "Mostrar nombres" : "Ocultar nombres";
+    rail.textContent = icons ? "Mostrar" : "Ocultar";
+    if (icons) layout.style.removeProperty("--side-w");
+    else layout.style.setProperty("--side-w", `${normalWidth()}px`);
   };
   paintRail(localStorage.getItem("wi-mod-side-icons") === "1");
   rail.onclick = () => {
     const icons = !layout.classList.contains("side-icons");
+    if (icons) rememberWidth();
     paintRail(icons);
     localStorage.setItem("wi-mod-side-icons", icons ? "1" : "0");
   };
   handle.addEventListener("pointerdown", (event) => {
-    if (layout.classList.contains("side-icons")) return;
     event.preventDefault();
+    rememberWidth();
     handle.classList.add("on");
     const move = (ev) => {
-      const width = Math.min(480, Math.max(160, ev.clientX - layout.getBoundingClientRect().left));
+      const width = Math.min(480, ev.clientX - layout.getBoundingClientRect().left);
+      if (width < 150) {
+        if (!layout.classList.contains("side-icons")) {
+          layout.classList.add("side-icons");
+          rail.setAttribute("aria-pressed", "true");
+          rail.title = "Mostrar nombres";
+          rail.textContent = "Mostrar";
+          layout.style.removeProperty("--side-w");
+          localStorage.setItem("wi-mod-side-icons", "1");
+        }
+        return;
+      }
+      if (layout.classList.contains("side-icons")) {
+        layout.classList.remove("side-icons");
+        rail.setAttribute("aria-pressed", "false");
+        rail.title = "Ocultar nombres";
+        rail.textContent = "Ocultar";
+        localStorage.setItem("wi-mod-side-icons", "0");
+      }
       layout.style.setProperty("--side-w", `${width}px`);
     };
     const up = () => {
       handle.classList.remove("on");
-      const width = Math.round(parseFloat(getComputedStyle(layout).getPropertyValue("--side-w")));
-      if (width) localStorage.setItem("wi-mod-side-w", String(width));
+      if (!layout.classList.contains("side-icons")) {
+        const width = Math.round(parseFloat(getComputedStyle(layout).getPropertyValue("--side-w")));
+        if (width >= 180) localStorage.setItem("wi-mod-side-w", String(width));
+      }
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
     };
@@ -4437,3 +4799,125 @@ function bindSideSize() {
   });
 }
 bindSideSize();
+
+const TOUR_STEPS = [
+  { sel: "#game-picker", title: "Juego", text: "Aquí eliges el juego. Los fijados quedan arriba y el favorito es el que abre al entrar." },
+  { sel: "#game-add", title: "Añadir juego", text: "Si el juego no está, lo buscas en RAWG y lo agregas." },
+  { sel: "#search", title: "Buscar", text: "Busca mods por nombre. Si pegas una URL, detecta la plataforma y el juego, lo crea si falta y guarda el mod." },
+  { sel: "[data-fold='platforms']", title: "Plataforma", text: "Filtra por tienda. El número dice cuántas hay. La flecha pliega la lista." },
+  { sel: "[data-fold='modpacks']", title: "Modpack", text: "Agrupa mods de este juego. El + crea un modpack." },
+  { sel: "[data-fold='categories']", title: "Categoría", text: "Apartados de los mods. El + añade una categoría." },
+  { sel: "#side-rail", title: "Sidebar", text: "Ocultar deja solo iconos. Si lo achicas mucho, entra solo en ese modo. Mostrar vuelve al ancho de antes." },
+  { sel: "#game-hero", title: "Ficha del juego", text: "Un clic oculta o muestra la ficha. No abre los enlaces." },
+  { sel: ".view-dock", title: "Lista", text: "Cuadrícula o listado, tamaño de las fichas y el orden." },
+  { sel: "#grid", title: "Mods", text: "Aquí están los mods. Un clic abre la ficha. Arrastrar marca varios." },
+  { sel: "#more-open", title: "Tu usuario", text: "Muestra el usuario de Windows. Desde aquí sales, importas y abres este tutorial." },
+  { sel: "#keys-summary", title: "Claves", text: "Nexus, CurseForge, Steam y RAWG. Modrinth no pide clave." },
+  { sel: "#theme-summary", title: "Color", text: "Cambia el color del banner según la tienda." },
+  { sel: ".lang-switch", title: "Idioma", text: "Español o inglés." },
+  { sel: "#log-open", title: "Avisos", text: "Errores, alertas y peticiones del programa." },
+];
+
+let tourIndex = -1;
+
+function tourTarget() {
+  const step = TOUR_STEPS[tourIndex];
+  return step ? document.querySelector(step.sel) : null;
+}
+
+let placingTour = false;
+let tourMoveUntil = 0;
+
+function placeTour() {
+  if (placingTour) return;
+  const tour = $("tour");
+  const ring = $("tour-ring");
+  const card = $("tour-card");
+  const el = tourTarget();
+  if (!tour || !ring || !card || !el) return;
+  const animate = performance.now() < tourMoveUntil;
+  placingTour = true;
+  el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: animate ? "smooth" : "auto" });
+  const rect = el.getBoundingClientRect();
+  const pad = 8;
+  ring.classList.toggle("tour-move", animate);
+  card.classList.toggle("tour-move", animate);
+  if (animate) void ring.offsetWidth;
+  ring.style.left = `${Math.max(4, rect.left - pad)}px`;
+  ring.style.top = `${Math.max(4, rect.top - pad)}px`;
+  ring.style.width = `${rect.width + pad * 2}px`;
+  ring.style.height = `${rect.height + pad * 2}px`;
+  const cardW = Math.min(360, window.innerWidth - 24);
+  let left = rect.left;
+  if (left + cardW > window.innerWidth - 12) left = window.innerWidth - cardW - 12;
+  left = Math.max(12, left);
+  let top = rect.bottom + 14;
+  if (top + 170 > window.innerHeight) top = Math.max(12, rect.top - 180);
+  card.style.left = `${left}px`;
+  card.style.top = `${top}px`;
+  placingTour = false;
+}
+
+function showTourStep(animate) {
+  while (tourIndex < TOUR_STEPS.length && !tourTarget()) tourIndex += 1;
+  if (tourIndex >= TOUR_STEPS.length) {
+    stopTour();
+    return;
+  }
+  const step = TOUR_STEPS[tourIndex];
+  tourMoveUntil = animate ? performance.now() + 560 : 0;
+  $("tour-kicker").textContent = `${tourIndex + 1} / ${TOUR_STEPS.length}`;
+  $("tour-title").textContent = step.title;
+  $("tour-text").textContent = step.text;
+  $("tour-next").textContent = tourIndex === TOUR_STEPS.length - 1 ? "Listo" : "Siguiente";
+  placeTour();
+}
+
+function stopTour() {
+  tourIndex = -1;
+  const tour = $("tour");
+  if (tour) tour.hidden = true;
+  window.removeEventListener("resize", placeTour);
+  window.removeEventListener("scroll", placeTour, true);
+}
+
+function startTour() {
+  const tour = $("tour");
+  if (!tour) return;
+  tour.hidden = false;
+  tourIndex = 0;
+  showTourStep();
+  window.addEventListener("resize", placeTour);
+  window.addEventListener("scroll", placeTour, true);
+}
+
+if ($("name-source")) {
+  $("name-source").onclick = () => {
+    state.nameSource = usingPcName() ? "user" : "pc";
+    localStorage.setItem("wi-mod-name-source", state.nameSource);
+    applyDockName();
+    $("more-pop").hidden = true;
+    $("more-open").setAttribute("aria-expanded", "false");
+    sfx.click();
+  };
+}
+if ($("tour-open")) {
+  $("tour-open").onclick = () => {
+    $("more-pop").hidden = true;
+    $("more-open").setAttribute("aria-expanded", "false");
+    sfx.click();
+    startTour();
+  };
+}
+if ($("tour-next")) {
+  $("tour-next").onclick = () => {
+    if (tourIndex < 0) return;
+    sfx.click();
+    tourIndex += 1;
+    showTourStep(true);
+  };
+}
+if ($("tour-exit")) $("tour-exit").onclick = () => { sfx.soft(); stopTour(); };
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && $("tour") && !$("tour").hidden) stopTour();
+});
