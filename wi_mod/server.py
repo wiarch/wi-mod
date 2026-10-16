@@ -15,7 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from wi_mod.archive import export_label, export_library, import_library, peek_library
+from wi_mod import __version__
 from wi_mod.curseforge import CurseForgeError, fetch_project as fetch_curseforge, project_ref, search_mods as search_curseforge, validate_key as validate_curseforge_key
 from wi_mod.images import download_picture
 from wi_mod.modrinth import ModrinthError, fetch_project, project_slug, search_projects
@@ -232,6 +232,8 @@ def make_handler(app: App):
                     "machineUser": _machine_names()["machineUser"],
                     "windowsUser": _machine_names()["windowsUser"],
                     "pcName": _machine_names()["pcName"],
+                    "quitMode": str(app.library.settings().get("quitMode") or ""),
+                    "appVersion": __version__,
                 })
                 return
             if not self._open():
@@ -368,6 +370,11 @@ def make_handler(app: App):
                 app.library.logout(self._token())
                 self._json(200, {"ok": True}, clear_cookie=True)
                 return
+            if path == "/api/quit-pref":
+                body = self._json_body()
+                mode = app.library.set_quit_mode(str(body.get("mode") or ""))
+                self._json(200, {"quitMode": mode})
+                return
             if not self._open():
                 return
             if path == "/api/images":
@@ -443,6 +450,11 @@ def make_handler(app: App):
                     str(body.get("emoji") or ""),
                     str(body.get("imageUrl") or ""),
                 )
+                self._json(200, {"catalog": catalog})
+                return
+            if path == "/api/catalog/rename":
+                body = self._json_body()
+                catalog = app.library.rename_category(str(body.get("from") or ""), str(body.get("name") or ""))
                 self._json(200, {"catalog": catalog})
                 return
             if path == "/api/catalog/game-flag":
@@ -1705,7 +1717,7 @@ def _fill_default_games(app: App) -> None:
         item
         for item in games
         if str(item.get("gameDomain") or "").lower() in {
-            "gtasa", "gta5", "fallout4", "newvegas", "stalkershadowofchernobyl",
+            "gtasa", "skyrimspecialedition",
         }
         and (not item.get("imageUrl") or not item.get("description"))
     ]

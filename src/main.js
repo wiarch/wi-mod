@@ -20,3 +20,13 @@ function closeSplash() {
 
 window.addEventListener("wimod-ready", closeSplash, { once: true });
 setTimeout(closeSplash, 14000);
+
+if (window.__TAURI_INTERNALS__) {
+  import("@tauri-apps/api/window").then(({ getCurrentWindow }) => {
+    getCurrentWindow().onCloseRequested((event) => {
+      if (window.wiModClosing) return;
+      event.preventDefault();
+      if (window.wiModAskQuit) window.wiModAskQuit();
+    });
+  }).catch(() => {});
+}

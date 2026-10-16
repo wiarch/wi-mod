@@ -247,7 +247,9 @@ class Library:
             mod["remoteVersion"] = str(fields["remoteVersion"] or "")
         if "status" in fields:
             status = str(fields.get("status") or "").strip().lower()
-            if status not in {"", "want", "got", "in"}:
+            if status == "want":
+                status = ""
+            if status not in {"", "got", "in"}:
                 raise ValueError("Estado no válido.")
             mod["status"] = status
         if "packOrder" in fields:
@@ -436,6 +438,17 @@ class Library:
             current["language"] = lang
             self._kv_set("settings", json.dumps(current, ensure_ascii=False))
 
+    def set_quit_mode(self, mode: str) -> str:
+        picked = mode if mode in {"quit", "tray"} else ""
+        with self._lock:
+            current = self._read_settings()
+            if picked:
+                current["quitMode"] = picked
+            else:
+                current.pop("quitMode", None)
+            self._kv_set("settings", json.dumps(current, ensure_ascii=False))
+        return picked
+
     def set_theme(self, theme: str) -> None:
         allowed = {"nexus", "modrinth", "curseforge", "steam", "moddb", "rawg"}
         picked = str(theme or "").strip().lower()
@@ -463,21 +476,37 @@ class Library:
 
     def ensure_default_games(self) -> None:
         defaults = (
-            {"gameDomain": "gtasa", "gameName": "Grand Theft Auto: San Andreas", "rawgId": 416, "rating": 4.5},
-            {"gameDomain": "gta5", "gameName": "Grand Theft Auto V", "rawgId": 3498, "rating": 4.47},
-            {"gameDomain": "fallout4", "gameName": "Fallout 4", "rawgId": 3070, "rating": 3.81},
-            {"gameDomain": "newvegas", "gameName": "Fallout: New Vegas", "rawgId": 5563, "rating": 4.43},
-            {"gameDomain": "stalkershadowofchernobyl", "gameName": "S.T.A.L.K.E.R.: Shadow of Chernobyl", "rawgId": 17857, "rating": 4.27},
-            {"gameDomain": "darksoulsremastered", "gameName": "Dark Souls Remastered", "rawgId": 51610, "imageUrl": "/brand/darksoulsremastered.jpg", "rating": 4.48},
-            {"gameDomain": "minecraft", "gameName": "Minecraft", "rawgId": 22509, "imageUrl": "/brand/minecraft.jpg", "rating": 4.44},
             {"gameDomain": "stardewvalley", "gameName": "Stardew Valley", "rawgId": 654, "imageUrl": "/brand/stardewvalley.jpg", "rating": 4.39},
+            {"gameDomain": "minecraft", "gameName": "Minecraft", "rawgId": 22509, "imageUrl": "/brand/minecraft.jpg", "rating": 4.44},
+            {"gameDomain": "gtasa", "gameName": "GTA San Andreas", "rawgId": 416, "rating": 4.5},
+            {"gameDomain": "skyrimspecialedition", "gameName": "The Elder Scrolls V: Skyrim Special Edition", "rawgId": 12447, "rating": 4.45},
+            {"gameDomain": "darksoulsremastered", "gameName": "Dark Souls Remastered", "rawgId": 51610, "imageUrl": "/brand/darksoulsremastered.jpg", "rating": 4.48},
         )
+        retired = {"gta5", "fallout4", "newvegas", "stalkershadowofchernobyl"}
         with self._lock:
             data = self._read()
             self._migrate(data)
             catalog = data.setdefault("catalog", self._empty_catalog())
             items = catalog.setdefault("games", [])
             dirty = False
+            kept = []
+            for item in items:
+                domain = str(item.get("gameDomain") or "").lower() if isinstance(item, dict) else ""
+                if domain in retired:
+                    dirty = True
+                    continue
+                kept.append(item)
+            if len(kept) != len(items):
+                items[:] = kept
+            for key in ("mods", "modpacks"):
+                rows = data.get(key) or []
+                fresh = [
+                    row for row in rows
+                    if str((row or {}).get("gameDomain") or "").lower() not in retired
+                ]
+                if len(fresh) != len(rows):
+                    data[key] = fresh
+                    dirty = True
             for entry in defaults:
                 domain = entry["gameDomain"]
                 exists = next(
@@ -493,6 +522,9 @@ class Library:
                     items.append(dict(entry))
                     dirty = True
                     continue
+                if domain == "gtasa" and exists.get("gameName") == "Grand Theft Auto: San Andreas":
+                    exists["gameName"] = entry["gameName"]
+                    dirty = True
                 cover = str(entry.get("imageUrl") or "")
                 current = str(exists.get("imageUrl") or "")
                 if cover and (not current or "media.rawg.io" in current or "/screenshots/" in current):
@@ -806,6 +838,36 @@ class Library:
             self._write(data)
             return self.catalog()
 
+    def rename_category(self, old: str, new: str) -> dict[str, Any]:
+        previous = str(old or "").strip()
+        name = str(new or "").strip()
+        if not previous or not name:
+            raise ValueError("Nombre vacío.")
+        with self._lock:
+            data = self._read()
+            self._migrate(data)
+            catalog = data.setdefault("catalog", self._empty_catalog())
+            items = catalog.setdefault("categories", [])
+            if previous.lower() != name.lower() and any(str(item).lower() == name.lower() for item in items):
+                raise ValueError("Esa categoría ya existe.")
+            replaced = False
+            for index, item in enumerate(list(items)):
+                if str(item).lower() == previous.lower():
+                    items[index] = name
+                    replaced = True
+            if not replaced:
+                items.append(name)
+            marks = catalog.setdefault("marks", {})
+            if isinstance(marks, dict) and previous != name:
+                key = f"category:{previous}"
+                if key in marks:
+                    marks[f"category:{name}"] = marks.pop(key)
+            for mod in data.get("mods") or []:
+                if str(mod.get("category") or "") == previous:
+                    mod["category"] = name
+            self._write(data)
+            return self.catalog()
+
     def set_game_flags(self, domain: str, *, pin: bool | None = None, favorite: bool | None = None) -> dict[str, Any]:
         domain = str(domain or "").strip().lower()
         if not domain:
@@ -962,6 +1024,10 @@ class Library:
 
     def _migrate(self, data: dict[str, Any]) -> bool:
         dirty = False
+        for mod in data.get("mods") or []:
+            if str(mod.get("status") or "") == "want":
+                mod["status"] = ""
+                dirty = True
         data.setdefault("modpacks", [])
         packs: list[dict[str, Any]] = data["modpacks"]
         by_name_game: dict[tuple[str, str], dict[str, Any]] = {}

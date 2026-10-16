@@ -38,7 +38,8 @@ const state = {
   keys: { nexus: false, curseforge: false, steam: false, rawg: false },
   windowsUser: "",
   pcName: "",
-  nameSource: localStorage.getItem("wi-mod-name-source") === "pc" ? "pc" : "user",
+  customName: localStorage.getItem("wi-mod-custom-name") || "",
+  nameSource: localStorage.getItem("wi-mod-name-source") === "custom" ? "custom" : "user",
 };
 state.showEs = state.lang === "es";
 if (localStorage.getItem("wi-mod-lang") !== "en" && localStorage.getItem("wi-mod-lang") !== "es") {
@@ -404,14 +405,31 @@ function applyLang(lang, persistLocal = true) {
   syncDock();
 }
 
-const AVATAR_STYLES = ["lorelei", "adventurer", "avataaars", "micah", "personas", "big-smile", "notionists"];
+const AVATAR_SKIN = ["#f6d7b8", "#e8b892", "#c68642", "#8d5524", "#ffdfc4", "#f1c27d"];
+const AVATAR_HAIR = ["#2b2118", "#6b4423", "#d4a017", "#1f3b73", "#b84a62", "#3d3d3d", "#efe6d8"];
+const AVATAR_SHIRT = ["#e2a45c", "#7f9c7a", "#5c7ea2", "#c46b4a", "#8d6cab", "#2f2a26"];
 
 function rollAvatar() {
   const img = $("dock-avatar");
   if (!img) return;
-  const style = AVATAR_STYLES[Math.floor(Math.random() * AVATAR_STYLES.length)];
-  const seed = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-  img.src = `https://api.dicebear.com/10.x/${style}/svg?seed=${encodeURIComponent(seed)}`;
+  const pick = (list) => list[Math.floor(Math.random() * list.length)];
+  const skin = pick(AVATAR_SKIN);
+  const hair = pick(AVATAR_HAIR);
+  const shirt = pick(AVATAR_SHIRT);
+  const cuts = [
+    `<path d="M18 38c2-16 10-26 30-26s28 10 30 26c-6-8-14-12-30-12s-24 4-30 12z" fill="${hair}"/>`,
+    `<path d="M16 42c0-20 12-32 32-32s32 12 32 32c-8-10-18-14-32-14s-24 4-32 14z" fill="${hair}"/>`,
+    `<path d="M20 36c4-18 14-24 28-24 10 0 18 4 24 14 2 8-4 4-8 2-6-8-12-10-20-8-8 2-16 8-24 16z" fill="${hair}"/>`,
+    `<circle cx="48" cy="28" r="8" fill="${hair}"/><path d="M22 40c2-14 10-22 26-22s24 8 26 22c-8-6-16-8-26-8s-18 2-26 8z" fill="${hair}"/>`,
+  ];
+  const eyes = Math.random() > 0.45
+    ? `<circle cx="36" cy="48" r="3" fill="#2b2118"/><circle cx="60" cy="48" r="3" fill="#2b2118"/>`
+    : `<path d="M32 48h8M56 48h8" stroke="#2b2118" stroke-width="2.4" stroke-linecap="round"/>`;
+  const mouth = Math.random() > 0.35
+    ? `<path d="M40 62c4 6 12 6 16 0" fill="none" stroke="#a15c48" stroke-width="2.2" stroke-linecap="round"/>`
+    : `<path d="M40 64h16" stroke="#a15c48" stroke-width="2.2" stroke-linecap="round"/>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><circle cx="48" cy="48" r="48" fill="${shirt}"/><circle cx="48" cy="46" r="22" fill="${skin}"/>${pick(cuts)}${eyes}${mouth}</svg>`;
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 function setDockName(name) {
@@ -419,22 +437,33 @@ function setDockName(name) {
   if (node && name) node.textContent = name;
 }
 
-function usingPcName() {
-  if (!state.windowsUser) return true;
-  if (!state.pcName) return false;
-  return state.nameSource === "pc";
+function applyDockName() {
+  const custom = state.nameSource === "custom";
+  const machine = state.windowsUser || state.pcName;
+  setDockName((custom ? state.customName || machine : machine) || "WYDEX");
+  const customBtn = $("name-custom");
+  const field = $("name-custom-field");
+  const input = $("name-custom-input");
+  if (customBtn) customBtn.hidden = custom;
+  if (field) field.hidden = !custom;
+  if (input && document.activeElement !== input) input.value = state.customName;
 }
 
-function applyDockName() {
-  const usingPc = usingPcName();
-  const name = usingPc ? (state.pcName || state.windowsUser) : (state.windowsUser || state.pcName);
-  setDockName(name || "WYDEX");
-  const button = $("name-source");
-  if (!button) return;
-  const label = button.querySelector("span");
-  const text = usingPc ? "Usar nombre del usuario de Windows" : "Usar nombre de la PC";
-  if (label) label.textContent = text;
-  button.hidden = !state.windowsUser || !state.pcName;
+function paintAppVersion(version) {
+  const node = $("app-version");
+  if (!node) return;
+  const text = String(version || "").trim();
+  if (text) node.textContent = text.startsWith("v") ? text : `v${text}`;
+}
+
+if ($("app-version")) {
+  $("app-version").addEventListener("click", (event) => {
+    const host = window.pywebview && window.pywebview.api;
+    if (host && typeof host.site === "function") {
+      event.preventDefault();
+      host.site();
+    }
+  });
 }
 
 function rememberMachineNames(session) {
@@ -1175,8 +1204,11 @@ function renderFilters() {
     chip(`${categoryLabel(row.id)} (${row.count})`, row.id, state.category, "category")
   )).join("");
   const foldCount = (id, n) => {
+    const text = String(n);
     const node = $(id);
-    if (node) node.textContent = String(n);
+    if (node) node.textContent = text;
+    const badge = $(`${id}-badge`);
+    if (badge) badge.textContent = text;
   };
   foldCount("fold-platforms", platformMap.length);
   foldCount("fold-modpacks", gamePacks.length);
@@ -1190,13 +1222,30 @@ function renderFilters() {
       if (edit) {
         event.preventDefault();
         event.stopPropagation();
+        const picked = edit.dataset.edit;
+        if (button.dataset.kind === "category") {
+          openCategoryDialog(picked);
+          return;
+        }
         openModpacksDialog();
-        editModpack(edit.dataset.edit);
+        editModpack(picked);
         return;
       }
       const kind = button.dataset.kind;
       const raw = button.getAttribute("data-value");
-      state[kind] = raw == null ? "" : decodeURIComponent(raw);
+      const value = raw == null ? "" : decodeURIComponent(raw);
+      if (kind === "modpack" && value && String(state.modpack) === value) {
+        event.preventDefault();
+        openModpacksDialog();
+        editModpack(value);
+        return;
+      }
+      if (kind === "category" && value && String(state.category) === value) {
+        event.preventDefault();
+        openCategoryDialog(value);
+        return;
+      }
+      state[kind] = value;
       if (kind === "modpack") state.packCat = "";
       sfx.click();
       render();
@@ -1208,6 +1257,11 @@ function renderFilters() {
       if (!value) return;
       event.preventDefault();
       event.stopPropagation();
+      if (button.dataset.kind === "modpack") {
+        openModpacksDialog();
+        editModpack(value);
+        return;
+      }
       openMarkPop(button.dataset.kind, value, event.clientX, event.clientY);
     };
     const kind = button.dataset.kind;
@@ -1358,8 +1412,8 @@ function sideInitial(label) {
 function chip(label, value, current, kind) {
   const on = String(value) === String(current) ? "on" : "";
   const icon = value ? markIcon(kind, value) : "";
-  const pencil = kind === "modpack" && on && value
-    ? `<span class="chip-edit" data-edit="${esc(value)}" title="Editar modpack">✎</span>`
+  const pencil = (kind === "modpack" || kind === "category") && on && value
+    ? `<span class="chip-edit" data-edit="${esc(value)}" title="${kind === "category" ? "Editar categoría" : "Editar modpack"}">✎</span>`
     : "";
   return `<button type="button" class="${on}" data-kind="${kind}" data-value="${encodeURIComponent(value)}" title="${esc(label)}">${icon}<span class="side-initial">${esc(sideInitial(label))}</span><span>${esc(label)}</span>${pencil}</button>`;
 }
@@ -2151,9 +2205,8 @@ function paintBulk() {
 }
 
 const MOD_STATUS = [
-  ["want", "Quiero"],
-  ["got", "Bajado"],
-  ["in", "En juego"],
+  ["got", "Descargado"],
+  ["in", "Instalado"],
 ];
 
 function statusPicks(mod) {
@@ -3707,22 +3760,81 @@ $("pack-back").onclick = () => showPackPane("home");
 $("pack-back-2").onclick = () => showPackPane("home");
 $("pack-in-scope").onchange = fillImportChoices;
 if ($("packs-open")) $("packs-open").onclick = () => { sfx.open(); openModpacksDialog(); };
-$("mp-reset").onclick = () => resetModpackForm();
+$("mp-delete").onclick = () => deleteCurrentModpack();
 $("modpacks-form").onsubmit = saveModpackForm;
 $("packcat-form").onsubmit = savePackCatForm;
 $("mp-cat-add").onclick = () => addMpCatRow();
+$("mp-emoji-toggle").onclick = () => {
+  const box = $("mp-emoji-box");
+  box.hidden = !box.hidden;
+  if (!box.hidden) {
+    paintMpEmojiGrid();
+    $("mp-emoji-search").focus();
+  }
+};
+$("mp-emoji-search").addEventListener("input", paintMpEmojiGrid);
+$("mp-emoji-grid").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-i]");
+  if (!button) return;
+  const emoji = MARK_EMOJIS[Number(button.dataset.i)]?.[1] || "";
+  if (!emoji) return;
+  setMpMark(emoji, "");
+  $("mp-emoji-box").hidden = true;
+});
+$("mp-mark-file").addEventListener("change", async () => {
+  const file = $("mp-mark-file").files?.[0];
+  $("mp-mark-file").value = "";
+  if (!file) return;
+  try {
+    const upload = new FormData();
+    upload.append("file", file);
+    const uploaded = await api("/api/images", { method: "POST", body: upload });
+    setMpMark("", uploaded.imageUrl || "");
+  } catch (error) {
+    toast(error.message, "bad");
+  }
+});
+$("mp-mark-clear").onclick = () => setMpMark("", "");
+$("cat-form").onsubmit = saveCategoryForm;
+$("cat-emoji-toggle").onclick = () => {
+  const box = $("cat-emoji-box");
+  box.hidden = !box.hidden;
+  if (!box.hidden) {
+    paintCatEmojiGrid();
+    $("cat-emoji-search").focus();
+  }
+};
+$("cat-emoji-search").addEventListener("input", paintCatEmojiGrid);
+$("cat-emoji-grid").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-i]");
+  if (!button) return;
+  const emoji = MARK_EMOJIS[Number(button.dataset.i)]?.[1] || "";
+  if (!emoji) return;
+  setCatMark(emoji, "");
+  $("cat-emoji-box").hidden = true;
+});
+$("cat-mark-file").addEventListener("change", async () => {
+  const file = $("cat-mark-file").files?.[0];
+  $("cat-mark-file").value = "";
+  if (!file) return;
+  try {
+    const upload = new FormData();
+    upload.append("file", file);
+    const uploaded = await api("/api/images", { method: "POST", body: upload });
+    setCatMark("", uploaded.imageUrl || "");
+  } catch (error) {
+    toast(error.message, "bad");
+  }
+});
+$("cat-mark-clear").onclick = () => setCatMark("", "");
 
 function gameOptionsForPacks() {
   return [
-    ["darksoulsremastered", "Dark Souls Remastered"],
-    ["skyrimspecialedition", "The Elder Scrolls V: Skyrim Special Edition"],
-    ["minecraft", "Minecraft"],
     ["stardewvalley", "Stardew Valley"],
+    ["minecraft", "Minecraft"],
     ["gtasa", "GTA San Andreas"],
-    ["gta5", "GTA V"],
-    ["fallout4", "Fallout 4"],
-    ["newvegas", "Fallout New Vegas"],
-    ["stalkershadowofchernobyl", "S.T.A.L.K.E.R."],
+    ["skyrimspecialedition", "The Elder Scrolls V: Skyrim Special Edition"],
+    ["darksoulsremastered", "Dark Souls Remastered"],
   ];
 }
 
@@ -3744,18 +3856,145 @@ function addMpCatRow(name = "") {
   $("mp-cats").appendChild(row);
 }
 
+let catMarkDraft = { emoji: "", imageUrl: "", dirty: false };
+
+function paintCatMark() {
+  const face = $("cat-mark-face");
+  const clear = $("cat-mark-clear");
+  if (!face) return;
+  if (catMarkDraft.imageUrl) face.innerHTML = `<img alt="" src="${esc(catMarkDraft.imageUrl)}">`;
+  else face.textContent = catMarkDraft.emoji || "🏷️";
+  if (clear) clear.hidden = !(catMarkDraft.emoji || catMarkDraft.imageUrl);
+}
+
+function setCatMark(emoji, imageUrl) {
+  catMarkDraft = { emoji: emoji || "", imageUrl: imageUrl || "", dirty: true };
+  paintCatMark();
+}
+
+function paintCatEmojiGrid() {
+  const query = ($("cat-emoji-search").value || "").trim().toLowerCase();
+  $("cat-emoji-grid").innerHTML = MARK_EMOJIS.map(([name, emoji], index) => (
+    !query || name.includes(query) || emoji.includes(query)
+      ? `<button type="button" data-i="${index}">${emoji}</button>`
+      : ""
+  )).join("");
+}
+
+function openCategoryDialog(name) {
+  const current = String(name || "");
+  if (!current) return;
+  $("cat-old").value = current;
+  $("cat-name").value = categoryLabel(current);
+  const mark = markOf("category", current) || {};
+  catMarkDraft = { emoji: mark.emoji || "", imageUrl: mark.imageUrl || "", dirty: false };
+  if ($("cat-emoji-box")) $("cat-emoji-box").hidden = true;
+  if ($("cat-emoji-search")) $("cat-emoji-search").value = "";
+  paintCatMark();
+  $("cat-dialog").showModal();
+}
+
+async function saveCategoryForm(event) {
+  event.preventDefault();
+  const old = $("cat-old").value;
+  let next = ($("cat-name").value || "").trim();
+  if (!next) return;
+  if (next === categoryLabel(old)) next = old;
+  const button = event.submitter || $("cat-form").querySelector("[type=submit]");
+  setLoading(button, true, "Guardando");
+  try {
+    if (next !== old) {
+      const data = await api("/api/catalog/rename", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from: old, name: next }),
+      });
+      state.catalog = data.catalog || state.catalog;
+      if (state.category === old) state.category = next;
+    }
+    if (catMarkDraft.dirty) {
+      const marked = await api("/api/catalog/mark", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind: "category",
+          id: next,
+          emoji: catMarkDraft.emoji,
+          imageUrl: catMarkDraft.imageUrl,
+        }),
+      });
+      state.catalog = marked.catalog || state.catalog;
+      catMarkDraft.dirty = false;
+    }
+    toast("Categoría guardada.");
+    $("cat-dialog").close();
+    await load();
+  } catch (error) {
+    toast(error.message, "bad");
+  } finally {
+    setLoading(button, false);
+  }
+}
+
+let mpMarkDraft = { emoji: "", imageUrl: "", dirty: false };
+
+function paintMpMark() {
+  const face = $("mp-mark-face");
+  const clear = $("mp-mark-clear");
+  if (!face) return;
+  if (mpMarkDraft.imageUrl) face.innerHTML = `<img alt="" src="${esc(mpMarkDraft.imageUrl)}">`;
+  else face.textContent = mpMarkDraft.emoji || "📦";
+  if (clear) clear.hidden = !(mpMarkDraft.emoji || mpMarkDraft.imageUrl);
+}
+
+function setMpMark(emoji, imageUrl) {
+  mpMarkDraft = { emoji: emoji || "", imageUrl: imageUrl || "", dirty: true };
+  paintMpMark();
+}
+
+function loadMpMark(id) {
+  const mark = id ? (markOf("modpack", id) || {}) : {};
+  mpMarkDraft = { emoji: mark.emoji || "", imageUrl: mark.imageUrl || "", dirty: false };
+  const box = $("mp-emoji-box");
+  if (box) box.hidden = true;
+  if ($("mp-emoji-search")) $("mp-emoji-search").value = "";
+  paintMpMark();
+}
+
+function paintMpEmojiGrid() {
+  const query = ($("mp-emoji-search").value || "").trim().toLowerCase();
+  $("mp-emoji-grid").innerHTML = MARK_EMOJIS.map(([name, emoji], index) => (
+    !query || name.includes(query) || emoji.includes(query)
+      ? `<button type="button" data-i="${index}">${emoji}</button>`
+      : ""
+  )).join("");
+}
+
+async function applyMpMark(id) {
+  if (!mpMarkDraft.dirty || !id) return;
+  const data = await api("/api/catalog/mark", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      kind: "modpack",
+      id,
+      emoji: mpMarkDraft.emoji,
+      imageUrl: mpMarkDraft.imageUrl,
+    }),
+  });
+  state.catalog = data.catalog || state.catalog;
+  mpMarkDraft.dirty = false;
+}
+
 function resetModpackForm() {
   $("mp-edit-id").value = "";
   $("mp-name").value = "";
   $("mp-notes").value = "";
   $("mp-save").textContent = "Guardar modpack";
+  $("mp-delete").hidden = true;
   $("mp-cats").innerHTML = "";
   addMpCatRow();
-  const games = gameOptions();
-  const current = state.game || games[0]?.[0] || "";
-  $("mp-game").innerHTML = games.map(([id, label]) => (
-    `<option value="${esc(id)}" ${id === current ? "selected" : ""}>${esc(label)}</option>`
-  )).join("");
+  loadMpMark("");
 }
 
 function renderModpacksList() {
@@ -3772,18 +4011,8 @@ function renderModpacksList() {
         <b>${esc(pack.name)}</b>
         <p class="meta">${esc(pack.gameName || pack.gameDomain)} · ${n} mods · ${esc(sections)}</p>
       </div>
-      <span class="row">
-        <button class="ghost" type="button" data-mp-edit="${pack.id}">Editar</button>
-        <button class="danger" type="button" data-mp-del="${pack.id}">Borrar</button>
-      </span>
     </div>`;
   }).join("");
-  node.querySelectorAll("[data-mp-edit]").forEach((button) => {
-    button.onclick = () => editModpack(button.dataset.mpEdit);
-  });
-  node.querySelectorAll("[data-mp-del]").forEach((button) => {
-    button.onclick = () => deleteModpack(button.dataset.mpDel);
-  });
 }
 
 function editModpack(id) {
@@ -3793,24 +4022,21 @@ function editModpack(id) {
   $("mp-name").value = pack.name || "";
   $("mp-notes").value = pack.notes || "";
   $("mp-save").textContent = "Actualizar";
+  $("mp-delete").hidden = false;
   $("mp-cats").innerHTML = "";
   addMpCatRow();
-  const games = gameOptionsForPacks();
-  if (pack.gameDomain && !games.some(([gid]) => gid === pack.gameDomain)) {
-    games.unshift([pack.gameDomain, pack.gameName || pack.gameDomain]);
-  }
-  $("mp-game").innerHTML = games.map(([gid, label]) => (
-    `<option value="${esc(gid)}" ${gid === pack.gameDomain ? "selected" : ""}>${esc(label)}</option>`
-  )).join("");
+  loadMpMark(pack.id);
 }
 
-async function deleteModpack(id) {
+async function deleteCurrentModpack() {
+  const id = $("mp-edit-id").value;
   const pack = packById(id);
   if (!pack) return;
-  if (!(await askConfirm(`¿Borrar “${pack.name}”? Los mods quedan sin pack.`))) return;
+  if (!(await askConfirm(`¿Eliminar “${pack.name}”? Los mods quedan sin pack.`))) return;
   try {
     await api(`/api/modpacks/${id}`, { method: "DELETE" });
-    toast("Modpack borrado.", "warn");
+    if (state.modpack === id) state.modpack = "";
+    toast("Modpack eliminado.", "warn");
     await load();
     openModpacksDialog();
   } catch (error) {
@@ -3821,13 +4047,14 @@ async function deleteModpack(id) {
 async function saveModpackForm(event) {
   event.preventDefault();
   const name = ($("mp-name").value || "").trim();
-  const gameDomain = $("mp-game").value || "";
+  const editId = $("mp-edit-id").value;
+  const existing = editId ? packById(editId) : null;
+  const gameDomain = existing?.gameDomain || state.game || "";
   if (!name || !gameDomain) {
-    toast("Nombre y juego obligatorios.", "warn");
+    toast("Elige un juego arriba.", "warn");
     return;
   }
-  const editId = $("mp-edit-id").value;
-  const gameName = gameOptionsForPacks().find(([id]) => id === gameDomain)?.[1] || gameDomain;
+  const gameName = existing?.gameName || gameLabel(gameDomain) || gameDomain;
   const body = {
     name,
     gameDomain,
@@ -3863,6 +4090,7 @@ async function saveModpackForm(event) {
       toast(extra.length ? "Modpack creado con categorías." : "Modpack creado.");
     }
     const pack = saved.modpack;
+    if (pack?.id) await applyMpMark(pack.id);
     if (!editId && pack?.id) {
       if (pack.gameDomain) {
         state.game = pack.gameDomain;
@@ -4282,20 +4510,79 @@ $("login-reset").onclick = () => {
   paintLogin();
   $("login-pass").focus();
 };
-$("logout").onclick = async () => {
+$("logout").onclick = () => {
   $("more-pop").hidden = true;
   $("more-open").setAttribute("aria-expanded", "false");
   closeAppMenu();
-  try {
-    await api("/api/logout", { method: "POST" });
-  } catch (_) { /* sigue el cierre local */ }
-  dropSession();
-  state.mods = [];
-  $("login-user").value = "";
-  $("login-pass").value = "";
-  loginMode = "idle";
-  showLogin();
+  askQuit(false);
 };
+
+function savedQuit() {
+  const mode = localStorage.getItem("wi-mod-quit");
+  return mode === "quit" || mode === "tray" ? mode : "";
+}
+
+function askQuit(fromClose) {
+  const dialog = $("quit-dialog");
+  if (!dialog || dialog.open) return;
+  const saved = savedQuit();
+  if (fromClose && saved) {
+    leaveApp(saved, true);
+    return;
+  }
+  const box = $("quit-remember");
+  if (box) box.checked = Boolean(saved);
+  dialog.showModal();
+}
+
+async function leaveApp(mode, remember) {
+  const dialog = $("quit-dialog");
+  const box = $("quit-remember");
+  const keep = remember === undefined ? Boolean(box && box.checked) : remember;
+  if (keep) localStorage.setItem("wi-mod-quit", mode);
+  else localStorage.removeItem("wi-mod-quit");
+  if (dialog && dialog.open) dialog.close();
+  try {
+    await api("/api/quit-pref", { method: "POST", body: JSON.stringify({ mode: keep ? mode : "" }) });
+  } catch (_) { /* la preferencia local basta en el navegador */ }
+  const host = window.pywebview && window.pywebview.api;
+  if (mode === "tray") {
+    if (host && typeof host.tray === "function") {
+      host.tray();
+      return;
+    }
+    toast("La bandeja solo está en la app de escritorio.");
+    return;
+  }
+  if (host && typeof host.quit === "function") {
+    host.quit();
+    return;
+  }
+  window.wiModClosing = true;
+  if (window.__TAURI_INTERNALS__) {
+    import("@tauri-apps/api/window")
+      .then(({ getCurrentWindow }) => getCurrentWindow().close())
+      .catch(() => window.close());
+    return;
+  }
+  window.close();
+}
+
+window.wiModAskQuit = () => askQuit(true);
+
+if ($("quit-cancel")) $("quit-cancel").onclick = () => $("quit-dialog").close();
+if ($("quit-form")) $("quit-form").onsubmit = (event) => {
+  event.preventDefault();
+  $("quit-dialog").close();
+};
+if ($("quit-close")) $("quit-close").onclick = () => leaveApp("quit");
+if ($("quit-tray")) $("quit-tray").onclick = () => leaveApp("tray");
+document.addEventListener("keydown", (event) => {
+  if (event.key === "F4" && event.altKey) {
+    event.preventDefault();
+    askQuit(true);
+  }
+});
 
 const BOOT_LINES = [
   "olfateando la guarida…",
@@ -4357,6 +4644,10 @@ api("/api/session")
   .then((session) => {
     clearTimeout(sessionTimer);
     rememberMachineNames(session);
+    paintAppVersion(session.appVersion);
+    if (session.quitMode === "quit" || session.quitMode === "tray") {
+      localStorage.setItem("wi-mod-quit", session.quitMode);
+    }
     return enterApp();
   })
   .catch((error) => {
@@ -4498,6 +4789,7 @@ function upgradeSelect(select) {
     combo.classList.toggle("off", select.disabled);
   };
   const close = () => {
+    if (pop.matches(":popover-open")) pop.hidePopover();
     pop.hidden = true;
     combo.classList.remove("open");
   };
@@ -4523,14 +4815,34 @@ function upgradeSelect(select) {
     });
   };
   const place = () => {
-    if (pop.parentNode !== document.body) document.body.appendChild(pop);
+    const dialog = face.closest("dialog");
     const rect = face.getBoundingClientRect();
     const width = Math.max(rect.width, 220);
+    const gap = 6;
+    if (dialog) {
+      if (pop.parentNode !== dialog) dialog.appendChild(pop);
+      const host = dialog.getBoundingClientRect();
+      let left = rect.left - host.left;
+      if (host.left + left + width > window.innerWidth - 8) left = window.innerWidth - 8 - host.left - width;
+      pop.style.position = "absolute";
+      pop.style.zIndex = "5";
+      pop.style.width = `${width}px`;
+      pop.style.left = `${Math.max(8, left)}px`;
+      if (window.innerHeight - rect.bottom < 200 && rect.top - host.top > 160) {
+        pop.style.top = "auto";
+        pop.style.bottom = `${host.bottom - rect.top + gap}px`;
+      } else {
+        pop.style.bottom = "auto";
+        pop.style.top = `${rect.bottom - host.top + gap}px`;
+      }
+      return;
+    }
+    if (pop.parentNode !== document.body) document.body.appendChild(pop);
+    pop.style.position = "fixed";
     let left = rect.left;
     if (left + width > window.innerWidth - 8) left = window.innerWidth - 8 - width;
     pop.style.width = `${width}px`;
     pop.style.left = `${Math.max(8, left)}px`;
-    const gap = 6;
     if (window.innerHeight - rect.bottom < 240 && rect.top > 160) {
       pop.style.top = "auto";
       pop.style.bottom = `${window.innerHeight - rect.top + gap}px`;
@@ -4542,14 +4854,16 @@ function upgradeSelect(select) {
   const open = () => {
     if (select.disabled) return;
     document.querySelectorAll(".combo-pop").forEach((panel) => {
-      if (panel !== pop) panel.hidden = true;
+      if (panel === pop) return;
+      if (panel.matches(":popover-open")) panel.hidePopover();
+      panel.hidden = true;
     });
     document.querySelectorAll(".combo.open").forEach((node) => node.classList.remove("open"));
     search.value = "";
     renderList();
+    place();
     pop.hidden = false;
     combo.classList.add("open");
-    place();
     search.focus();
   };
   face.onclick = (event) => {
@@ -4581,7 +4895,10 @@ function installCombos() {
   document.querySelectorAll("select").forEach(upgradeSelect);
   document.addEventListener("click", (event) => {
     if (event.target.closest(".combo, .combo-pop")) return;
-    document.querySelectorAll(".combo-pop").forEach((panel) => { panel.hidden = true; });
+    document.querySelectorAll(".combo-pop").forEach((panel) => {
+      if (panel.matches(":popover-open")) panel.hidePopover();
+      panel.hidden = true;
+    });
     document.querySelectorAll(".combo.open").forEach((node) => node.classList.remove("open"));
   });
 }
@@ -4891,15 +5208,31 @@ function startTour() {
   window.addEventListener("scroll", placeTour, true);
 }
 
-if ($("name-source")) {
-  $("name-source").onclick = () => {
-    state.nameSource = usingPcName() ? "user" : "pc";
-    localStorage.setItem("wi-mod-name-source", state.nameSource);
+if ($("name-custom")) {
+  $("name-custom").onclick = () => {
+    if (!state.customName) state.customName = ($("dock-name").textContent || "").trim();
+    state.nameSource = "custom";
+    localStorage.setItem("wi-mod-name-source", "custom");
+    localStorage.setItem("wi-mod-custom-name", state.customName);
     applyDockName();
-    $("more-pop").hidden = true;
-    $("more-open").setAttribute("aria-expanded", "false");
+    const pop = $("more-pop");
+    if (!pop.hidden) placePop(pop, $("more-open"));
+    const input = $("name-custom-input");
+    if (input) {
+      input.focus();
+      input.select();
+    }
     sfx.click();
   };
+}
+if ($("name-custom-input")) {
+  $("name-custom-input").addEventListener("input", () => {
+    state.customName = $("name-custom-input").value.trim();
+    localStorage.setItem("wi-mod-custom-name", state.customName);
+    const machine = state.windowsUser || state.pcName;
+    setDockName(state.customName || machine || "WYDEX");
+  });
+  $("name-custom-input").addEventListener("keydown", (event) => event.stopPropagation());
 }
 if ($("tour-open")) {
   $("tour-open").onclick = () => {

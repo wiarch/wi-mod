@@ -1,20 +1,16 @@
-/* Prueba web: 9 juegos, 5 mods/juego, reinicio cada 5 h. Claves en demo-keys.js (no se sube a git). */
+/* Prueba web: 5 juegos de serie, máximo 9, 5 mods/juego, reinicio cada 5 h. Claves en demo-keys.js (no se sube a git). */
 (function () {
   const MODS_PER_GAME = 5;
   const GAMES = 9;
   const SEED_DOMAINS = [
-    "darksoulsremastered",
-    "fallout4",
-    "newvegas",
-    "gta5",
-    "gtasa",
-    "minecraft",
-    "stalkershadowofchernobyl",
     "stardewvalley",
+    "minecraft",
+    "gtasa",
     "skyrimspecialedition",
+    "darksoulsremastered",
   ];
   const TTL_MS = 5 * 60 * 60 * 1000;
-  const KEY = "wi-mod-demo-v4";
+  const KEY = "wi-mod-demo-v5";
   const DESKTOP = "La versión de escritorio no tiene este límite.";
   function demoKeys() {
     const raw = (typeof window !== "undefined" && window.__WI_DEMO_KEYS__) || {};
@@ -746,6 +742,8 @@
         machineUser: "WYDEX",
         windowsUser: "WYDEX",
         pcName: "PC",
+        quitMode: "",
+        appVersion: "0.11.0",
       });
     }
     if (path === "/api/logout" && method === "POST") return reply(200, { ok: true });
@@ -1001,8 +999,9 @@
       if ("modpackId" in body) mod.modpackId = String(body.modpackId || "");
       if ("modpackCategoryId" in body) mod.modpackCategoryId = String(body.modpackCategoryId || "");
       if ("status" in body) {
-        const status = String(body.status || "");
-        if (!["", "want", "got", "in"].includes(status)) return reply(400, { error: "Estado no válido." });
+        let status = String(body.status || "");
+        if (status === "want") status = "";
+        if (!["", "got", "in"].includes(status)) return reply(400, { error: "Estado no válido." });
         mod.status = status;
       }
       if ("packOrder" in body) mod.packOrder = Math.max(0, Number(body.packOrder) || 0);
@@ -1067,6 +1066,33 @@
 
     if (path === "/api/refresh" || path === "/api/export" || path === "/api/import" || path === "/api/import/preview" || path === "/api/translate" || path === "/api/localize") {
       return reply(400, { error: desktopOnly() });
+    }
+    if (path === "/api/catalog/rename" && method === "POST") {
+      const body = await readJson(init);
+      const from = String(body.from || "").trim();
+      const name = String(body.name || "").trim();
+      if (!from || !name) return reply(400, { error: "Nombre vacío." });
+      data.categories = data.categories || [];
+      if (from.toLowerCase() !== name.toLowerCase() && data.categories.some((item) => String(item).toLowerCase() === name.toLowerCase())) {
+        return reply(400, { error: "Esa categoría ya existe." });
+      }
+      let replaced = false;
+      data.categories = data.categories.map((item) => {
+        if (String(item).toLowerCase() !== from.toLowerCase()) return item;
+        replaced = true;
+        return name;
+      });
+      if (!replaced) data.categories.push(name);
+      data.marks = data.marks || {};
+      if (from !== name && data.marks[`category:${from}`]) {
+        data.marks[`category:${name}`] = data.marks[`category:${from}`];
+        delete data.marks[`category:${from}`];
+      }
+      (data.mods || []).forEach((mod) => {
+        if (String(mod.category || "") === from) mod.category = name;
+      });
+      save(data);
+      return reply(200, { catalog: library(data).catalog });
     }
     if (path === "/api/catalog/mark" && method === "POST") {
       const body = await readJson(init);
