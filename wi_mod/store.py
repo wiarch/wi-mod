@@ -165,6 +165,54 @@ class Library:
             self._write(data)
             return updated
 
+    def clone_many(self, ids: list[Any]) -> list[dict[str, Any]]:
+        clean: list[str] = []
+        seen: set[str] = set()
+        for raw in ids or []:
+            mod_id = str(raw or "").strip()
+            if not mod_id or mod_id in seen:
+                continue
+            seen.add(mod_id)
+            clean.append(mod_id)
+        if not clean:
+            raise ValueError("Nada que pegar.")
+        if len(clean) > 200:
+            raise ValueError("Demasiados mods a la vez.")
+        with self._lock:
+            data = self._read()
+            self._migrate(data)
+            clones: list[dict[str, Any]] = []
+            for mod_id in clean:
+                src = self._find(data["mods"], mod_id)
+                if not src:
+                    raise ValueError("Hay un mod copiado que ya no existe.")
+                clone = json.loads(json.dumps(src))
+                clone["id"] = uuid.uuid4().hex
+                base = str(src.get("name") or "Mod").strip() or "Mod"
+                clone["name"] = base if base.endswith(" copia") else f"{base} copia"
+                clone["files"] = []
+                clone["addedAt"] = now()
+                clone["pictureFile"] = self._copy_picture(src.get("pictureFile"))
+                data["mods"].insert(0, clone)
+                clones.append(clone)
+            self._write(data)
+            return clones
+
+    def _copy_picture(self, relative: str | None) -> str | None:
+        if not relative:
+            return None
+        try:
+            src = self.absolute(str(relative))
+        except ValueError:
+            return None
+        if not src.is_file():
+            return None
+        dest_rel = f"images/{uuid.uuid4().hex}{src.suffix.lower()}"
+        dest = self.absolute(dest_rel)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest)
+        return dest_rel
+
     def _apply_user(self, mod: dict[str, Any], fields: dict[str, Any], packs: list[dict[str, Any]]) -> None:
         if "category" in fields:
             new_cat = str(fields["category"] or "General").strip() or "General"
@@ -376,7 +424,7 @@ class Library:
             self._kv_set("settings", json.dumps(current, ensure_ascii=False))
 
     def set_theme(self, theme: str) -> None:
-        allowed = {"nexus", "modrinth", "curseforge", "steam", "rawg"}
+        allowed = {"nexus", "modrinth", "curseforge", "steam", "moddb", "rawg"}
         picked = str(theme or "").strip().lower()
         if picked not in allowed:
             picked = "nexus"
@@ -1104,7 +1152,7 @@ class Library:
         with self._lock:
             row = self._user_row(username)
         if not row:
-            return {"exists": False, "needsPassword": False, "passwordLength": None, "username": ""}
+            return {"exists": False, "needsPassword": False, "username": ""}
         stored = str(row["password_hash"] or "")
         length = row["password_len"]
         return {
@@ -1151,18 +1199,8 @@ class Library:
         secret = str(password or "")
         if not stored:
             self._write_password(row["username"], secret)
-        else:
-            expected = row["password_len"]
-            if expected and len(secret) != int(expected):
-                raise ValueError("Clave incorrecta.")
-            if not _check_password(secret, stored):
-                raise ValueError("Clave incorrecta.")
-            if not expected:
-                with self._cx() as conn:
-                    conn.execute(
-                        "UPDATE users SET password_len = ? WHERE username = ?",
-                        (len(secret), row["username"]),
-                    )
+        elif not _check_password(secret, stored):
+            raise ValueError("Clave incorrecta.")
         return self._open_session(row["username"], remember)
 
     def _user_row(self, username: str):

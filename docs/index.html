@@ -12,49 +12,83 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root, html[data-theme="nexus"] {
-      --bg: #0f1115;
-      --bg-2: #141820;
-      --bg-deep: #0a0c10;
-      --text: #f4f1ea;
+      --bg: #141210;
+      --bg-2: #1c1916;
+      --bg-deep: #0c0b0a;
+      --text: #f6efe6;
       --muted: #c9c3b8;
       --line: rgba(255, 255, 255, 0.08);
-      --copper: #ff6a00;
-      --hot: #ffb300;
-      --ember: #ff6a00;
-      --glow: rgba(255, 106, 0, 0.32);
-      --glow-2: rgba(255, 179, 0, 0.18);
+      --copper: #e08a2c;
+      --hot: #f0a04a;
+      --ember: #c45c26;
+      --ink: #1a1208;
+      --glow: rgba(224, 138, 44, 0.34);
+      --glow-2: rgba(240, 160, 74, 0.18);
       --glass: rgba(255, 255, 255, 0.03);
-      --glass-border: rgba(255, 166, 0, 0.22);
+      --glass-border: rgba(224, 138, 44, 0.28);
     }
     html[data-theme="modrinth"] {
-      --copper: #1bd96a; --hot: #3eec84; --ember: #0e9f4d;
-      --glow: rgba(27, 217, 106, 0.28); --glow-2: rgba(62, 236, 132, 0.16);
+      --bg: #16181c; --bg-2: #1e2126; --bg-deep: #0e1013;
+      --text: #e8eef2; --muted: #c5d0d8;
+      --copper: #1bd96a; --hot: #3eec84; --ember: #0e9f4d; --ink: #06210f;
+      --glow: rgba(27, 217, 106, 0.32); --glow-2: rgba(62, 236, 132, 0.16);
       --glass-border: rgba(27, 217, 106, 0.28);
     }
     html[data-theme="curseforge"] {
-      --copper: #f16436; --hot: #ff8a5b; --ember: #c2410c;
-      --glow: rgba(241, 100, 54, 0.28); --glow-2: rgba(255, 138, 91, 0.16);
+      --bg: #121212; --bg-2: #1a1a1a; --bg-deep: #0a0a0a;
+      --text: #f4ece8; --muted: #d4c4bc;
+      --copper: #f16436; --hot: #ff8a5b; --ember: #c2410c; --ink: #2a100a;
+      --glow: rgba(241, 100, 54, 0.32); --glow-2: rgba(255, 138, 91, 0.16);
       --glass-border: rgba(241, 100, 54, 0.28);
     }
     html[data-theme="steam"] {
-      --copper: #66c0f4; --hot: #8fd4ff; --ember: #1a9fff;
-      --glow: rgba(102, 192, 244, 0.26); --glow-2: rgba(26, 159, 255, 0.16);
+      --bg: #171a21; --bg-2: #1b2838; --bg-deep: #0e141b;
+      --text: #e8f4fc; --muted: #c5d4de;
+      --copper: #66c0f4; --hot: #8fd4ff; --ember: #1a9fff; --ink: #0b1b28;
+      --glow: rgba(102, 192, 244, 0.32); --glow-2: rgba(26, 159, 255, 0.18);
       --glass-border: rgba(102, 192, 244, 0.28);
     }
+    html[data-theme="moddb"] {
+      --bg: #140c0c; --bg-2: #1c1010; --bg-deep: #0c0707;
+      --text: #f8f1f1; --muted: #d4b8b8;
+      --copper: #e10600; --hot: #ff3b30; --ember: #9b0d0d; --ink: #1a0808;
+      --glow: rgba(225, 6, 0, 0.36); --glow-2: rgba(255, 59, 48, 0.18);
+      --glass-border: rgba(225, 6, 0, 0.32);
+    }
     html[data-theme="rawg"] {
-      --copper: #ffffff; --hot: #f4f4f4; --ember: #d0d0d0;
-      --glow: rgba(255, 255, 255, 0.14); --glow-2: rgba(255, 255, 255, 0.08);
+      --bg: #151515; --bg-2: #1a1a1a; --bg-deep: #0d0d0d;
+      --text: #ffffff; --muted: #d0d0d0;
+      --copper: #ffffff; --hot: #f4f4f4; --ember: #d0d0d0; --ink: #151515;
+      --glow: rgba(255, 255, 255, 0.16); --glow-2: rgba(255, 255, 255, 0.08);
       --glass-border: rgba(255, 255, 255, 0.18);
     }
     * { box-sizing: border-box; }
+    html {
+      scroll-behavior: smooth;
+      scrollbar-width: thin;
+      scrollbar-color: var(--copper) var(--bg-deep);
+    }
+    html::-webkit-scrollbar { width: 10px; height: 10px; }
+    html::-webkit-scrollbar-track {
+      background: color-mix(in srgb, var(--bg-deep) 88%, var(--copper));
+    }
+    html::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, var(--hot), var(--copper));
+      border: 2px solid var(--bg-deep);
+      border-radius: 999px;
+    }
+    html::-webkit-scrollbar-thumb:hover {
+      background: var(--hot);
+    }
     html, body { margin: 0; min-height: 100%; }
     body {
       position: relative;
       isolation: isolate;
       font-family: Inter, "Segoe UI", system-ui, sans-serif;
       color: var(--text);
-      background: var(--bg);
+      background: linear-gradient(165deg, var(--bg-2), var(--bg) 42%, var(--bg-deep));
       overflow-x: hidden;
+      transition: background 0.45s ease, color 0.35s ease;
     }
     body::before,
     body::after {
@@ -63,21 +97,21 @@
       z-index: -1;
       pointer-events: none;
       border-radius: 50%;
-      filter: blur(90px);
+      transition: background 0.45s ease;
     }
     body::before {
       width: min(780px, 95vw);
       height: min(780px, 95vw);
       top: -22%;
       left: -18%;
-      background: radial-gradient(circle, rgba(255, 106, 0, 0.28) 0%, transparent 68%);
+      background: radial-gradient(circle, var(--glow) 0%, transparent 72%);
     }
     body::after {
       width: min(700px, 90vw);
       height: min(700px, 90vw);
       top: 12%;
       right: -20%;
-      background: radial-gradient(circle, rgba(255, 179, 0, 0.16) 0%, transparent 70%);
+      background: radial-gradient(circle, var(--glow-2) 0%, transparent 74%);
     }
     a { color: inherit; text-decoration: none; }
     .wrap { width: min(1120px, calc(100% - 40px)); margin: 0 auto; position: relative; z-index: 1; }
@@ -129,8 +163,8 @@
       transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
     }
     .gh-link:hover {
-      border-color: rgba(255, 106, 0, 0.55);
-      box-shadow: 0 0 18px rgba(255, 106, 0, 0.22);
+      border-color: color-mix(in srgb, var(--copper) 55%, transparent);
+      box-shadow: 0 0 18px color-mix(in srgb, var(--copper) 22%, transparent);
       transform: translateY(-1px);
     }
     .gh-link svg { width: 16px; height: 16px; }
@@ -155,8 +189,8 @@
     }
     .lang-switch button + button { border-left: 1px solid rgba(255, 255, 255, 0.1); }
     .lang-switch button.on {
-      background: linear-gradient(120deg, #ff6a00, #ffb300);
-      color: #0f1115;
+      background: linear-gradient(120deg, var(--copper), var(--hot));
+      color: var(--ink);
     }
 
     .hero {
@@ -172,11 +206,11 @@
       margin: 0 0 18px;
       padding: 6px 12px;
       border-radius: 999px;
-      border: 1px solid rgba(255, 106, 0, 0.45);
-      color: #ffb300;
+      border: 1px solid color-mix(in srgb, var(--copper) 45%, transparent);
+      color: var(--hot);
       font-size: 0.8rem;
       font-weight: 700;
-      background: rgba(255, 106, 0, 0.08);
+      background: color-mix(in srgb, var(--copper) 8%, transparent);
     }
     h1 {
       margin: 0 0 16px;
@@ -184,7 +218,7 @@
       line-height: 1.05;
       letter-spacing: -0.04em;
       font-weight: 800;
-      background: linear-gradient(to right, #ff6a00, #ffb300);
+      background: linear-gradient(to right, var(--copper), var(--hot));
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
@@ -211,15 +245,15 @@
       border-radius: 999px;
       border: 0;
       font-weight: 800;
-      color: #0f1115;
-      background: linear-gradient(120deg, #ff6a00, #ffb300);
-      box-shadow: 0 10px 36px rgba(255, 106, 0, 0.42);
+      color: var(--ink);
+      background: linear-gradient(120deg, var(--copper), var(--hot));
+      box-shadow: 0 10px 36px color-mix(in srgb, var(--copper) 42%, transparent);
       transition: transform 0.22s ease, filter 0.22s ease, box-shadow 0.22s ease;
     }
     .download:hover {
       filter: brightness(1.06);
       transform: translateY(-2px);
-      box-shadow: 0 16px 44px rgba(255, 106, 0, 0.52);
+      box-shadow: 0 16px 44px color-mix(in srgb, var(--copper) 52%, transparent);
     }
     .try {
       display: inline-flex;
@@ -227,16 +261,16 @@
       justify-content: center;
       padding: 12px 18px;
       border-radius: 999px;
-      border: 1px solid rgba(255, 106, 0, 0.55);
+      border: 1px solid color-mix(in srgb, var(--copper) 55%, transparent);
       font-weight: 700;
-      color: #ffb300;
-      background: rgba(255, 106, 0, 0.06);
+      color: var(--hot);
+      background: color-mix(in srgb, var(--copper) 6%, transparent);
       backdrop-filter: blur(10px);
       transition: background 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
     }
     .try:hover {
-      background: rgba(255, 106, 0, 0.14);
-      box-shadow: 0 0 24px rgba(255, 106, 0, 0.25);
+      background: color-mix(in srgb, var(--copper) 14%, transparent);
+      box-shadow: 0 0 24px color-mix(in srgb, var(--copper) 25%, transparent);
       transform: translateY(-1px);
     }
     .cta-meta {
@@ -269,7 +303,7 @@
       position: absolute;
       inset: 12% -6% -8% 6%;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(255, 106, 0, 0.4), transparent 68%);
+      background: radial-gradient(circle, color-mix(in srgb, var(--copper) 40%, transparent), transparent 68%);
       filter: blur(28px);
       z-index: 0;
     }
@@ -282,17 +316,17 @@
       background: #12151c;
       overflow: hidden;
       box-shadow:
-        0 0 0 1px rgba(255, 106, 0, 0.22),
+        0 0 0 1px color-mix(in srgb, var(--copper) 22%, transparent),
         0 30px 70px rgba(0, 0, 0, 0.55),
-        0 0 56px rgba(255, 106, 0, 0.28);
+        0 0 56px color-mix(in srgb, var(--copper) 28%, transparent);
       transition: transform 0.35s ease, box-shadow 0.35s ease;
     }
     .hero-mockup:hover .mock-frame {
       transform: perspective(1200px) rotateY(-4deg) rotateX(2deg) translateY(-6px);
       box-shadow:
-        0 0 0 1px rgba(255, 179, 0, 0.3),
+        0 0 0 1px color-mix(in srgb, var(--hot) 30%, transparent),
         0 36px 80px rgba(0, 0, 0, 0.6),
-        0 0 64px rgba(255, 106, 0, 0.35);
+        0 0 64px color-mix(in srgb, var(--copper) 35%, transparent);
     }
     .mock-top {
       display: flex;
@@ -325,7 +359,7 @@
     .mock-chip {
       height: 10px;
       border-radius: 999px;
-      background: linear-gradient(90deg, rgba(255,106,0,0.5), rgba(255,179,0,0.18));
+      background: linear-gradient(90deg, color-mix(in srgb, var(--copper) 50%, transparent), color-mix(in srgb, var(--hot) 18%, transparent));
     }
     .mock-chip.short { width: 62%; }
     .mock-chip.dim { opacity: 0.45; }
@@ -380,12 +414,14 @@
       letter-spacing: -0.02em;
       color: var(--text);
     }
+    .section-title.center { text-align: center; }
 
     .platforms {
       display: flex;
       flex-wrap: wrap;
+      justify-content: center;
       gap: 10px;
-      margin: 0 0 44px;
+      margin: 0 0 14px;
       padding: 14px;
       border-radius: 16px;
       border: 1px solid var(--glass-border);
@@ -394,8 +430,8 @@
       transition: border-color 0.28s ease, box-shadow 0.28s ease;
     }
     .platforms:hover {
-      border-color: rgba(255, 106, 0, 0.4);
-      box-shadow: 0 0 28px rgba(255, 106, 0, 0.1);
+      border-color: color-mix(in srgb, var(--copper) 40%, transparent);
+      box-shadow: 0 0 28px color-mix(in srgb, var(--copper) 10%, transparent);
     }
     .platforms button {
       display: inline-flex;
@@ -413,18 +449,41 @@
       transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
     }
     .platforms button:hover {
-      border-color: rgba(255, 106, 0, 0.55);
-      background: rgba(255, 106, 0, 0.12);
-      box-shadow: 0 0 20px rgba(255, 106, 0, 0.25);
+      border-color: color-mix(in srgb, var(--copper) 55%, transparent);
+      background: color-mix(in srgb, var(--copper) 12%, transparent);
+      box-shadow: 0 0 20px color-mix(in srgb, var(--copper) 25%, transparent);
       transform: translateY(-2px);
     }
-    .platforms button:focus-visible { outline: 2px solid #ffb300; outline-offset: 2px; }
+    .platforms button:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px; }
     .platforms button.on {
-      border-color: rgba(255, 179, 0, 0.65);
-      background: rgba(255, 106, 0, 0.16);
-      box-shadow: 0 0 0 1px rgba(255, 106, 0, 0.3), 0 0 22px rgba(255, 106, 0, 0.22);
+      border-color: color-mix(in srgb, var(--hot) 65%, transparent);
+      background: color-mix(in srgb, var(--copper) 16%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--copper) 30%, transparent), 0 0 22px color-mix(in srgb, var(--copper) 22%, transparent);
     }
     .platforms img { width: 18px; height: 18px; object-fit: contain; }
+    .plat-info {
+      max-width: 720px;
+      margin: 0 auto 40px;
+      padding: 0 20px;
+      border-radius: 16px;
+      border: 1px solid transparent;
+      background: transparent;
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease, border-color 0.25s ease, background 0.25s ease;
+    }
+    .plat-info.open {
+      max-height: 280px;
+      opacity: 1;
+      padding: 18px 20px;
+      border-color: var(--glass-border);
+      background: var(--glass);
+      backdrop-filter: blur(10px);
+    }
+    .plat-info strong { display: block; margin-bottom: 6px; font-size: 1.12rem; }
+    .plat-info p { margin: 0 0 8px; color: var(--muted); font-weight: 500; }
+    .plat-info .use { margin: 0; color: var(--text); }
     .platforms .tag-static { cursor: default; opacity: 0.9; }
     .platforms .tag-static:hover {
       transform: none;
@@ -449,9 +508,9 @@
       transition: border-color 0.28s ease, box-shadow 0.28s ease, transform 0.28s ease, background 0.28s ease;
     }
     .card:hover {
-      border-color: rgba(255, 106, 0, 0.5);
+      border-color: color-mix(in srgb, var(--copper) 50%, transparent);
       background: rgba(255, 255, 255, 0.05);
-      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3), 0 0 28px rgba(255, 106, 0, 0.14);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3), 0 0 28px color-mix(in srgb, var(--copper) 14%, transparent);
       transform: translateY(-4px);
     }
     .card .ico {
@@ -461,13 +520,13 @@
       display: grid;
       place-items: center;
       margin-bottom: 14px;
-      background: rgba(255, 106, 0, 0.12);
-      color: #ffb300;
+      background: color-mix(in srgb, var(--copper) 12%, transparent);
+      color: var(--hot);
       transition: transform 0.28s ease, box-shadow 0.28s ease;
     }
     .card:hover .ico {
       transform: scale(1.08);
-      box-shadow: 0 0 22px rgba(255, 106, 0, 0.28);
+      box-shadow: 0 0 22px color-mix(in srgb, var(--copper) 28%, transparent);
     }
     .card .ico svg { width: 20px; height: 20px; }
     .card strong { display: block; margin-bottom: 8px; font-size: 1.05rem; font-weight: 800; }
@@ -493,9 +552,9 @@
       transition: border-color 0.28s ease, box-shadow 0.28s ease, transform 0.28s ease, background 0.28s ease;
     }
     .step:hover {
-      border-color: rgba(255, 106, 0, 0.5);
+      border-color: color-mix(in srgb, var(--copper) 50%, transparent);
       background: rgba(255, 255, 255, 0.03);
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25), 0 0 24px rgba(255, 106, 0, 0.12);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25), 0 0 24px color-mix(in srgb, var(--copper) 12%, transparent);
       transform: translateY(-3px);
     }
     .step em {
@@ -504,7 +563,7 @@
       font-size: 2.2rem;
       line-height: 1;
       letter-spacing: -0.04em;
-      background: linear-gradient(to bottom, #ff6a00, #ffb300);
+      background: linear-gradient(to bottom, var(--copper), var(--hot));
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
@@ -529,8 +588,8 @@
       border-radius: 10px;
       display: grid;
       place-items: center;
-      background: rgba(255, 106, 0, 0.1);
-      color: #ffb300;
+      background: color-mix(in srgb, var(--copper) 10%, transparent);
+      color: var(--hot);
     }
     .step .ico svg { width: 18px; height: 18px; }
 
@@ -547,7 +606,7 @@
       color: var(--muted);
       transition: color 0.2s ease;
     }
-    footer a:hover { color: #ffb300; }
+    footer a:hover { color: var(--hot); }
     .foot-note { margin-left: auto; opacity: 0.85; }
 
     @media (max-width: 900px) {
@@ -586,6 +645,7 @@
       .foot-note { margin-left: 0; width: 100%; text-align: center; }
     }
     @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
       *, *::before, *::after {
         transition-duration: 0.01ms !important;
         animation-duration: 0.01ms !important;
@@ -608,7 +668,7 @@
           <button type="button" data-lang="es" class="on">ES</button>
           <button type="button" data-lang="en">EN</button>
         </div>
-        <span class="ver-badge" data-i18n="verBadge"><strong>v0.7.6</strong> · Windows · Linux (beta)</span>
+        <span class="ver-badge" data-i18n="verBadge"><strong>v0.8.0</strong> · Windows · Linux (beta)</span>
         <a class="gh-link" href="https://github.com/wiarch/wi-mod" target="_blank" rel="noreferrer" aria-label="GitHub">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2C6.48 2 2 6.58 2 12.26c0 4.52 2.87 8.35 6.84 9.71.5.1.68-.22.68-.48 0-.24-.01-.87-.01-1.71-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.37-2.22-.26-4.55-1.14-4.55-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.73 0 0 .84-.27 2.75 1.05A9.3 9.3 0 0 1 12 6.84c.85 0 1.71.12 2.51.34 1.9-1.32 2.74-1.05 2.74-1.05.55 1.42.21 2.47.1 2.73.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.8-4.57 5.06.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.59.69.48A10.03 10.03 0 0 0 22 12.26C22 6.58 17.52 2 12 2z"/></svg>
         </a>
@@ -668,15 +728,20 @@
       </div>
     </section>
 
-    <h2 class="section-title" data-i18n="platTitle">Plataformas</h2>
+    <h2 class="section-title center" data-i18n="platTitle">Plataformas</h2>
     <div class="platforms" role="group" aria-label="Tema y plataformas">
       <button type="button" data-theme="nexus" class="on"><img src="brand/nexus.ico" alt="">Nexus Mods</button>
       <button type="button" data-theme="modrinth"><img src="brand/modrinth.png" alt="">Modrinth</button>
       <button type="button" data-theme="curseforge"><img src="brand/curseforge.ico" alt="">CurseForge</button>
       <button type="button" data-theme="steam"><img src="brand/steam.ico" alt="">Steam Workshop</button>
-      <button type="button" class="tag-static" tabindex="-1"><img src="brand/moddb.png" alt="">ModDB</button>
+      <button type="button" data-theme="moddb"><img src="brand/moddb.png" alt="">ModDB</button>
       <button type="button" data-theme="rawg"><img src="brand/rawg.png" alt="">RAWG</button>
     </div>
+    <article class="plat-info" id="plat-info" hidden>
+      <strong id="plat-info-name"></strong>
+      <p id="plat-info-what"></p>
+      <p class="use" id="plat-info-use"></p>
+    </article>
 
     <h2 class="section-title" data-i18n="whyTitle">Por qué wi-mod</h2>
     <section class="grid">
@@ -739,9 +804,9 @@
 
     <footer>
       <a href="https://github.com/wiarch/wi-mod" target="_blank" rel="noreferrer">GitHub</a>
-      <a href="https://github.com/wiarch/wi-mod#readme" target="_blank" rel="noreferrer" data-i18n="footDocs">Documentación</a>
-      <a href="https://github.com/wiarch/wi-mod/blob/main/LICENSE" target="_blank" rel="noreferrer" data-i18n="footLic">Licencias</a>
-      <span class="foot-note" data-i18n="foot">wi-mod 0.7.6 · open source</span>
+      <a href="documentacion.html" data-i18n="footDocs">Documentación</a>
+      <a href="licencia.html" data-i18n="footLic">Licencia</a>
+      <span class="foot-note" data-i18n="foot">wi-mod 0.8.0 · open source</span>
     </footer>
   </div>
   <script>
@@ -749,7 +814,7 @@
       es: {
         title: "wi-mod — portable",
         desc: "wi-mod: gestor local de mods open source para la comunidad. Multi-juego y multi-plataforma.",
-        verBadge: "<strong>v0.7.6</strong> · Windows · Linux (beta)",
+        verBadge: "<strong>v0.8.0</strong> · Windows · Linux (beta)",
         badge: "Open source · Pensado para la comunidad",
         h1: "Tu biblioteca de mods. Totalmente local. Sin cuentas.",
         lead: "Junta mods de múltiples plataformas en una sola biblioteca portable, rápida y privada en tu PC.",
@@ -776,12 +841,12 @@
         s3p: "El primer usuario lo creas tú. Tus mods quedan en data/.",
         footDocs: "Documentación",
         footLic: "Licencias",
-        foot: "wi-mod 0.7.6 · open source",
+        foot: "wi-mod 0.8.0 · open source",
       },
       en: {
         title: "wi-mod — portable",
         desc: "wi-mod is an open-source local mod manager for the community. Multi-game, multi-platform.",
-        verBadge: "<strong>v0.7.6</strong> · Windows · Linux (beta)",
+        verBadge: "<strong>v0.8.0</strong> · Windows · Linux (beta)",
         badge: "Open source · Built for the community",
         h1: "Your mod library. Fully local. No accounts.",
         lead: "Gather mods from multiple platforms into one portable, fast, and private library on your PC.",
@@ -808,7 +873,7 @@
         s3p: "You create the first user. Your mods live in data/.",
         footDocs: "Docs",
         footLic: "License",
-        foot: "wi-mod 0.7.6 · open source",
+        foot: "wi-mod 0.8.0 · open source",
       },
     };
 
@@ -818,6 +883,8 @@
       const nav = String(navigator.language || navigator.userLanguage || "es").toLowerCase();
       return nav.startsWith("es") ? "es" : "en";
     }
+
+    let platOpen = null;
 
     function applyLang(lang) {
       const pack = I18N[lang] || I18N.es;
@@ -833,6 +900,7 @@
         btn.classList.toggle("on", btn.dataset.lang === lang);
       });
       localStorage.setItem("wi-mod-lang", lang);
+      if (platOpen) paintPlat(platOpen);
     }
 
     document.querySelectorAll(".lang-switch [data-lang]").forEach((btn) => {
@@ -840,14 +908,54 @@
     });
     applyLang(detectLang());
 
-    const THEMES = ["nexus", "modrinth", "curseforge", "steam", "rawg"];
-    function applyTheme(theme) {
+    const THEMES = ["nexus", "modrinth", "curseforge", "steam", "moddb", "rawg"];
+    const PLAT = {
+      es: {
+        nexus: ["Nexus Mods", "Web de mods para juegos de un jugador: Skyrim, Fallout, Cyberpunk y miles más.", "En wi-mod buscas o pegas la ficha. Hace falta tu clave de Nexus. El mod se guarda en tu PC, no se instala solo en el juego."],
+        modrinth: ["Modrinth", "Plataforma abierta, sobre todo de Minecraft: mods, modpacks, resource packs y shaders.", "La API es pública, sin clave. wi-mod busca el proyecto y archiva el enlace en la biblioteca."],
+        curseforge: ["CurseForge", "Mods y modpacks de Minecraft, WoW y otros juegos, publicados en CurseForge.", "Buscas con tu clave de CurseForge y guardas la ficha junto al resto, en la misma biblioteca."],
+        steam: ["Steam Workshop", "Mods que viven dentro de Steam. Te suscribes desde el cliente de Steam.", "wi-mod guarda la página del Workshop. Para buscar desde la app hace falta clave de Steam."],
+        moddb: ["ModDB", "Sitio independiente de mods y juegos indie. Muchas fichas clásicas están aquí.", "No pide clave. Pegas la URL de moddb.com y wi-mod la archiva. El botón también cambia la paleta al rojo de ModDB."],
+        rawg: ["RAWG", "Base de datos de juegos, no de mods. Trae portada, nombre y ficha del juego.", "Sirve para dar de alta el juego en la biblioteca. Los mods se cuelgan de ese juego. Hace falta clave RAWG."],
+      },
+      en: {
+        nexus: ["Nexus Mods", "Mod site for single-player games: Skyrim, Fallout, Cyberpunk, and thousands more.", "Search or paste the page in wi-mod. You need your Nexus key. The mod is stored on your PC; it is not installed into the game."],
+        modrinth: ["Modrinth", "Open platform, mainly Minecraft: mods, modpacks, resource packs, and shaders.", "The API is public, no key. wi-mod searches the project and keeps the link in your library."],
+        curseforge: ["CurseForge", "Mods and modpacks for Minecraft, WoW, and other games hosted on CurseForge.", "Search with your CurseForge key and save the page next to everything else."],
+        steam: ["Steam Workshop", "Mods that live inside Steam. You subscribe from the Steam client.", "wi-mod stores the Workshop page. Searching from the app needs a Steam key."],
+        moddb: ["ModDB", "Independent site for mods and indie games. A lot of classic pages live here.", "No key. Paste a moddb.com URL and wi-mod files it. The button also switches the palette to ModDB red."],
+        rawg: ["RAWG", "A game database, not a mod host. It supplies cover, name, and the game page.", "Use it to add the game to your library. Mods hang off that game. You need a RAWG key."],
+      },
+    };
+    function paintPlat(theme) {
+      const lang = document.documentElement.lang === "en" ? "en" : "es";
+      const row = (PLAT[lang] || PLAT.es)[theme];
+      const box = document.getElementById("plat-info");
+      if (!box || !row) return;
+      document.getElementById("plat-info-name").textContent = row[0];
+      document.getElementById("plat-info-what").textContent = row[1];
+      document.getElementById("plat-info-use").textContent = row[2];
+      box.hidden = false;
+      requestAnimationFrame(() => box.classList.add("open"));
+    }
+    function applyTheme(theme, toggle) {
       const next = THEMES.includes(theme) ? theme : "nexus";
       document.documentElement.dataset.theme = next;
       document.querySelectorAll(".platforms [data-theme]").forEach((btn) => {
-        btn.classList.toggle("on", btn.dataset.theme === next);
+        const on = btn.dataset.theme === next;
+        btn.classList.toggle("on", on);
+        btn.setAttribute("aria-expanded", on && platOpen === next ? "true" : "false");
       });
       localStorage.setItem("wi-mod-theme", next);
+      const box = document.getElementById("plat-info");
+      if (toggle && platOpen === next) {
+        platOpen = null;
+        box.classList.remove("open");
+        document.querySelectorAll(".platforms [data-theme]").forEach((btn) => btn.setAttribute("aria-expanded", "false"));
+        return;
+      }
+      platOpen = next;
+      paintPlat(next);
     }
     function detectTheme() {
       const saved = localStorage.getItem("wi-mod-theme");
@@ -855,9 +963,13 @@
       return "nexus";
     }
     document.querySelectorAll(".platforms [data-theme]").forEach((btn) => {
-      btn.addEventListener("click", () => applyTheme(btn.dataset.theme));
+      btn.addEventListener("click", () => applyTheme(btn.dataset.theme, true));
     });
-    applyTheme(detectTheme());
+    applyTheme(detectTheme(), false);
+    platOpen = null;
+    document.getElementById("plat-info").classList.remove("open");
+    document.getElementById("plat-info").hidden = true;
+    document.querySelectorAll(".platforms [data-theme]").forEach((btn) => btn.setAttribute("aria-expanded", "false"));
   </script>
 </body>
 </html>

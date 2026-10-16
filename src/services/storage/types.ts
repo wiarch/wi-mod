@@ -1,6 +1,6 @@
 /** Tipos alineados con `wi_mod/store.py` (ficha de mod + ajustes). */
 
-export type ThemeId = "nexus" | "modrinth" | "curseforge" | "steam" | "rawg";
+export type ThemeId = "nexus" | "modrinth" | "curseforge" | "steam" | "moddb" | "rawg";
 export type LanguageId = "es" | "en";
 
 export interface ModFile {
@@ -133,7 +133,7 @@ export function blankMod(partial: Partial<Mod> = {}): Mod {
 export function normalizeSettings(raw: unknown): Settings {
   const data = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const theme = String(data.theme || "nexus").toLowerCase();
-  const allowed: ThemeId[] = ["nexus", "modrinth", "curseforge", "steam", "rawg"];
+  const allowed: ThemeId[] = ["nexus", "modrinth", "curseforge", "steam", "moddb", "rawg"];
   return {
     apiKey: String(data.apiKey || ""),
     rawgApiKey: String(data.rawgApiKey || ""),

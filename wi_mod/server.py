@@ -369,6 +369,8 @@ def make_handler(app: App):
                 fields = {}
                 if "category" in body:
                     fields["category"] = body.get("category")
+                if "platform" in body:
+                    fields["platform"] = str(body.get("platform") or "").strip()
                 if "modpackId" in body or "modpackCategoryId" in body:
                     fields["modpackId"] = body.get("modpackId") or ""
                     fields["modpackCategoryId"] = body.get("modpackCategoryId") or ""
@@ -376,6 +378,17 @@ def make_handler(app: App):
                     raise ValueError("Elige categoría o modpack.")
                 updated = app.library.update_many(ids, fields)
                 self._json(200, {"mods": [_public_mod(mod) for mod in updated], "count": len(updated)})
+                return
+            if path == "/api/mods/clone":
+                body = self._json_body()
+                ids = body.get("ids")
+                if not isinstance(ids, list) or not ids:
+                    raise ValueError("Nada que pegar.")
+                for item in ids:
+                    if not isinstance(item, str) or not _ID.match(item):
+                        raise ValueError("Hay un mod copiado que no existe.")
+                clones = app.library.clone_many(ids)
+                self._json(201, {"mods": [_public_mod(mod) for mod in clones], "count": len(clones)})
                 return
             if path == "/api/mods":
                 body = self._json_body()
@@ -738,7 +751,7 @@ def _key_flags(app: App) -> dict:
 
 def _theme_name(value: object) -> str:
     raw = str(value or "nexus").strip().lower()
-    if raw in {"nexus", "modrinth", "curseforge", "steam", "rawg"}:
+    if raw in {"nexus", "modrinth", "curseforge", "steam", "moddb", "rawg"}:
         return raw
     return "nexus"
 

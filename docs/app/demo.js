@@ -912,6 +912,22 @@
       save(data);
       return reply(201, { mod });
     }
+    if (path === "/api/mods/clone" && method === "POST") {
+      const body = await readJson(init);
+      const ids = body.ids || [];
+      const clones = [];
+      ids.forEach((modId) => {
+        const src = findMod(data, modId);
+        if (!src) return;
+        const clone = { ...src, id: Math.random().toString(16).slice(2).padEnd(32, "0").slice(0, 32), files: [] };
+        const base = String(src.name || "Mod");
+        clone.name = base.endsWith(" copia") ? base : `${base} copia`;
+        data.mods.unshift(clone);
+        clones.push(clone);
+      });
+      save(data);
+      return reply(201, { mods: clones, count: clones.length });
+    }
     if (path === "/api/mods/assign" && method === "POST") {
       const body = await readJson(init);
       const ids = body.ids || [];

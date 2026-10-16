@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documentación — wi-mod</title>
+  <meta name="description" content="Cómo usar wi-mod: portable, biblioteca local, claves y plataformas.">
+  <link rel="icon" href="brand/wi-mod.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="pages.css">
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <a class="mark" href="./">wi-mod</a>
+      <nav>
+        <a href="documentacion.html" aria-current="page">Documentación</a>
+        <a href="licencia.html">Licencia</a>
+        <a href="https://github.com/wiarch/wi-mod">GitHub</a>
+      </nav>
+    </header>
+
+    <h1>Documentación</h1>
+    <p class="lead">wi-mod 0.8.0 es una biblioteca local y portable de mods. Junta fichas de varios juegos y webs en tu PC. No sustituye a Nexus Mods ni a Mod Organizer 2: no instala el mod dentro del juego por ti.</p>
+
+    <h2>Qué guarda</h2>
+    <ul>
+      <li>Ficha del mod: enlace, portada, resumen, categoría, juego y plataforma.</li>
+      <li>Juego activo, categorías y modpacks para ordenar la biblioteca.</li>
+      <li>Usuario y clave locales. No hay cuenta en la nube ni telemetría.</li>
+    </ul>
+
+    <h2>Descargar y abrir</h2>
+    <ol>
+      <li>Windows: el portable <a href="wi-mod-portable.zip">wi-mod-portable.zip</a> o el instalador de <a href="https://github.com/wiarch/wi-mod/releases">Releases</a> (<code>wi-mod_*_x64-setup.exe</code>).</li>
+      <li>Descomprime el zip donde quieras y ejecuta <code>wi-mod.exe</code>. No hace falta instalador.</li>
+      <li>La primera vez creas tú el usuario. Esa sesión solo existe en este PC.</li>
+      <li>Linux está en beta (AppImage / deb / rpm en el mismo release, cuando el build de esa versión terminó).</li>
+    </ol>
+    <p>La <a href="app/">demo web</a> enseña la interfaz en el navegador. La biblioteca de verdad es la del escritorio: la demo no reemplaza la carpeta <code>data/</code> de tu PC.</p>
+
+    <h2>Dónde están tus datos</h2>
+    <p>Todo queda junto al programa, en la carpeta <code>data/</code>. La base es SQLite (<code>wi-mod.sqlite</code>). Puedes mover o borrar la carpeta entera; el programa no deja restos de un instalador.</p>
+    <p>No subas <code>data/</code> a git. Ahí están usuarios, mods y claves.</p>
+
+    <h2>Añadir mods</h2>
+    <p>Pega la URL de la ficha oficial o busca desde la app si tienes clave. wi-mod reconoce la plataforma por el dominio:</p>
+    <table>
+      <thead><tr><th>Plataforma</th><th>Clave</th><th>Qué hace</th></tr></thead>
+      <tbody>
+        <tr><td>Nexus Mods</td><td>Sí</td><td>Buscar y guardar fichas. Variable <code>WI_MOD_NEXUS_KEY</code> o <code>WI_MOD_API_KEY</code>.</td></tr>
+        <tr><td>Modrinth</td><td>No</td><td>API pública. Búsqueda de mods, modpacks y resource packs.</td></tr>
+        <tr><td>CurseForge</td><td>Sí</td><td><code>WI_MOD_CURSEFORGE_KEY</code>.</td></tr>
+        <tr><td>Steam Workshop</td><td>Sí</td><td><code>WI_MOD_STEAM_KEY</code>.</td></tr>
+        <tr><td>ModDB</td><td>No</td><td>Guardas la ficha desde la URL de moddb.com. También hay tema visual ModDB.</td></tr>
+        <tr><td>RAWG</td><td>Sí</td><td>No es una web de mods. Sirve para buscar el juego y ficharlo. <code>WI_MOD_RAWG_KEY</code>.</td></tr>
+        <tr><td>Independiente</td><td>No</td><td>Cualquier otro enlace que quieras archivar a mano.</td></tr>
+      </tbody>
+    </table>
+    <p>Las claves se pegan en Ajustes. En el escritorio también puedes dejarlas en <code>data/keys.json</code> (plantilla: <code>keys.example.json</code> del repo). Si ya hay una clave guardada, el arranque no la pisa.</p>
+
+    <h2>Temas e idioma</h2>
+    <p>El selector de paleta cambia colores de la interfaz: Nexus, Modrinth, CurseForge, Steam, ModDB y RAWG. No cambia de dónde salen los mods.</p>
+    <p>El idioma de la interfaz es español o inglés (ES / EN). La elección se guarda en este equipo.</p>
+
+    <h2>Desarrollo</h2>
+    <p>Hoy conviven el escritorio Python (pywebview) y el escritorio Tauri v2. La UI compartida está en <code>web/</code>.</p>
+<pre>pip install -r requirements.txt
+python app.py
+
+npm install
+npm run tauri:dev</pre>
+    <p>Tauri necesita Rust y el WebView del sistema. El release de GitHub se publica cuando cambia el número de versión en <code>wi_mod/__init__.py</code> y <code>package.json</code> a la vez.</p>
+
+    <p class="note">Los mods siguen siendo de sus autores y de la web donde los publicaron. wi-mod solo guarda tu índice local.</p>
+  </div>
+</body>
+</html>

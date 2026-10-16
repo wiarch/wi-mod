@@ -12,6 +12,10 @@ export default defineConfig({
     port: 1420,
     strictPort: true,
     fs: { allow: [rootDir] },
+    proxy: {
+      "/api": "http://127.0.0.1:47621",
+      "/media": "http://127.0.0.1:47621",
+    },
   },
   envPrefix: ["VITE_", "TAURI_"],
   build: {

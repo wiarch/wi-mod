@@ -196,7 +196,13 @@ async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
   const token = sessionToken();
   if (token && !headers.has("X-Session")) headers.set("X-Session", token);
-  const res = await fetch(path, { ...options, headers, credentials: "same-origin" });
+  let res;
+  try {
+    res = await fetch(path, { ...options, headers, credentials: "same-origin" });
+  } catch (error) {
+    pushLog("error", `${options.method || "GET"} ${path} · ${error.message || "sin conexión"}`);
+    throw error;
+  }
   const type = res.headers.get("content-type") || "";
   if (type.includes("application/json")) {
     const data = await res.json();
@@ -204,11 +210,17 @@ async function api(path, options = {}) {
       const error = new Error(data.error || "No se pudo completar.");
       error.status = res.status;
       error.payload = data;
+      pushLog("error", `${options.method || "GET"} ${path} · ${error.message}`);
       throw error;
     }
+    pushLog("req", `${options.method || "GET"} ${path} · ${res.status}`);
     return data;
   }
-  if (!res.ok) throw new Error("No se pudo completar.");
+  if (!res.ok) {
+    pushLog("error", `${options.method || "GET"} ${path} · ${res.status}`);
+    throw new Error("No se pudo completar.");
+  }
+  pushLog("req", `${options.method || "GET"} ${path} · ${res.status}`);
   return res;
 }
 
@@ -747,6 +759,35 @@ function renderFilters() {
       render();
       if (kind === "platform") scheduleRemoteSearch();
     };
+    const kind = button.dataset.kind;
+    const raw = button.getAttribute("data-value");
+    const value = raw == null ? "" : decodeURIComponent(raw);
+    const droppable = (kind === "modpack")
+      || (kind === "packCat")
+      || ((kind === "category" || kind === "platform") && value);
+    if (!droppable) return;
+    button.ondragover = (event) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      button.classList.add("drop");
+    };
+    button.ondragleave = () => button.classList.remove("drop");
+    button.ondrop = async (event) => {
+      event.preventDefault();
+      button.classList.remove("drop");
+      let ids = [];
+      try {
+        ids = JSON.parse(event.dataTransfer.getData("application/x-wimod") || "[]");
+      } catch (_) {
+        ids = [];
+      }
+      if (!Array.isArray(ids) || !ids.length) return;
+      try {
+        await dropMarked(kind, value, ids.filter((id) => typeof id === "string"));
+      } catch (error) {
+        toast(error.message, "bad");
+      }
+    };
   });
   document.querySelectorAll(".side-add[data-add]").forEach((button) => {
     button.onclick = (event) => {
@@ -860,11 +901,12 @@ const THEME_ICONS = {
   modrinth: "/brand/modrinth.png",
   curseforge: "/brand/curseforge.ico",
   steam: "/brand/steam.ico",
+  moddb: "/brand/moddb.png",
   rawg: "/brand/rawg.png",
 };
 
 function applyTheme(theme) {
-  const allowed = ["nexus", "modrinth", "curseforge", "steam", "rawg"];
+  const allowed = ["nexus", "modrinth", "curseforge", "steam", "moddb", "rawg"];
   state.theme = allowed.includes(theme) ? theme : "nexus";
   document.documentElement.dataset.theme = state.theme;
   document.querySelectorAll(".theme-panel [data-theme]").forEach((button) => {
@@ -1245,6 +1287,88 @@ function paintPickAll() {
   button.textContent = allOn ? "Quitar todo" : "Seleccionar todo";
 }
 
+function selectEverything() {
+  const ids = visible().map((mod) => mod.id);
+  if (!ids.length) return;
+  armPicking();
+  ids.forEach((id) => state.selected.add(id));
+  state.lastCheck = ids[ids.length - 1];
+  sfx.soft();
+  render();
+}
+
+let clipIds = [];
+
+function typingField(event) {
+  const node = event.target;
+  if (!node || !node.closest) return false;
+  if (node.closest("input, textarea, select, [contenteditable='true']")) return true;
+  if (node.closest("dialog[open]")) return true;
+  return false;
+}
+
+async function copyMarked() {
+  const ids = [...state.selected];
+  if (!ids.length) {
+    toast("Nada marcado.", "warn");
+    return;
+  }
+  clipIds = ids;
+  const names = state.mods.filter((mod) => state.selected.has(mod.id)).map((mod) => mod.name || "Mod");
+  try {
+    await navigator.clipboard.writeText(names.join("\n"));
+  } catch (_) { /* el portapapeles del sistema puede estar bloqueado */ }
+  toast(ids.length === 1 ? "1 mod copiado." : `${ids.length} mods copiados.`);
+}
+
+async function pasteMarked() {
+  if (!clipIds.length) {
+    toast("Nada que pegar.", "warn");
+    return;
+  }
+  const data = await api("/api/mods/clone", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids: clipIds }),
+  });
+  const fresh = (data.mods || []).map((mod) => mod.id);
+  toast(data.count === 1 ? "1 mod pegado." : `${data.count} mods pegados.`);
+  await load();
+  armPicking();
+  state.selected.clear();
+  fresh.forEach((id) => state.selected.add(id));
+  if (fresh.length) state.lastCheck = fresh[0];
+  render();
+}
+
+function installLibraryKeys() {
+  document.addEventListener("keydown", (event) => {
+    if (event.repeat || typingField(event)) return;
+    const ctrl = event.ctrlKey || event.metaKey;
+    const key = event.key.toLowerCase();
+    if (ctrl && key === "a") {
+      event.preventDefault();
+      selectEverything();
+      return;
+    }
+    if (ctrl && key === "c") {
+      event.preventDefault();
+      copyMarked();
+      return;
+    }
+    if (ctrl && key === "v") {
+      event.preventDefault();
+      pasteMarked().catch((error) => toast(error.message, "bad"));
+      return;
+    }
+    if (event.key === "Delete" && state.selected.size) {
+      event.preventDefault();
+      deleteMarked();
+    }
+  });
+}
+installLibraryKeys();
+
 function selectAllVisible() {
   if (!state.picking) return;
   const ids = visible().map((mod) => mod.id);
@@ -1257,23 +1381,192 @@ function selectAllVisible() {
   render();
 }
 
-function togglePick(id, shift) {
+function armPicking() {
+  if (state.picking) return;
+  state.picking = true;
+  const button = $("pick-mode");
+  if (button) {
+    button.classList.add("on");
+    button.textContent = "Quitar selección";
+  }
+}
+
+function pickClick(id, event) {
   const ids = visible().map((mod) => mod.id);
-  if (shift && state.lastCheck) {
-    const a = ids.indexOf(state.lastCheck);
+  const ctrl = Boolean(event?.ctrlKey || event?.metaKey);
+  const shift = Boolean(event?.shiftKey);
+  armPicking();
+  if (shift) {
+    const anchor = state.lastCheck && ids.includes(state.lastCheck) ? state.lastCheck : id;
+    const a = ids.indexOf(anchor);
     const b = ids.indexOf(id);
     if (a >= 0 && b >= 0) {
+      if (!ctrl) state.selected.clear();
       const [from, to] = a < b ? [a, b] : [b, a];
       ids.slice(from, to + 1).forEach((item) => state.selected.add(item));
     }
-  } else if (state.selected.has(id)) {
-    state.selected.delete(id);
+  } else if (ctrl) {
+    if (state.selected.has(id)) state.selected.delete(id);
+    else state.selected.add(id);
+    state.lastCheck = id;
   } else {
+    state.selected.clear();
     state.selected.add(id);
+    state.lastCheck = id;
   }
-  state.lastCheck = id;
   sfx.soft();
   render();
+}
+
+function dragIdsFor(id) {
+  if (state.selected.has(id)) return [...state.selected];
+  return [id];
+}
+
+function dragBadge() {
+  let badge = $("drag-badge");
+  if (badge) return badge;
+  badge = document.createElement("div");
+  badge.id = "drag-badge";
+  badge.hidden = true;
+  document.body.appendChild(badge);
+  return badge;
+}
+
+function showDragBadge(count, x, y) {
+  const badge = dragBadge();
+  badge.textContent = count === 1 ? "1 mod" : `${count} mods`;
+  badge.hidden = false;
+  moveDragBadge(x, y);
+}
+
+function moveDragBadge(x, y) {
+  if (!x && !y) return;
+  const badge = $("drag-badge");
+  if (!badge || badge.hidden) return;
+  badge.style.left = `${x + 14}px`;
+  badge.style.top = `${y + 18}px`;
+}
+
+function hideDragBadge() {
+  const badge = $("drag-badge");
+  if (!badge) return;
+  badge.hidden = true;
+  document.querySelectorAll(".card.drag-group").forEach((card) => card.classList.remove("drag-group"));
+}
+
+document.addEventListener("dragover", (event) => moveDragBadge(event.clientX, event.clientY));
+
+function beginMarquee(event, fromCard) {
+  if (event.button !== 0) return;
+  const startX = event.clientX;
+  const startY = event.clientY;
+  const toggle = event.ctrlKey || event.metaKey;
+  const additive = event.shiftKey;
+  const before = new Set(state.selected);
+  let moved = false;
+  const box = document.createElement("div");
+  box.id = "marquee";
+  box.hidden = true;
+  document.body.appendChild(box);
+  const onMove = (ev) => {
+    const dx = ev.clientX - startX;
+    const dy = ev.clientY - startY;
+    if (!moved && Math.hypot(dx, dy) < 5) return;
+    if (!moved) {
+      moved = true;
+      document.body.classList.add("marquee-on");
+    }
+    const left = Math.min(startX, ev.clientX);
+    const top = Math.min(startY, ev.clientY);
+    const width = Math.abs(dx);
+    const height = Math.abs(dy);
+    box.hidden = false;
+    box.style.left = `${left}px`;
+    box.style.top = `${top}px`;
+    box.style.width = `${width}px`;
+    box.style.height = `${height}px`;
+    const band = { left, top, right: left + width, bottom: top + height };
+    const hit = new Set();
+    document.querySelectorAll("#grid .card").forEach((card) => {
+      const rect = card.getBoundingClientRect();
+      if (rect.left < band.right && rect.right > band.left && rect.top < band.bottom && rect.bottom > band.top) {
+        hit.add(card.dataset.id);
+      }
+    });
+    state.selected.clear();
+    if (toggle) {
+      before.forEach((id) => state.selected.add(id));
+      hit.forEach((id) => {
+        if (before.has(id)) state.selected.delete(id);
+        else state.selected.add(id);
+      });
+    } else {
+      if (additive) before.forEach((id) => state.selected.add(id));
+      hit.forEach((id) => state.selected.add(id));
+    }
+    document.querySelectorAll("#grid .card").forEach((card) => {
+      card.classList.toggle("on", state.selected.has(card.dataset.id));
+    });
+  };
+  const onUp = () => {
+    window.removeEventListener("mousemove", onMove);
+    window.removeEventListener("mouseup", onUp);
+    box.remove();
+    document.body.classList.remove("marquee-on");
+    if (!moved) {
+      if (!fromCard && state.picking) {
+        state.selected.clear();
+        render();
+      }
+      return;
+    }
+    state.dragged = true;
+    setTimeout(() => { state.dragged = false; }, 0);
+    if (state.selected.size) armPicking();
+    const ids = [...state.selected];
+    if (ids.length) state.lastCheck = ids[ids.length - 1];
+    sfx.soft();
+    render();
+  };
+  window.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseup", onUp);
+}
+
+function installMarquee() {
+  const host = document.querySelector("main");
+  if (!host || host.dataset.marquee) return;
+  host.dataset.marquee = "1";
+  host.addEventListener("mousedown", (event) => {
+    if (event.button !== 0) return;
+    if (event.target.closest(".card, button, a, input, select, textarea, label, dialog, .bulk, .view-dock")) return;
+    beginMarquee(event, false);
+  });
+}
+installMarquee();
+
+async function dropMarked(kind, value, ids) {
+  if (!ids.length) return;
+  const body = { ids };
+  if (kind === "category") body.category = value;
+  else if (kind === "platform") body.platform = value;
+  else if (kind === "packCat") {
+    body.modpackId = state.modpack || "";
+    body.modpackCategoryId = value || "";
+  } else {
+    body.modpackId = value || "";
+    body.modpackCategoryId = "";
+  }
+  const data = await api("/api/mods/assign", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const where = kind === "category" || kind === "platform"
+    ? value
+    : (value ? "el modpack" : "fuera del modpack");
+  toast(`${data.count} en ${where}.`);
+  await load();
 }
 
 function setCardSize(size) {
@@ -1342,19 +1635,58 @@ function render() {
     </article>
   `).join("");
   document.querySelectorAll(".card").forEach((card) => {
+    card.ondragstart = (event) => {
+      const ids = dragIdsFor(card.dataset.id);
+      event.dataTransfer.setData("application/x-wimod", JSON.stringify(ids));
+      event.dataTransfer.setData("text/plain", ids.length === 1 ? "1 mod" : `${ids.length} mods`);
+      event.dataTransfer.effectAllowed = "move";
+      const blank = new Image();
+      blank.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+      event.dataTransfer.setDragImage(blank, 0, 0);
+      ids.forEach((id) => document.querySelector(`.card[data-id="${id}"]`)?.classList.add("drag-group"));
+      card.classList.add("dragging");
+      showDragBadge(ids.length, event.clientX, event.clientY);
+      state.dragged = true;
+    };
+    card.ondragend = () => {
+      card.classList.remove("dragging");
+      hideDragBadge();
+      setTimeout(() => { state.dragged = false; }, 0);
+    };
+    card.draggable = state.selected.has(card.dataset.id);
+    card.onmousedown = (event) => {
+      if (event.shiftKey || event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        return;
+      }
+      if (event.button !== 0) return;
+      if (event.target.closest("input, label, button, a")) return;
+      if (state.selected.has(card.dataset.id)) return;
+      beginMarquee(event, true);
+    };
     card.onclick = (event) => {
-      if (state.picking) {
-        togglePick(card.dataset.id, event.shiftKey);
+      if (state.dragged) return;
+      if (event.ctrlKey || event.metaKey || event.shiftKey || state.picking) {
+        pickClick(card.dataset.id, event);
         return;
       }
       sfx.open();
       openDetail(card.dataset.id);
     };
+    card.ondblclick = (event) => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey) return;
+      sfx.open();
+      openDetail(card.dataset.id);
+    };
+    card.oncontextmenu = (event) => {
+      event.preventDefault();
+      openModMenu(card.dataset.id, event.clientX, event.clientY);
+    };
   });
   document.querySelectorAll("[data-check]").forEach((box) => {
     box.onclick = (event) => {
       event.stopPropagation();
-      togglePick(box.dataset.check, event.shiftKey);
+      pickClick(box.dataset.check, { ctrlKey: true, shiftKey: event.shiftKey, metaKey: event.metaKey });
     };
   });
 }
@@ -1662,6 +1994,75 @@ async function assignMarked(kind) {
     await load();
   } catch (error) {
     toast(error.message, "bad");
+  } finally {
+    setLoading(button, false);
+  }
+}
+
+async function refreshMarked() {
+  const ids = [...state.selected];
+  if (!ids.length) {
+    toast("Marca mods primero.", "warn");
+    return;
+  }
+  if (!(await askConfirm(`¿Actualizar ${ids.length} mods marcados? Si hay versión nueva, se aplica la ficha.`))) return;
+  const button = $("bulk-refresh");
+  setLoading(button, true, "Actualizando");
+  let applied = 0;
+  let same = 0;
+  let failed = 0;
+  try {
+    for (const id of ids) {
+      try {
+        const check = await api(`/api/mods/${id}/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apply: false }),
+        });
+        if (check.changed) {
+          await api(`/api/mods/${id}/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ apply: true }),
+          });
+          applied += 1;
+        } else {
+          same += 1;
+        }
+      } catch (_) {
+        failed += 1;
+      }
+    }
+    toast(`Actualizados ${applied}. Sin cambio ${same}. Fallos ${failed}.`);
+    await load();
+  } finally {
+    setLoading(button, false);
+  }
+}
+
+async function deleteMarked() {
+  const ids = [...state.selected];
+  if (!ids.length) {
+    toast("Marca mods primero.", "warn");
+    return;
+  }
+  if (!(await askConfirm(`¿Eliminar ${ids.length} mods marcados y sus archivos?`))) return;
+  const button = $("bulk-delete");
+  setLoading(button, true, "Eliminando");
+  let removed = 0;
+  let failed = 0;
+  try {
+    for (const id of ids) {
+      try {
+        await api(`/api/mods/${id}`, { method: "DELETE" });
+        state.selected.delete(id);
+        removed += 1;
+      } catch (_) {
+        failed += 1;
+      }
+    }
+    toast(failed ? `Eliminados ${removed}. Fallos ${failed}.` : `Eliminados ${removed}.`);
+    await load();
   } finally {
     setLoading(button, false);
   }
@@ -2032,8 +2433,139 @@ $("translate-copy").onclick = async () => {
   }
 };
 if ($("add-open")) $("add-open").onclick = () => { sfx.open(); resetAdd(); $("add-dialog").showModal(); };
+function hideModMenu() {
+  const menu = $("mod-menu");
+  if (menu) menu.hidden = true;
+}
+
+function openModMenu(id, x, y) {
+  const menu = $("mod-menu");
+  if (!menu || !id) return;
+  menuModId = id;
+  const pick = menu.querySelector('[data-act="pick"]');
+  if (pick) pick.textContent = state.selected.has(id) ? "Quitar selección" : "Seleccionar";
+  menu.hidden = false;
+  const pad = 8;
+  const width = menu.offsetWidth;
+  const height = menu.offsetHeight;
+  menu.style.left = `${Math.max(pad, Math.min(x, window.innerWidth - width - pad))}px`;
+  menu.style.top = `${Math.max(pad, Math.min(y, window.innerHeight - height - pad))}px`;
+}
+
+function openNote(id) {
+  const mod = state.mods.find((item) => item.id === id);
+  if (!mod) return;
+  $("note-dialog").dataset.id = id;
+  $("note-name").textContent = mod.name || "";
+  $("note-text").value = mod.notes || "";
+  $("note-dialog").showModal();
+  $("note-text").focus();
+}
+
+function openMove(id) {
+  const mod = state.mods.find((item) => item.id === id);
+  if (!mod) return;
+  $("move-dialog").dataset.id = id;
+  $("move-name").textContent = mod.name || "";
+  fillModpackSelects(
+    $("move-pack"),
+    $("move-cat"),
+    mod.modpackId || "",
+    mod.modpackCategoryId || "",
+    mod.gameDomain || "",
+  );
+  $("move-dialog").showModal();
+}
+
+let menuModId = "";
+
+$("mod-menu").onclick = (event) => {
+  event.stopPropagation();
+  const act = event.target.closest("[data-act]")?.dataset.act;
+  const id = menuModId;
+  hideModMenu();
+  if (!id || !act) return;
+  if (act === "note") openNote(id);
+  if (act === "move") openMove(id);
+  if (act === "pick") {
+    if (!state.picking) {
+      state.picking = true;
+      const button = $("pick-mode");
+      if (button) {
+        button.classList.add("on");
+        button.textContent = "Quitar selección";
+      }
+    }
+    if (state.selected.has(id)) state.selected.delete(id);
+    else state.selected.add(id);
+    sfx.soft();
+    render();
+  }
+};
+document.addEventListener("click", (event) => {
+  if (!event.target.closest("#mod-menu")) hideModMenu();
+});
+document.addEventListener("contextmenu", (event) => {
+  if (!event.target.closest(".card")) hideModMenu();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") hideModMenu();
+});
+window.addEventListener("scroll", hideModMenu, true);
+
+$("note-x").onclick = () => $("note-dialog").close();
+$("note-cancel").onclick = () => $("note-dialog").close();
+$("note-form").onsubmit = async (event) => {
+  event.preventDefault();
+  const id = $("note-dialog").dataset.id;
+  const button = event.submitter;
+  setLoading(button, true, "Guardando");
+  try {
+    await api(`/api/mods/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notes: $("note-text").value || "" }),
+    });
+    toast("Nota guardada.");
+    $("note-dialog").close();
+    await load();
+  } catch (error) {
+    toast(error.message, "bad");
+  } finally {
+    setLoading(button, false);
+  }
+};
+
+$("move-x").onclick = () => $("move-dialog").close();
+$("move-cancel").onclick = () => $("move-dialog").close();
+$("move-form").onsubmit = async (event) => {
+  event.preventDefault();
+  const id = $("move-dialog").dataset.id;
+  const button = event.submitter;
+  setLoading(button, true, "Moviendo");
+  try {
+    await api(`/api/mods/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        modpackId: $("move-pack").value || "",
+        modpackCategoryId: $("move-cat").value || "",
+      }),
+    });
+    toast("Mod movido.");
+    $("move-dialog").close();
+    await load();
+  } catch (error) {
+    toast(error.message, "bad");
+  } finally {
+    setLoading(button, false);
+  }
+};
+
 $("bulk-cat").onclick = () => assignMarked("category");
 $("bulk-move").onclick = () => assignMarked("pack");
+$("bulk-refresh").onclick = () => refreshMarked();
+$("bulk-delete").onclick = () => deleteMarked();
 $("bulk-clear").onclick = () => { state.selected.clear(); sfx.soft(); render(); };
 $("bulk-all").onclick = () => {
   const ids = visible().map((mod) => mod.id);
@@ -2833,11 +3365,9 @@ function paintLogin() {
     return;
   }
   if (loginMode === "enter") {
-    hint.textContent = loginLength
-      ? `La clave tiene ${loginLength} caracteres.`
-      : "Escribe la clave.";
+    hint.textContent = "Escribe la clave.";
     button.textContent = "Entrar";
-    button.disabled = loginLength ? pass.length !== loginLength : pass.length < 4;
+    button.disabled = loginLength ? pass.length !== loginLength : pass.length < 1;
     forgot.hidden = false;
     forgot.textContent = "Olvidé la clave";
     return;
@@ -2985,6 +3515,7 @@ const sessionTimer = setTimeout(() => {
   if (status) {
     status.className = "status bad";
     status.textContent = "La guarida no responde. Cierra wi-mod y ábrelo otra vez.";
+    pushLog("error", "La guarida no responde.");
   }
 }, 12000);
 api("/api/session")
@@ -3008,3 +3539,101 @@ api("/api/session")
       status.textContent = error.message || "No se pudo abrir la guarida.";
     }
   });
+
+const appLogs = [];
+let logTab = "error";
+
+function logArg(value) {
+  if (value instanceof Error) return value.message || String(value);
+  if (typeof value === "string") return value;
+  try { return JSON.stringify(value); } catch { return String(value); }
+}
+
+function paintLogBadge() {
+  const counts = { error: 0, warn: 0, req: 0 };
+  appLogs.forEach((row) => { if (counts[row.level] != null) counts[row.level] += 1; });
+  Object.entries(counts).forEach(([level, count]) => {
+    const badge = $(`log-n-${level}`);
+    const tab = $(`tab-n-${level}`);
+    if (badge) badge.textContent = String(count);
+    if (tab) tab.textContent = String(count);
+    const chip = document.querySelector(`.log-count.${level}`);
+    if (chip) chip.classList.toggle("hot", count > 0);
+  });
+}
+
+function paintLogList() {
+  const list = $("log-list");
+  if (!list) return;
+  const rows = appLogs.filter((row) => row.level === logTab);
+  if (!rows.length) {
+    const empty = { error: "Sin errores.", warn: "Sin alertas.", req: "Sin peticiones." };
+    list.innerHTML = `<li>${empty[logTab] || "Vacío."}</li>`;
+    return;
+  }
+  list.innerHTML = rows.slice().reverse().map((row) => (
+    `<li data-level="${row.level}"><time>${esc(row.stamp)}</time>${esc(row.text)}</li>`
+  )).join("");
+}
+
+function pushLog(level, text) {
+  const line = String(text || "").replace(/\s+/g, " ").trim();
+  if (!line) return;
+  const kind = level === "warn" || level === "req" ? level : "error";
+  const stamp = new Date().toLocaleTimeString("es", { hour12: false });
+  appLogs.push({ level: kind, text: line, stamp });
+  if (appLogs.length > 120) appLogs.shift();
+  paintLogBadge();
+  const panel = $("log-panel");
+  if (panel && !panel.hidden) paintLogList();
+}
+
+function installLog() {
+  const open = $("log-open");
+  const panel = $("log-panel");
+  if (!open || !panel) return;
+  open.onclick = () => {
+    const next = panel.hidden;
+    panel.hidden = !next;
+    open.setAttribute("aria-expanded", next ? "true" : "false");
+    if (next) paintLogList();
+  };
+  document.querySelectorAll("[data-log-tab]").forEach((button) => {
+    button.onclick = (event) => {
+      event.stopPropagation();
+      logTab = button.dataset.logTab || "error";
+      document.querySelectorAll("[data-log-tab]").forEach((tab) => {
+        tab.classList.toggle("on", tab === button);
+      });
+      paintLogList();
+    };
+  });
+  const clear = $("log-clear");
+  if (clear) {
+    clear.onclick = (event) => {
+      event.stopPropagation();
+      for (let i = appLogs.length - 1; i >= 0; i -= 1) {
+        if (appLogs[i].level === logTab) appLogs.splice(i, 1);
+      }
+      paintLogBadge();
+      paintLogList();
+    };
+  }
+  ["error", "warn"].forEach((level) => {
+    const orig = console[level].bind(console);
+    console[level] = (...args) => {
+      orig(...args);
+      pushLog(level === "warn" ? "warn" : "error", args.map(logArg).join(" "));
+    };
+  });
+  window.addEventListener("error", (event) => {
+    pushLog("error", event.message || "Error de script");
+  });
+  window.addEventListener("unhandledrejection", (event) => {
+    const reason = event.reason;
+    pushLog("error", reason instanceof Error ? reason.message : logArg(reason));
+  });
+  paintLogBadge();
+}
+
+installLog();

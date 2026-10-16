@@ -1,7 +1,8 @@
 {
   "name": "wi-mod",
   "private": true,
-  "version": "0.7.6",
+  "license": "MIT",
+  "version": "0.8.0",
   "type": "module",
   "description": "Biblioteca local y portable de mods (Tauri v2)",
   "scripts": {

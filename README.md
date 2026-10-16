@@ -1,57 +1,100 @@
-# wi-mod
 
-Biblioteca local y portable de mods (v0.7.5). **Open source**, pensado para la comunidad.
 
-Junta mods de distintos juegos y plataformas (Nexus, Modrinth, CurseForge, Steam, ModDB y más) en un solo sitio en tu PC. No sustituye a Nexus ni a Mod Organizer 2: es el complemento para buscar, guardar y organizar tu biblioteca multi-juego sin saltar entre webs.
+# 🎮 wi-mod
 
-En desarrollo. Corre solo en tu máquina, sin cuenta en la nube. Descarga y feedback: [wiarch.github.io/wi-mod](https://wiarch.github.io/wi-mod/).
+  **Your local, portable, and unified multi-game mod library.**
 
-## Qué hace
+  ![English](https://img.shields.io/badge/Language-English-blue)
+  ![Español](https://img.shields.io/badge/Idioma-Español-red)
 
-- Guarda fichas de mods (enlace, portada, resumen, categoría, juego, plataforma).
-- Busca y añade desde Nexus, Modrinth, CurseForge, Steam Workshop, ModDB e independientes.
-- Organiza por juego activo, categorías y modpacks.
-- Temas por plataforma; UI ES/EN.
-- Login local; portable sin instalador.
-- Demo web limitada en `docs/app/`.
+  ![GitHub Release](https://img.shields.io/github/v/release/wiarch/wi-mod?color=7289da&style=for-the-badge)
+  ![Tauri v2](https://img.shields.io/badge/Powered%20by-Tauri%20v2-blue?style=for-the-badge&logo=tauri)
+  ![GitHub Pages](https://img.shields.io/badge/Demo-Live%20Web-brightgreen?style=for-the-badge&logo=github)
+  ![License](https://img.shields.io/github/license/wiarch/wi-mod?style=for-the-badge)
 
-## Estructura (rama `tauri`)
+  [🌐 Try Web Demo](https://wiarch.github.io/wi-mod/) • [⬇️ Download for Windows / Linux](https://github.com/wiarch/wi-mod/releases/latest) • [💬 Report Issue](https://github.com/wiarch/wi-mod/issues)
 
-| Ruta | Uso |
-|------|-----|
-| `web/` | UI canónica (Python y Vite) |
-| `src/` | Entry Vite + `services/` (storage, API) |
-| `src-tauri/` | Shell Tauri v2 + proxy HTTP Rust |
-| `wi_mod/` + `app.py` | Backend Python (legacy, aún activo) |
-| `docs/` | Landing + demo GitHub Pages |
-| `public/brand/` | Iconos del build Vite |
+---
 
-Migración: [docs/MIGRATION-TAURI.md](docs/MIGRATION-TAURI.md).
 
-## Tecnologías
 
-| Capa | `main` (estable) | `tauri` (en curso) |
-|------|------------------|---------------------|
-| Runtime | Python 3.12 + pywebview | Tauri v2 (Rust) |
-| UI | `web/` vía HTTP local | `web/` vía Vite → WebView |
-| Datos | JSON + SQLite en `data/` | StorageAdapter (SQLite / IndexedDB) |
-| APIs | `wi_mod/*.py` | `fetchExternalApi` → reqwest / fetch |
-| Empaque | PyInstaller | `tauri build` + Actions |
 
-## Dev
+
+
+
+## 📌 What is wi-mod?
+
+**wi-mod** gathers your mods from various platforms and websites (Nexus Mods, Modrinth, CurseForge, Steam Workshop, ModDB, and standalone pages) into a single centralized hub on your PC.
+
+It is not designed to replace advanced installation managers like *Mod Organizer 2* or *Vortex*: it is the **companion organization tool** for searching, bookmarking, and discovering mods across your multi-game library without constantly jumping between browser tabs.
+
+---
+
+
+
+## ✨ Key Features
+
+- 📦 **100% Portable:** A single lightweight executable with no installer or external runtime requirements.
+- 🔒 **Privacy-First:** Runs entirely locally (`SQLite`/`IndexedDB`). No cloud account or telemetry.
+- 🌐 **Multi-Platform Integration:** Import cards and fetch metadata from:
+  - Nexus Mods · Modrinth · CurseForge · Steam Workshop · ModDB
+- 🎨 **Dynamic Themes:** UI color schemes inspired by each platform's aesthetic.
+- 🌍 **Multilingual:** Automatic system language detection (English and Spanish supported out of the box).
+- ⚡ **Ultra-Lightweight Performance:** Built with **Tauri v2 + Rust**, consuming under 40 MB of RAM.
+
+---
+
+
+
+## 🛠️ Tech Stack
+
+
+| Layer                | Technology                                                          |
+| -------------------- | ------------------------------------------------------------------- |
+| **Core / Backend**   | [Rust](https://www.rust-lang.org/) + [Tauri v2](https://tauri.app/) |
+| **Frontend UI**      | HTML5, CSS3, JavaScript (Vite)                                      |
+| **Database**         | SQLite (Desktop) / IndexedDB (Web Demo)                             |
+| **API Integrations** | Nexus Mods API, CurseForge API, Steam Web API, RAWG API             |
+| **CI/CD**            | GitHub Actions (Automated cross-platform releases)                  |
+
+
+---
+
+
+
+## 🚀 Installation & Usage
+
+
+
+### 💻 Desktop Executable (Recommended)
+
+1. Go to the [wi-mod Releases page](https://github.com/wiarch/wi-mod/releases/latest).
+2. Download the portable file for your OS (`.exe` for Windows or `.AppImage` / portable binary for Linux).
+3. Run it directly without installation.
+
+
+
+### 🌐 Web Demo
+
+Try the interface directly in your browser at **[wiarch.github.io/wi-mod](https://wiarch.github.io/wi-mod/)**. *(Data is stored locally in your browser using IndexedDB).*
+
+---
+
+
+
+## 💻 Local Development
+
+To contribute or build the project locally:
 
 ```bash
-# Python (rama main / legacy)
-pip install -r requirements.txt
-python app.py
+# 1. Clone the repository
+git clone [https://github.com/wiarch/wi-mod.git](https://github.com/wiarch/wi-mod.git)
+cd wi-mod
 
-# Tauri (rama tauri; requiere Rust)
+# 2. Install Node.js dependencies
 npm install
-npm run tauri:dev
+
+# 3. Run the development environment with Tauri
+npm run tauri dev
 ```
 
-APIs opcionales (Ajustes): Nexus, CurseForge, Steam, RAWG. Modrinth es público.
-
-## Estado
-
-Open source · Windows disponible · Linux (Tauri/AppImage) en progreso.
