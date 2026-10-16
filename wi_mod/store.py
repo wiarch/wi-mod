@@ -249,9 +249,10 @@ class Library:
             status = str(fields.get("status") or "").strip().lower()
             if status == "want":
                 status = ""
-            if status not in {"", "got", "in"}:
+            parts = [part for part in status.replace(",", "+").split("+") if part]
+            if any(part not in {"got", "in"} for part in parts):
                 raise ValueError("Estado no válido.")
-            mod["status"] = status
+            mod["status"] = "+".join(flag for flag in ("got", "in") if flag in parts)
         if "packOrder" in fields:
             try:
                 mod["packOrder"] = max(0, int(fields.get("packOrder") or 0))
@@ -480,9 +481,9 @@ class Library:
             {"gameDomain": "minecraft", "gameName": "Minecraft", "rawgId": 22509, "imageUrl": "/brand/minecraft.jpg", "rating": 4.44},
             {"gameDomain": "gtasa", "gameName": "GTA San Andreas", "rawgId": 416, "rating": 4.5},
             {"gameDomain": "skyrimspecialedition", "gameName": "The Elder Scrolls V: Skyrim Special Edition", "rawgId": 12447, "rating": 4.45},
-            {"gameDomain": "darksoulsremastered", "gameName": "Dark Souls Remastered", "rawgId": 51610, "imageUrl": "/brand/darksoulsremastered.jpg", "rating": 4.48},
+            {"gameDomain": "worldofwarcraftclassic", "gameName": "World of Warcraft Classic", "rawgId": 368967, "imageUrl": "https://media.rawg.io/media/games/c21/c21aa06fd66da98f2388965be78c8b89.jpg", "rating": 4.15},
         )
-        retired = {"gta5", "fallout4", "newvegas", "stalkershadowofchernobyl"}
+        retired = {"gta5", "fallout4", "newvegas", "stalkershadowofchernobyl", "darksoulsremastered"}
         with self._lock:
             data = self._read()
             self._migrate(data)

@@ -32,6 +32,7 @@ GAME_SOURCES: dict[str, tuple[str, ...]] = {
     "stalkercallofpripyat": NEXUS,
     "stalker2": NEXUS,
     "worldofwarcraft": ("CurseForge", "Independiente"),
+    "worldofwarcraftclassic": ("CurseForge", "Independiente"),
     "wow": ("CurseForge", "Independiente"),
 }
 

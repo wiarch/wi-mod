@@ -550,7 +550,7 @@ async function localizeLibrary() {
 }
 
 const GAME_SCORES = {
-  darksoulsremastered: 4.48,
+  worldofwarcraftclassic: 4.15,
   fallout4: 3.81,
   newvegas: 4.43,
   gta5: 4.47,
@@ -2209,9 +2209,13 @@ const MOD_STATUS = [
   ["in", "Instalado"],
 ];
 
+function statusOn(mod, id) {
+  return String(mod.status || "").split("+").includes(id);
+}
+
 function statusPicks(mod) {
   return `<span class="status-picks">${MOD_STATUS.map(([id, label]) => (
-    `<button type="button" class="status-pick ${mod.status === id ? "on" : ""}" data-status="${id}" title="${label}">${label}</button>`
+    `<button type="button" class="status-pick ${statusOn(mod, id) ? "on" : ""}" data-status="${id}" title="${label}">${label}</button>`
   )).join("")}</span>`;
 }
 
@@ -2238,7 +2242,10 @@ function paintUpdateBanner() {
 async function setModStatus(id, status) {
   const mod = state.mods.find((item) => item.id === id);
   if (!mod) return;
-  const next = mod.status === status ? "" : status;
+  const flags = new Set(String(mod.status || "").split("+").filter((part) => part === "got" || part === "in"));
+  if (flags.has(status)) flags.delete(status);
+  else flags.add(status);
+  const next = ["got", "in"].filter((part) => flags.has(part)).join("+");
   mod.status = next;
   render();
   try {
@@ -3764,6 +3771,8 @@ $("mp-delete").onclick = () => deleteCurrentModpack();
 $("modpacks-form").onsubmit = saveModpackForm;
 $("packcat-form").onsubmit = savePackCatForm;
 $("mp-cat-add").onclick = () => addMpCatRow();
+$("mp-name").addEventListener("input", paintMpMark);
+$("mp-notes").addEventListener("input", paintMpMark);
 $("mp-emoji-toggle").onclick = () => {
   const box = $("mp-emoji-box");
   box.hidden = !box.hidden;
@@ -3834,7 +3843,7 @@ function gameOptionsForPacks() {
     ["minecraft", "Minecraft"],
     ["gtasa", "GTA San Andreas"],
     ["skyrimspecialedition", "The Elder Scrolls V: Skyrim Special Edition"],
-    ["darksoulsremastered", "Dark Souls Remastered"],
+    ["worldofwarcraftclassic", "World of Warcraft Classic"],
   ];
 }
 
@@ -3945,6 +3954,14 @@ function paintMpMark() {
   if (mpMarkDraft.imageUrl) face.innerHTML = `<img alt="" src="${esc(mpMarkDraft.imageUrl)}">`;
   else face.textContent = mpMarkDraft.emoji || "📦";
   if (clear) clear.hidden = !(mpMarkDraft.emoji || mpMarkDraft.imageUrl);
+  const name = $("mp-preview-name");
+  const notes = $("mp-preview-notes");
+  if (name) name.textContent = ($("mp-name")?.value || "").trim() || "Nombre";
+  if (notes) {
+    const text = ($("mp-notes")?.value || "").trim();
+    notes.textContent = text;
+    notes.hidden = !text;
+  }
 }
 
 function setMpMark(emoji, imageUrl) {

@@ -7,10 +7,10 @@
     "minecraft",
     "gtasa",
     "skyrimspecialedition",
-    "darksoulsremastered",
+    "worldofwarcraftclassic",
   ];
   const TTL_MS = 5 * 60 * 60 * 1000;
-  const KEY = "wi-mod-demo-v5";
+  const KEY = "wi-mod-demo-v6";
   const DESKTOP = "La versión de escritorio no tiene este límite.";
   function demoKeys() {
     const raw = (typeof window !== "undefined" && window.__WI_DEMO_KEYS__) || {};
@@ -178,16 +178,16 @@
       "platforms": [],
       "genres": []
     },
-    "darksoulsremastered": {
-      "rawgId": 51610,
-      "rawgSlug": "dark-souls8482-remastered",
-      "gameName": "Dark Souls: Remastered",
-      "gameDomain": "darksoulsremastered",
-      "imageUrl": "brand/darksoulsremastered.jpg",
-      "released": "2018-05-23",
-      "rating": 4.48,
-      "metacritic": 84,
-      "description": "Remastered action RPG.",
+    "worldofwarcraftclassic": {
+      "rawgId": 368967,
+      "rawgSlug": "world-of-warcraft-classic",
+      "gameName": "World of Warcraft Classic",
+      "gameDomain": "worldofwarcraftclassic",
+      "imageUrl": "https://media.rawg.io/media/games/c21/c21aa06fd66da98f2388965be78c8b89.jpg",
+      "released": "2019-08-27",
+      "rating": 4.15,
+      "metacritic": 81,
+      "description": "World of Warcraft Classic recreates the original Azeroth.",
       "platforms": [],
       "genres": []
     },
@@ -242,6 +242,7 @@
     gtasa: NEXUS,
     gta5: NEXUS,
     worldofwarcraft: ["CurseForge", "Independiente"],
+    worldofwarcraftclassic: ["CurseForge", "Independiente"],
     wow: ["CurseForge", "Independiente"],
   };
   const NEXUS_BY_SLUG = {
@@ -262,6 +263,7 @@
     "grand-theft-auto-v": "gta5",
     "stalker-shadow-of-chernobyl": "stalkershadowofchernobyl",
     "world-of-warcraft": "worldofwarcraft",
+    "world-of-warcraft-classic": "worldofwarcraftclassic",
   };
 
   function id() {
@@ -743,7 +745,7 @@
         windowsUser: "WYDEX",
         pcName: "PC",
         quitMode: "",
-        appVersion: "0.11.0",
+        appVersion: "0.12.0",
       });
     }
     if (path === "/api/logout" && method === "POST") return reply(200, { ok: true });
@@ -1001,8 +1003,9 @@
       if ("status" in body) {
         let status = String(body.status || "");
         if (status === "want") status = "";
-        if (!["", "got", "in"].includes(status)) return reply(400, { error: "Estado no válido." });
-        mod.status = status;
+        const parts = status.replace(/,/g, "+").split("+").filter(Boolean);
+        if (parts.some((part) => part !== "got" && part !== "in")) return reply(400, { error: "Estado no válido." });
+        mod.status = ["got", "in"].filter((part) => parts.includes(part)).join("+");
       }
       if ("packOrder" in body) mod.packOrder = Math.max(0, Number(body.packOrder) || 0);
       const pack = data.modpacks.find((item) => item.id === mod.modpackId);

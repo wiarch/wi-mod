@@ -1,13 +1,50 @@
-:root {
+:root, html[data-theme="nexus"] {
   --bg: #141210;
   --bg-2: #1c1916;
   --bg-deep: #0c0b0a;
   --text: #f6efe6;
   --muted: #c9c3b8;
+  --line: rgba(255, 255, 255, 0.08);
   --copper: #e08a2c;
   --hot: #f0a04a;
   --ink: #1a1208;
-  --line: rgba(255, 255, 255, 0.08);
+  --glow: rgba(224, 138, 44, 0.34);
+  --glass-border: rgba(224, 138, 44, 0.28);
+}
+html[data-theme="modrinth"] {
+  --bg: #16181c; --bg-2: #1e2126; --bg-deep: #0e1013;
+  --text: #e8eef2; --muted: #c5d0d8;
+  --copper: #1bd96a; --hot: #3eec84; --ink: #06210f;
+  --glow: rgba(27, 217, 106, 0.32);
+  --glass-border: rgba(27, 217, 106, 0.28);
+}
+html[data-theme="curseforge"] {
+  --bg: #121212; --bg-2: #1a1a1a; --bg-deep: #0a0a0a;
+  --text: #f4ece8; --muted: #d4c4bc;
+  --copper: #f16436; --hot: #ff8a5b; --ink: #2a100a;
+  --glow: rgba(241, 100, 54, 0.32);
+  --glass-border: rgba(241, 100, 54, 0.28);
+}
+html[data-theme="steam"] {
+  --bg: #171a21; --bg-2: #1b2838; --bg-deep: #0e141b;
+  --text: #e8f4fc; --muted: #c5d4de;
+  --copper: #66c0f4; --hot: #8fd4ff; --ink: #0b1b28;
+  --glow: rgba(102, 192, 244, 0.32);
+  --glass-border: rgba(102, 192, 244, 0.28);
+}
+html[data-theme="moddb"] {
+  --bg: #140c0c; --bg-2: #1c1010; --bg-deep: #0c0707;
+  --text: #f8f1f1; --muted: #d4b8b8;
+  --copper: #e10600; --hot: #ff3b30; --ink: #1a0808;
+  --glow: rgba(225, 6, 0, 0.36);
+  --glass-border: rgba(225, 6, 0, 0.32);
+}
+html[data-theme="rawg"] {
+  --bg: #151515; --bg-2: #1a1a1a; --bg-deep: #0d0d0d;
+  --text: #ffffff; --muted: #d0d0d0;
+  --copper: #ffffff; --hot: #f4f4f4; --ink: #151515;
+  --glow: rgba(255, 255, 255, 0.16);
+  --glass-border: rgba(255, 255, 255, 0.18);
 }
 * { box-sizing: border-box; }
 html {
@@ -33,8 +70,9 @@ body {
   font-family: Inter, "Segoe UI", system-ui, sans-serif;
   color: var(--text);
   background:
-    radial-gradient(720px 420px at 0% 0%, rgba(224, 138, 44, 0.22), transparent 60%),
+    radial-gradient(720px 420px at 0% 0%, var(--glow), transparent 60%),
     linear-gradient(165deg, var(--bg-2), var(--bg) 40%, var(--bg-deep));
+  transition: background 0.45s ease, color 0.35s ease;
   line-height: 1.55;
 }
 a { color: var(--hot); }
@@ -48,6 +86,17 @@ header {
   margin-bottom: 28px;
 }
 .mark { color: var(--text); font-weight: 800; text-decoration: none; font-size: 1.15rem; }
+.brand-side { display: flex; align-items: center; gap: 14px; }
+a.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 650;
+}
+a.back span { color: var(--copper); font-size: 1.15rem; line-height: 1; }
+a.back:hover { color: var(--hot); }
 nav { display: flex; gap: 16px; flex-wrap: wrap; }
 nav a { color: var(--muted); text-decoration: none; font-weight: 650; }
 nav a[aria-current="page"], nav a:hover { color: var(--hot); }
@@ -87,7 +136,7 @@ th { color: var(--hot); font-size: 0.82rem; letter-spacing: 0.04em; text-transfo
   margin: 16px 0;
   padding: 12px 14px;
   border-radius: 12px;
-  border: 1px solid rgba(224, 138, 44, 0.35);
-  background: rgba(224, 138, 44, 0.08);
+  border: 1px solid color-mix(in srgb, var(--copper) 35%, transparent);
+  background: color-mix(in srgb, var(--copper) 8%, transparent);
   color: var(--muted);
 }

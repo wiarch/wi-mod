@@ -43,7 +43,7 @@
   <header class="top">
     <div class="brand-row">
       <div class="brand">wi-mod</div>
-      <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.11.0</a>
+      <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.12.0</a>
     </div>
     <div class="game-scope">
       <div class="game-picker-wrap">
@@ -53,7 +53,7 @@
         </button>
         <div id="game-menu" class="game-menu" hidden role="listbox"></div>
       </div>
-      <button type="button" id="game-add" class="side-add" title="Añadir juego (RAWG)">+</button>
+      <button type="button" id="game-add" class="side-add" title="Añadir juego (RAWG)"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>Añadir juego</button>
     </div>
     <div class="search-wrap">
       <div class="search-field">
@@ -380,7 +380,7 @@
       </header>
       <p class="hint">Busca en <a href="https://rawg.io" target="_blank" rel="noreferrer">RAWG</a> y ve añadiendo juegos poco a poco.</p>
       <label>Buscar
-        <input id="game-search" type="search" placeholder="Skyrim, Dark Souls Remastered, Minecraft…" autocomplete="off" spellcheck="false">
+        <input id="game-search" type="search" placeholder="Skyrim, WoW Classic, Minecraft…" autocomplete="off" spellcheck="false">
       </label>
       <div id="game-results" class="game-results"></div>
       <p class="hint">Datos de juegos vía <a href="https://rawg.io" target="_blank" rel="noreferrer">RAWG</a>.</p>
@@ -461,7 +461,6 @@
       <div id="modpacks-list" class="files" style="max-height:140px"></div>
       <label>Nombre<input id="mp-name" type="text" placeholder="Ej. Lux Stack" required></label>
       <div class="mp-mark">
-        <div id="mp-mark-face" class="mp-mark-face" aria-hidden="true">📦</div>
         <div class="mp-mark-tools">
           <button type="button" class="ghost" id="mp-emoji-toggle">Emoji</button>
           <label class="ghost mp-file">Imagen
@@ -480,6 +479,14 @@
       </div>
       <div id="mp-cats" class="mp-cats"></div>
       <label>Descripción<textarea id="mp-notes" rows="3" placeholder="De qué va este modpack…"></textarea></label>
+      <div class="mp-preview" id="mp-preview">
+        <div id="mp-mark-face" class="mp-mark-face" aria-hidden="true">📦</div>
+        <div>
+          <p class="pack-hero-kicker">Vista previa</p>
+          <p class="pack-hero-name" id="mp-preview-name">Nombre</p>
+          <p class="pack-hero-desc" id="mp-preview-notes" hidden></p>
+        </div>
+      </div>
       <input id="mp-edit-id" type="hidden">
       <footer>
         <button id="mp-delete" class="ghost" type="button" hidden>Eliminar</button>
@@ -749,7 +756,7 @@
   </div>
 
   <script src="demo-keys.js?v=0.7.9" onerror=""></script>
-  <script src="demo.js?v=0.11.0"></script>
+  <script src="demo.js?v=0.12.0"></script>
   <script src="app.js?v=0.7.9"></script>
 </body>
 </html>

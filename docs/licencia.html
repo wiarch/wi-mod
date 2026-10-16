@@ -10,11 +10,21 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="pages.css">
+  <script>
+    (function () {
+      var themes = ["nexus", "modrinth", "curseforge", "steam", "moddb", "rawg"];
+      var saved = localStorage.getItem("wi-mod-theme");
+      document.documentElement.dataset.theme = themes.indexOf(saved) >= 0 ? saved : "nexus";
+    })();
+  </script>
 </head>
 <body>
   <div class="wrap">
     <header>
-      <a class="mark" href="./">wi-mod</a>
+      <div class="brand-side">
+        <a class="mark" href="./">wi-mod</a>
+        <a class="back" href="./"><span aria-hidden="true">←</span> Volver</a>
+      </div>
       <nav>
         <a href="documentacion.html">Documentación</a>
         <a href="licencia.html" aria-current="page">Licencia</a>

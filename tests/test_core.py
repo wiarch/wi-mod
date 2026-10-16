@@ -244,7 +244,7 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(platforms_for("skyrimspecialedition"), ("Nexus", "Independiente"))
         self.assertEqual(platforms_for("skyrim"), ("Nexus", "Independiente"))
         self.assertEqual(platforms_for("stardewvalley"), ("Nexus", "Independiente"))
-        self.assertEqual(platforms_for("darksoulsremastered"), ("Nexus", "Independiente"))
+        self.assertEqual(platforms_for("worldofwarcraftclassic"), ("CurseForge", "Independiente"))
         self.assertEqual(platforms_for("worldofwarcraft"), ("CurseForge", "Independiente"))
         self.assertEqual(platforms_for("wow"), ("CurseForge", "Independiente"))
         self.assertEqual(platforms_for("gtasa"), ("Nexus", "Independiente"))

@@ -42,6 +42,7 @@ NEXUS_BY_SLUG = {
     "stalker-call-of-pripyat": "stalkercallofpripyat",
     "stalker-2": "stalker2",
     "world-of-warcraft": "worldofwarcraft",
+    "world-of-warcraft-classic": "worldofwarcraftclassic",
 }
 
 
