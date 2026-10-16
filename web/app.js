@@ -239,7 +239,10 @@ function endLoad() {
 function syncMute() {
   const btn = $("mute");
   if (!btn) return;
-  btn.textContent = state.muted ? "🔇" : "🔊";
+  const ico = $("mute-ico");
+  const wave = "M11 5 6 9H3v6h3l5 4V5zM15.5 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12";
+  const slash = "M11 5 6 9H3v6h3l5 4V5zM16 9l5 6M21 9l-5 6";
+  if (ico) ico.querySelector("path").setAttribute("d", state.muted ? slash : wave);
   btn.classList.toggle("on", state.muted);
   btn.title = state.muted ? "Activar sonido" : "Silenciar";
 }
@@ -701,7 +704,8 @@ function paintGameMenu() {
   if (!menu || menu.hidden) return;
   let search = menu.querySelector(".game-menu-search");
   if (!search) {
-    menu.innerHTML = `<input class="game-menu-search" type="search" placeholder="Buscar juego" autocomplete="off" spellcheck="false"><div class="game-menu-list"></div>`;
+    menu.innerHTML = `<input class="game-menu-search" type="search" placeholder="Buscar juego" autocomplete="off" spellcheck="false"><div class="game-menu-list"></div><button type="button" id="game-add" class="game-menu-add" title="Añadir juego (RAWG)"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>Añadir juego</button>`;
+    bindGameAdd();
     search = menu.querySelector(".game-menu-search");
     search.addEventListener("input", paintGameMenu);
     search.addEventListener("keydown", (event) => {
@@ -1461,26 +1465,22 @@ function applyTheme(theme) {
   const img = $("theme-summary-img");
   if (img) img.src = THEME_ICONS[state.theme] || THEME_ICONS.nexus;
   const summary = $("theme-summary");
-  if (summary) summary.title = summary.getAttribute("aria-label") || "Paleta";
+  if (summary) summary.title = summary.getAttribute("aria-label") || "Tema";
   document.querySelectorAll('input[name="theme"]').forEach((input) => {
     input.checked = input.value === state.theme;
   });
 }
 
 function closeThemeSwitch() {
-  const node = $("theme-switch") || document.querySelector(".theme-switch");
+  const node = $("more-theme") || $("theme-switch") || document.querySelector(".theme-switch");
   if (node) node.classList.remove("open");
   const summary = $("theme-summary");
   if (summary) summary.setAttribute("aria-expanded", "false");
 }
 
 async function setTheme(theme) {
-  if (theme === state.theme) {
-    closeThemeSwitch();
-    return;
-  }
+  if (theme === state.theme) return;
   applyTheme(theme);
-  closeThemeSwitch();
   sfx.click();
   try {
     await api("/api/settings", {
@@ -3081,12 +3081,13 @@ document.querySelectorAll(".lang-switch [data-lang]").forEach((button) => {
   button.onclick = () => setLanguage(button.dataset.lang);
 });
 document.querySelectorAll(".theme-panel [data-theme]").forEach((button) => {
-  button.onclick = () => setTheme(button.dataset.theme);
+  const pick = () => setTheme(button.dataset.theme);
+  button.onclick = pick;
 });
 if ($("theme-summary")) {
   $("theme-summary").onclick = (event) => {
     event.stopPropagation();
-    const node = $("theme-switch");
+    const node = $("more-theme");
     if (!node) return;
     const open = !node.classList.contains("open");
     if (open) closeKeysStack();
@@ -3096,7 +3097,7 @@ if ($("theme-summary")) {
   };
 }
 document.addEventListener("pointerdown", (event) => {
-  const node = $("theme-switch") || document.querySelector(".theme-switch");
+  const node = $("more-theme");
   if (!node || !node.classList.contains("open")) return;
   if (node.contains(event.target)) return;
   closeThemeSwitch();
@@ -3111,9 +3112,15 @@ function placePop(pop, anchor) {
   pop.hidden = false;
   const rect = anchor.getBoundingClientRect();
   const box = pop.getBoundingClientRect();
-  const left = Math.max(8, Math.min(rect.left + rect.width / 2 - box.width / 2, window.innerWidth - box.width - 8));
-  let top = rect.top - box.height - 10;
-  if (top < 8) top = rect.bottom + 10;
+  const header = document.querySelector(".top");
+  const below = !!(header && header.contains(anchor));
+  const left = Math.max(8, Math.min(below ? rect.right - box.width : rect.left, window.innerWidth - box.width - 8));
+  let top = below ? rect.bottom + 8 : rect.top - box.height - 8;
+  const dock = document.querySelector(".dock");
+  const limit = dock ? dock.getBoundingClientRect().top - 8 : window.innerHeight - 8;
+  if (below && top + box.height > limit) top = Math.max(8, limit - box.height);
+  if (!below) top = Math.max(8, limit - box.height);
+  pop.classList.toggle("flip", left + box.width > window.innerWidth - 200);
   pop.style.left = `${left}px`;
   pop.style.top = `${top}px`;
 }
@@ -3139,7 +3146,7 @@ $("tape-open").onclick = (event) => {
 document.addEventListener("pointerdown", (event) => {
   const more = $("more-pop");
   const tape = $("tape-pop");
-  const inMore = more && (more.contains(event.target) || event.target.closest("#more-open"));
+  const inMore = more && (more.contains(event.target) || event.target.closest("#more-open") || event.target.closest("#key-pop"));
   const inTape = tape && (tape.contains(event.target) || event.target.closest("#tape-open"));
   if (more && !more.hidden && !inMore && !inTape) {
     more.hidden = true;
@@ -3450,9 +3457,12 @@ function openKeyPop(pill) {
   pop.hidden = false;
   const rect = pill.getBoundingClientRect();
   const box = pop.getBoundingClientRect();
-  const left = Math.max(8, Math.min(rect.left + rect.width / 2 - box.width / 2, window.innerWidth - box.width - 8));
-  let top = rect.top - box.height - 10;
-  if (top < 8) top = rect.bottom + 10;
+  const dock = document.querySelector(".dock");
+  const limit = dock ? dock.getBoundingClientRect().top - 8 : window.innerHeight - 8;
+  const flip = $("more-pop")?.classList.contains("flip");
+  const left = Math.max(8, Math.min(flip ? rect.left - box.width - 8 : rect.right + 8, window.innerWidth - box.width - 8));
+  let top = rect.top;
+  if (top + box.height > limit) top = Math.max(8, limit - box.height);
   pop.style.left = `${left}px`;
   pop.style.top = `${top}px`;
   if (needsKey) $("key-pop-input").focus();
@@ -3585,12 +3595,18 @@ $("clear-key").onclick = async () => {
   fillSecret($("api-key"), "");
   toast("Clave Nexus quitada.", "warn");
 };
-$("game-add").onclick = (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  closeGameMenu();
-  openGameDialog();
-};
+function bindGameAdd() {
+  const button = $("game-add");
+  if (!button || button.dataset.bound) return;
+  button.dataset.bound = "1";
+  button.onclick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    closeGameMenu();
+    openGameDialog();
+  };
+}
+bindGameAdd();
 $("game-picker").onclick = (event) => {
   event.preventDefault();
   event.stopPropagation();
@@ -5136,7 +5152,7 @@ bindSideSize();
 
 const TOUR_STEPS = [
   { sel: "#game-picker", title: "Juego", text: "Aquí eliges el juego. Los fijados quedan arriba y el favorito es el que abre al entrar." },
-  { sel: "#game-add", title: "Añadir juego", text: "Si el juego no está, lo buscas en RAWG y lo agregas." },
+  { sel: "#game-add", title: "Añadir juego", text: "Dentro del selector. Si el juego no está, lo buscas en RAWG y lo agregas." },
   { sel: "#search", title: "Buscar", text: "Busca mods por nombre. Si pegas una URL, detecta la plataforma y el juego, lo crea si falta y guarda el mod." },
   { sel: "[data-fold='platforms']", title: "Plataforma", text: "Filtra por tienda. El número dice cuántas hay. La flecha pliega la lista." },
   { sel: "[data-fold='modpacks']", title: "Modpack", text: "Agrupa mods de este juego. El + crea un modpack." },
@@ -5146,9 +5162,10 @@ const TOUR_STEPS = [
   { sel: ".view-dock", title: "Lista", text: "Cuadrícula o listado, tamaño de las fichas y el orden." },
   { sel: "#grid", title: "Mods", text: "Aquí están los mods. Un clic abre la ficha. Arrastrar marca varios." },
   { sel: "#more-open", title: "Tu usuario", text: "Muestra el usuario de Windows. Desde aquí sales, importas y abres este tutorial." },
-  { sel: "#keys-summary", title: "Claves", text: "Nexus, CurseForge, Steam y RAWG. Modrinth no pide clave." },
-  { sel: "#theme-summary", title: "Color", text: "Cambia el color del banner según la tienda." },
-  { sel: ".lang-switch", title: "Idioma", text: "Español o inglés." },
+  { sel: "#dock-keys", title: "Claves", text: "En el menú, arriba de Tema. Nexus, CurseForge, Steam y RAWG. Modrinth no pide clave." },
+  { sel: "#more-theme", title: "Tema", text: "En el menú, abre Tema y haz clic en uno para aplicarlo." },
+  { sel: "#mute", title: "Sonido", text: "En el menú. Activa o silencia los clics." },
+  { sel: ".lang-row", title: "Idioma", text: "En el menú. Español o inglés." },
   { sel: "#log-open", title: "Avisos", text: "Errores, alertas y peticiones del programa." },
 ];
 
@@ -5193,12 +5210,28 @@ function placeTour() {
 }
 
 function showTourStep(animate) {
+  const upcoming = TOUR_STEPS[tourIndex];
+  if (upcoming?.sel === "#game-add") {
+    const menu = $("game-menu");
+    if (menu) {
+      menu.hidden = false;
+      $("game-picker")?.setAttribute("aria-expanded", "true");
+      paintGameMenu();
+    }
+  } else closeGameMenu();
   while (tourIndex < TOUR_STEPS.length && !tourTarget()) tourIndex += 1;
   if (tourIndex >= TOUR_STEPS.length) {
     stopTour();
     return;
   }
   const step = TOUR_STEPS[tourIndex];
+  const pop = $("more-pop");
+  const target = tourTarget();
+  if (pop && target && pop.contains(target)) {
+    pop.hidden = false;
+    const anchor = $("more-open");
+    if (anchor) placePop(pop, anchor);
+  }
   tourMoveUntil = animate ? performance.now() + 560 : 0;
   $("tour-kicker").textContent = `${tourIndex + 1} / ${TOUR_STEPS.length}`;
   $("tour-title").textContent = step.title;
