@@ -1,7 +1,18 @@
-/* Prueba web: 5 juegos, 5 mods/juego, reinicio cada 5 h. Claves en demo-keys.js (no se sube a git). */
+/* Prueba web: 9 juegos, 5 mods/juego, reinicio cada 5 h. Claves en demo-keys.js (no se sube a git). */
 (function () {
   const MODS_PER_GAME = 5;
-  const GAMES = 5;
+  const GAMES = 9;
+  const SEED_DOMAINS = [
+    "darksoulsremastered",
+    "fallout4",
+    "newvegas",
+    "gta5",
+    "gtasa",
+    "minecraft",
+    "stalkershadowofchernobyl",
+    "stardewvalley",
+    "skyrimspecialedition",
+  ];
   const TTL_MS = 5 * 60 * 60 * 1000;
   const KEY = "wi-mod-demo-v4";
   const DESKTOP = "La versión de escritorio no tiene este límite.";
@@ -46,7 +57,7 @@
       "rawgSlug": "minecraft",
       "gameName": "Minecraft",
       "gameDomain": "minecraft",
-      "imageUrl": "https://media.rawg.io/media/games/b4e/b4e4c73d5aa4ec66bbf75375c4847a2b.jpg",
+      "imageUrl": "brand/minecraft.jpg",
       "released": "2009-05-10",
       "rating": 4.44,
       "metacritic": 83,
@@ -59,7 +70,7 @@
       "rawgSlug": "stardew-valley",
       "gameName": "Stardew Valley",
       "gameDomain": "stardewvalley",
-      "imageUrl": "https://media.rawg.io/media/games/713/713269608dc8f2f40f5a670a14b2de94.jpg",
+      "imageUrl": "brand/stardewvalley.jpg",
       "released": "2016-02-25",
       "rating": 4.39,
       "metacritic": 89,
@@ -176,7 +187,7 @@
       "rawgSlug": "dark-souls8482-remastered",
       "gameName": "Dark Souls: Remastered",
       "gameDomain": "darksoulsremastered",
-      "imageUrl": "https://media.rawg.io/media/games/29c/29c6c21cc0c78cff6f45d23631cc82f4.jpg",
+      "imageUrl": "brand/darksoulsremastered.jpg",
       "released": "2018-05-23",
       "rating": 4.48,
       "metacritic": 84,
@@ -263,21 +274,22 @@
     return [...bytes].map((n) => n.toString(16).padStart(2, "0")).join("");
   }
 
+  function gameRow(game) {
+    return {
+      gameDomain: game.gameDomain,
+      gameName: game.gameName,
+      imageUrl: game.imageUrl || "",
+      description: game.description || "",
+      released: game.released || "",
+      rating: game.rating,
+      metacritic: game.metacritic,
+      rawgId: game.rawgId,
+      rawgSlug: game.rawgSlug,
+    };
+  }
+
   function empty() {
-    const seed = ["skyrimspecialedition", "minecraft", "stardewvalley", "gtasa", "gta5"]
-      .map((domain) => staticGame(domain))
-      .filter(Boolean)
-      .map((game) => ({
-        gameDomain: game.gameDomain,
-        gameName: game.gameName,
-        imageUrl: game.imageUrl || "",
-        description: game.description || "",
-        released: game.released || "",
-        rating: game.rating,
-        metacritic: game.metacritic,
-        rawgId: game.rawgId,
-        rawgSlug: game.rawgSlug,
-      }));
+    const seed = SEED_DOMAINS.map((domain) => staticGame(domain)).filter(Boolean).map(gameRow);
     return {
       mods: [],
       modpacks: [],
@@ -298,6 +310,10 @@
       if (!base) return row;
       const next = { ...row };
       if (!next.imageUrl && base.imageUrl) { next.imageUrl = base.imageUrl; changed = true; }
+      if (String(base.imageUrl || "").startsWith("brand/") && next.imageUrl !== base.imageUrl) {
+        next.imageUrl = base.imageUrl;
+        changed = true;
+      }
       if (!next.description && base.description) { next.description = base.description; changed = true; }
       if (!next.gameName || next.gameName === domain || next.gameName === "Skyrim") {
         next.gameName = base.gameName;
@@ -312,6 +328,16 @@
     });
     if (!data.games.length) {
       data.games = empty().games;
+      changed = true;
+    }
+    const have = new Set(data.games.map((row) => String((row && row.gameDomain) || "").toLowerCase()));
+    for (const domain of SEED_DOMAINS) {
+      if (data.games.length >= GAMES) break;
+      if (have.has(domain)) continue;
+      const game = staticGame(domain);
+      if (!game) continue;
+      data.games.push(gameRow(game));
+      have.add(domain);
       changed = true;
     }
     return changed;
@@ -411,6 +437,7 @@
         categories: data.categories,
         skills: [],
         rules: [],
+        marks: data.marks || {},
       },
       language: data.language,
       theme: data.theme,
@@ -1010,8 +1037,53 @@
       return reply(200, { ok: true });
     }
 
-    if (path === "/api/refresh" || path === "/api/export" || path === "/api/import" || path === "/api/translate" || path === "/api/localize") {
+    if (path === "/api/refresh" || path === "/api/export" || path === "/api/import" || path === "/api/import/preview" || path === "/api/translate" || path === "/api/localize") {
       return reply(400, { error: desktopOnly() });
+    }
+    if (path === "/api/catalog/mark" && method === "POST") {
+      const body = await readJson(init);
+      const kind = String(body.kind || "").trim().toLowerCase();
+      const id = String(body.id || "").trim();
+      const emoji = String(body.emoji || "").trim().slice(0, 8);
+      let imageUrl = String(body.imageUrl || "").trim();
+      if (imageUrl && !/^(https?:\/\/|\/)/.test(imageUrl)) imageUrl = "";
+      data.marks = data.marks || {};
+      const key = `${kind}:${id}`;
+      if (!emoji && !imageUrl) delete data.marks[key];
+      else data.marks[key] = { emoji, imageUrl };
+      save(data);
+      return reply(200, { catalog: library(data).catalog });
+    }
+    if (path === "/api/catalog/game-flag" && method === "POST") {
+      const body = await readJson(init);
+      const id = String(body.id || "").trim().toLowerCase();
+      const games = Array.isArray(data.games) ? data.games : [];
+      const game = games.find((item) => String(item.gameDomain || "").toLowerCase() === id);
+      if (!game) return reply(400, { error: "Ese juego no está en la lista." });
+      if ("pin" in body) {
+        if (body.pin && !game.pinned) {
+          const others = games.filter((item) => item.pinned && item !== game);
+          while (others.length >= 3) {
+            const oldest = others.reduce((best, item) => (
+              (Number(item.pinOrder) || 0) < (Number(best.pinOrder) || 0) ? item : best
+            ));
+            oldest.pinned = false;
+            delete oldest.pinOrder;
+            others.splice(others.indexOf(oldest), 1);
+          }
+          const orders = others.map((item) => Number(item.pinOrder) || 0);
+          game.pinned = true;
+          game.pinOrder = (orders.length ? Math.max(...orders) : 0) + 1;
+        } else if (!body.pin) {
+          game.pinned = false;
+          delete game.pinOrder;
+        }
+      }
+      if ("favorite" in body) {
+        games.forEach((item) => { item.favorite = Boolean(body.favorite) && item === game; });
+      }
+      save(data);
+      return reply(200, { catalog: library(data).catalog });
     }
     if (path === "/api/catalog" && method === "POST") {
       const body = await readJson(init);

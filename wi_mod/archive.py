@@ -94,19 +94,26 @@ def export_library(
     kind = (scope or "all").strip().lower()
     if mod_ids is not None and kind == "all" and not platform and not game and not modpack:
         kind = "selected"
-    mods = select_mods(
-        library.list_mods(),
-        scope=kind,
-        platform=platform,
-        game=game,
-        modpack=modpack,
-        ids=mod_ids,
-    )
+    try:
+        mods = select_mods(
+            library.list_mods(),
+            scope=kind,
+            platform=platform,
+            game=game,
+            modpack=modpack,
+            ids=mod_ids,
+        )
+    except ValueError:
+        if kind not in {"all", "game", "modpack"}:
+            raise
+        mods = []
     dest.parent.mkdir(parents=True, exist_ok=True)
-    pack_ids = {str(mod.get("modpackId") or "") for mod in mods if mod.get("modpackId")}
-    if kind == "modpack" and modpack:
-        pack_ids.add(str(modpack))
-    packs = [pack for pack in library.list_modpacks() if pack.get("id") in pack_ids]
+    packs = _packs_for(library, kind, game, modpack, mods)
+    catalog = _catalog_slice(library, kind, game, packs, mods)
+    if not mods and not packs and not (catalog.get("games") or []) and kind != "all":
+        raise ValueError("No hay nada que exportar con ese filtro.")
+    if kind == "all" and not mods and not packs and not (catalog.get("games") or []):
+        raise ValueError("La biblioteca está vacía.")
     label_pack = next((pack for pack in packs if pack.get("id") == modpack), packs[0] if packs else None)
     count = 0
     with zipfile.ZipFile(dest, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
@@ -121,10 +128,13 @@ def export_library(
                 "modpack": modpack,
                 "modpackName": (label_pack or {}).get("name"),
             },
+            "catalog": catalog,
             "modpacks": packs,
             "mods": mods,
         }
         bundle.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+        for relative in _catalog_files(catalog):
+            _add_if_present(bundle, library, relative)
         for mod in mods:
             count += 1
             _add_if_present(bundle, library, mod.get("pictureFile"))
@@ -155,10 +165,22 @@ def import_library(
             raise ValueError("El manifiesto del paquete está dañado.") from exc
         if manifest.get("format") != FORMAT:
             raise ValueError("El archivo no es un paquete wi-mod.")
+        _restore_catalog(library, manifest.get("catalog"), scope=scope, game=game, modpack=modpack)
+        for relative in _catalog_files(manifest.get("catalog") if isinstance(manifest.get("catalog"), dict) else {}):
+            _extract(bundle, library, relative)
         id_map: dict[str, str] = {}
-        for raw_pack in manifest.get("modpacks") or []:
-            if not isinstance(raw_pack, dict) or not raw_pack.get("name"):
-                continue
+        raw_packs = [item for item in (manifest.get("modpacks") or []) if isinstance(item, dict) and item.get("name")]
+        kind = (scope or "all").strip().lower()
+        if kind == "game" and game:
+            raw_packs = [item for item in raw_packs if str(item.get("gameDomain") or "").lower() == str(game).lower()]
+        elif kind == "modpack" and modpack:
+            raw_packs = [
+                item for item in raw_packs
+                if str(item.get("id") or "") == str(modpack) or str(item.get("name") or "").strip() == str(modpack)
+            ]
+        elif kind not in {"all", "game", "modpack", "platform", "selected"}:
+            raw_packs = []
+        for raw_pack in raw_packs:
             stored = library.upsert_modpack(raw_pack)
             packs_in += 1
             old_id = str(raw_pack.get("id") or "")
@@ -176,13 +198,18 @@ def import_library(
                 if new_id:
                     id_map[str(old_cat["id"])] = new_id
         raw_mods = [item for item in (manifest.get("mods") or []) if isinstance(item, dict) and item.get("name")]
-        chosen = select_mods(
-            raw_mods,
-            scope=scope,
-            platform=platform,
-            game=game,
-            modpack=modpack,
-        )
+        try:
+            chosen = select_mods(
+                raw_mods,
+                scope=scope,
+                platform=platform,
+                game=game,
+                modpack=modpack,
+            )
+        except ValueError:
+            if kind not in {"all", "game", "modpack"}:
+                raise
+            chosen = []
         chosen_keys = {_mod_key(mod) for mod in chosen}
         for raw in raw_mods:
             if _mod_key(raw) not in chosen_keys:
@@ -231,6 +258,150 @@ def import_library(
                     library.set_picture(created["id"], copied["pictureFile"])
                 added += 1
     return {"added": added, "updated": updated, "skipped": skipped, "modpacks": packs_in}
+
+
+def peek_library(archive: Path) -> dict[str, Any]:
+    with zipfile.ZipFile(archive) as bundle:
+        try:
+            manifest = json.loads(bundle.read("manifest.json").decode("utf-8"))
+        except KeyError as exc:
+            raise ValueError("El archivo no es un paquete wi-mod.") from exc
+        except json.JSONDecodeError as exc:
+            raise ValueError("El manifiesto del paquete está dañado.") from exc
+    if manifest.get("format") != FORMAT:
+        raise ValueError("El archivo no es un paquete wi-mod.")
+    mods = [item for item in (manifest.get("mods") or []) if isinstance(item, dict)]
+    packs = [item for item in (manifest.get("modpacks") or []) if isinstance(item, dict)]
+    catalog = manifest.get("catalog") if isinstance(manifest.get("catalog"), dict) else {}
+    games = [item for item in (catalog.get("games") or []) if isinstance(item, dict)]
+    domains = {str(item.get("gameDomain") or "").lower() for item in games}
+    domains.update(str(item.get("gameDomain") or "").lower() for item in mods)
+    domains.discard("")
+    game_rows = []
+    for domain in sorted(domains):
+        named = next((item for item in games if str(item.get("gameDomain") or "").lower() == domain), None)
+        named = named or next((item for item in mods if str(item.get("gameDomain") or "").lower() == domain), None)
+        count = sum(1 for item in mods if str(item.get("gameDomain") or "").lower() == domain)
+        game_rows.append({
+            "id": domain,
+            "name": str((named or {}).get("gameName") or domain),
+            "count": count,
+        })
+    pack_rows = []
+    for pack in packs:
+        pack_id = str(pack.get("id") or "")
+        count = sum(1 for item in mods if str(item.get("modpackId") or "") == pack_id)
+        pack_rows.append({
+            "id": pack_id,
+            "name": str(pack.get("name") or pack_id),
+            "game": str(pack.get("gameName") or pack.get("gameDomain") or ""),
+            "count": count,
+        })
+    return {"mods": len(mods), "games": game_rows, "modpacks": pack_rows}
+
+
+def _packs_for(library: Library, kind: str, game: str | None, modpack: str | None, mods: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    packs = library.list_modpacks()
+    if kind == "all":
+        return list(packs)
+    if kind == "modpack" and modpack:
+        return [pack for pack in packs if str(pack.get("id") or "") == str(modpack)]
+    if kind == "game" and game:
+        domain = str(game).lower()
+        return [pack for pack in packs if str(pack.get("gameDomain") or "").lower() == domain]
+    pack_ids = {str(mod.get("modpackId") or "") for mod in mods if mod.get("modpackId")}
+    return [pack for pack in packs if pack.get("id") in pack_ids]
+
+
+def _catalog_slice(library: Library, kind: str, game: str | None, packs: list[dict[str, Any]], mods: list[dict[str, Any]]) -> dict[str, Any]:
+    catalog = library.catalog()
+    if kind == "all":
+        return catalog
+    domains = set()
+    if kind == "game" and game:
+        domains.add(str(game).lower())
+    domains.update(str(pack.get("gameDomain") or "").lower() for pack in packs)
+    domains.update(str(mod.get("gameDomain") or "").lower() for mod in mods)
+    domains.discard("")
+    games = [
+        item
+        for item in (catalog.get("games") or [])
+        if isinstance(item, dict) and str(item.get("gameDomain") or "").lower() in domains
+    ]
+    marks = {}
+    for key, value in (catalog.get("marks") or {}).items():
+        if not isinstance(value, dict):
+            continue
+        kind_name, _, item_id = str(key).partition(":")
+        if kind_name == "modpack" and any(str(pack.get("id") or "") == item_id for pack in packs):
+            marks[key] = value
+        elif kind_name == "platform" and kind == "platform":
+            marks[key] = value
+        elif kind == "all":
+            marks[key] = value
+    return {
+        "platforms": list(catalog.get("platforms") or []) if kind == "all" else [],
+        "games": games,
+        "categories": list(catalog.get("categories") or []) if kind == "all" else [],
+        "skills": [],
+        "rules": [],
+        "marks": marks,
+    }
+
+
+def _catalog_files(catalog: dict[str, Any]) -> list[str]:
+    found: list[str] = []
+    blobs = list(catalog.get("games") or [])
+    blobs.extend((catalog.get("marks") or {}).values())
+    for item in blobs:
+        if not isinstance(item, dict):
+            continue
+        for key in ("imageUrl", "logoUrl"):
+            url = str(item.get(key) or "").strip()
+            if url.startswith("/media/"):
+                found.append(url[len("/media/"):])
+    return found
+
+
+def _restore_catalog(library: Library, catalog: Any, *, scope: str, game: str | None, modpack: str | None) -> None:
+    if not isinstance(catalog, dict):
+        return
+    kind = (scope or "all").strip().lower()
+    games = [item for item in (catalog.get("games") or []) if isinstance(item, dict)]
+    if kind == "game" and game:
+        games = [item for item in games if str(item.get("gameDomain") or "").lower() == str(game).lower()]
+    elif kind == "modpack":
+        games = games
+    elif kind not in {"all", "game", "modpack", "platform"}:
+        games = []
+    for item in games:
+        try:
+            library.add_catalog_item("game", item)
+        except ValueError:
+            continue
+    if kind == "all":
+        for name in catalog.get("platforms") or []:
+            try:
+                library.add_catalog_item("platform", {"name": name})
+            except ValueError:
+                continue
+        for name in catalog.get("categories") or []:
+            try:
+                library.add_catalog_item("category", {"name": name})
+            except ValueError:
+                continue
+    for key, value in (catalog.get("marks") or {}).items():
+        if not isinstance(value, dict):
+            continue
+        mark_kind, _, item_id = str(key).partition(":")
+        if kind == "game" and mark_kind not in {"platform", "category"}:
+            continue
+        if kind == "modpack" and mark_kind == "modpack" and modpack and item_id != str(modpack):
+            continue
+        try:
+            library.set_mark(mark_kind, item_id, str(value.get("emoji") or ""), str(value.get("imageUrl") or ""))
+        except ValueError:
+            continue
 
 
 def _mod_key(mod: dict[str, Any]) -> tuple[Any, ...]:

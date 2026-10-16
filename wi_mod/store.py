@@ -450,11 +450,14 @@ class Library:
 
     def ensure_default_games(self) -> None:
         defaults = (
-            {"gameDomain": "gtasa", "gameName": "Grand Theft Auto: San Andreas", "rawgId": 416},
-            {"gameDomain": "gta5", "gameName": "Grand Theft Auto V", "rawgId": 3498},
-            {"gameDomain": "fallout4", "gameName": "Fallout 4", "rawgId": 3070},
-            {"gameDomain": "newvegas", "gameName": "Fallout: New Vegas", "rawgId": 5563},
-            {"gameDomain": "stalkershadowofchernobyl", "gameName": "S.T.A.L.K.E.R.: Shadow of Chernobyl", "rawgId": 17857},
+            {"gameDomain": "gtasa", "gameName": "Grand Theft Auto: San Andreas", "rawgId": 416, "rating": 4.5},
+            {"gameDomain": "gta5", "gameName": "Grand Theft Auto V", "rawgId": 3498, "rating": 4.47},
+            {"gameDomain": "fallout4", "gameName": "Fallout 4", "rawgId": 3070, "rating": 3.81},
+            {"gameDomain": "newvegas", "gameName": "Fallout: New Vegas", "rawgId": 5563, "rating": 4.43},
+            {"gameDomain": "stalkershadowofchernobyl", "gameName": "S.T.A.L.K.E.R.: Shadow of Chernobyl", "rawgId": 17857, "rating": 4.27},
+            {"gameDomain": "darksoulsremastered", "gameName": "Dark Souls Remastered", "rawgId": 51610, "imageUrl": "/brand/darksoulsremastered.jpg", "rating": 4.48},
+            {"gameDomain": "minecraft", "gameName": "Minecraft", "rawgId": 22509, "imageUrl": "/brand/minecraft.jpg", "rating": 4.44},
+            {"gameDomain": "stardewvalley", "gameName": "Stardew Valley", "rawgId": 654, "imageUrl": "/brand/stardewvalley.jpg", "rating": 4.39},
         )
         with self._lock:
             data = self._read()
@@ -473,10 +476,18 @@ class Library:
                     ),
                     None,
                 )
-                if exists is not None:
+                if exists is None:
+                    items.append(dict(entry))
+                    dirty = True
                     continue
-                items.append(dict(entry))
-                dirty = True
+                cover = str(entry.get("imageUrl") or "")
+                current = str(exists.get("imageUrl") or "")
+                if cover and (not current or "media.rawg.io" in current or "/screenshots/" in current):
+                    exists["imageUrl"] = cover
+                    dirty = True
+                if exists.get("rating") in (None, "") and entry.get("rating") not in (None, ""):
+                    exists["rating"] = entry["rating"]
+                    dirty = True
             if dirty:
                 self._write(data)
 
@@ -672,6 +683,9 @@ class Library:
             catalog = dict(data.get("catalog") or self._empty_catalog())
             for key in ("platforms", "games", "categories", "skills", "rules"):
                 catalog.setdefault(key, [])
+            catalog.setdefault("marks", {})
+            if not isinstance(catalog.get("marks"), dict):
+                catalog["marks"] = {}
             return catalog
 
     def add_catalog_item(self, kind: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -750,6 +764,71 @@ class Library:
                 raise ValueError("Tipo de catálogo no válido.")
             self._write(data)
             return dict(catalog)
+
+    def set_mark(self, kind: str, item_id: str, emoji: str, image_url: str) -> dict[str, Any]:
+        allowed = {"platform", "category", "modpack", "packcat"}
+        kind = str(kind or "").strip().lower()
+        item_id = str(item_id or "").strip()
+        if kind not in allowed or not item_id:
+            raise ValueError("Elemento no válido.")
+        glyph = str(emoji or "").strip()[:8]
+        image = str(image_url or "").strip()
+        if image and not (image.startswith("http://") or image.startswith("https://") or image.startswith("/")):
+            image = ""
+        with self._lock:
+            data = self._read()
+            self._migrate(data)
+            catalog = data.setdefault("catalog", self._empty_catalog())
+            marks = catalog.setdefault("marks", {})
+            if not isinstance(marks, dict):
+                marks = {}
+                catalog["marks"] = marks
+            key = f"{kind}:{item_id}"
+            if not glyph and not image:
+                marks.pop(key, None)
+            else:
+                marks[key] = {"emoji": glyph, "imageUrl": image}
+            self._write(data)
+            return self.catalog()
+
+    def set_game_flags(self, domain: str, *, pin: bool | None = None, favorite: bool | None = None) -> dict[str, Any]:
+        domain = str(domain or "").strip().lower()
+        if not domain:
+            raise ValueError("Elige un juego.")
+        with self._lock:
+            data = self._read()
+            self._migrate(data)
+            catalog = data.setdefault("catalog", self._empty_catalog())
+            games = [item for item in (catalog.get("games") or []) if isinstance(item, dict)]
+            game = next(
+                (item for item in games if str(item.get("gameDomain") or "").lower() == domain),
+                None,
+            )
+            if game is None:
+                raise ValueError("Ese juego no está en la lista.")
+            if pin is True and not game.get("pinned"):
+                others = [
+                    item for item in games
+                    if item.get("pinned") and str(item.get("gameDomain") or "").lower() != domain
+                ]
+                while len(others) >= 3:
+                    oldest = min(others, key=lambda item: int(item.get("pinOrder") or 0))
+                    oldest["pinned"] = False
+                    oldest.pop("pinOrder", None)
+                    others.remove(oldest)
+                orders = [int(item.get("pinOrder") or 0) for item in others]
+                game["pinned"] = True
+                game["pinOrder"] = (max(orders) if orders else 0) + 1
+            elif pin is False:
+                game["pinned"] = False
+                game.pop("pinOrder", None)
+            if favorite is True:
+                for item in games:
+                    item["favorite"] = str(item.get("gameDomain") or "").lower() == domain
+            elif favorite is False:
+                game["favorite"] = False
+            self._write(data)
+            return self.catalog()
 
     def _apply_pack(self, pack: dict[str, Any], fields: dict[str, Any], *, create: bool) -> None:
         name = str(fields.get("name") or pack.get("name") or "").strip()

@@ -15,7 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from wi_mod.archive import export_label, export_library, import_library
+from wi_mod.archive import export_label, export_library, import_library, peek_library
 from wi_mod.curseforge import CurseForgeError, fetch_project as fetch_curseforge, project_ref, search_mods as search_curseforge, validate_key as validate_curseforge_key
 from wi_mod.images import download_picture
 from wi_mod.modrinth import ModrinthError, fetch_project, project_slug, search_projects
@@ -59,6 +59,10 @@ _BRAND = {
     "steam.ico": "image/x-icon",
     "rawg.png": "image/png",
     "moddb.png": "image/png",
+    "darksoulsremastered.jpg": "image/jpeg",
+    "minecraft.jpg": "image/jpeg",
+    "stardewvalley.jpg": "image/jpeg",
+    "game_pattern.png": "image/png",
 }
 _ID = re.compile(r"^[0-9a-f]{32}$")
 
@@ -408,6 +412,27 @@ def make_handler(app: App):
                 catalog = app.library.add_catalog_item(kind, body)
                 self._json(200, {"catalog": catalog})
                 return
+            if path == "/api/catalog/mark":
+                body = self._json_body()
+                catalog = app.library.set_mark(
+                    str(body.get("kind") or ""),
+                    str(body.get("id") or ""),
+                    str(body.get("emoji") or ""),
+                    str(body.get("imageUrl") or ""),
+                )
+                self._json(200, {"catalog": catalog})
+                return
+            if path == "/api/catalog/game-flag":
+                body = self._json_body()
+                pin = body.get("pin") if "pin" in body else None
+                favorite = body.get("favorite") if "favorite" in body else None
+                catalog = app.library.set_game_flags(
+                    str(body.get("id") or ""),
+                    pin=None if pin is None else bool(pin),
+                    favorite=None if favorite is None else bool(favorite),
+                )
+                self._json(200, {"catalog": catalog})
+                return
             if path == "/api/rawg/add":
                 body = self._json_body()
                 game = _add_game_from_rawg(app, body)
@@ -428,6 +453,9 @@ def make_handler(app: App):
             if path == "/api/export":
                 body = self._json_body()
                 self._export(_pack_filter(body))
+                return
+            if path == "/api/import/preview":
+                self._json(200, {"preview": _import_preview(app, self)})
                 return
             if path == "/api/import":
                 self._json(200, {"result": _import(app, self)})
@@ -1484,6 +1512,21 @@ def _pack_filter(body: dict) -> dict:
         "modpack": str(body.get("modpack") or "").strip() or None,
         "ids": ids,
     }
+
+
+def _import_preview(app: App, handler: BaseHTTPRequestHandler) -> dict:
+    length = int(handler.headers.get("Content-Length") or 0)
+    work = app.tmp / uuid.uuid4().hex
+    try:
+        parts = parse_multipart(handler.rfile, length, handler.headers.get("Content-Type") or "", work)
+        archive = next((Path(part["path"]) for part in parts if part.get("filename")), None)
+        if archive is None:
+            raise ValueError("Elige un paquete .zip de wi-mod.")
+        return peek_library(archive)
+    finally:
+        if work.exists():
+            import shutil
+            shutil.rmtree(work, ignore_errors=True)
 
 
 def _import(app: App, handler: BaseHTTPRequestHandler) -> dict:

@@ -10,7 +10,14 @@ const state = {
   files: "all",
   sort: "added",
   view: localStorage.getItem("wi-mod-view") === "list" ? "list" : "grid",
-  cardSize: ["sm", "md", "lg"].includes(localStorage.getItem("wi-mod-size")) ? localStorage.getItem("wi-mod-size") : "md",
+  cardScale: (() => {
+    const saved = Number(localStorage.getItem("wi-mod-scale"));
+    if (Number.isFinite(saved)) return Math.min(1.5, Math.max(0.5, Math.round(saved * 2) / 2));
+    const old = localStorage.getItem("wi-mod-size");
+    if (old === "sm") return 0.5;
+    if (old === "lg") return 1.5;
+    return 1;
+  })(),
   query: "",
   selected: new Set(),
   lastCheck: "",
@@ -39,10 +46,64 @@ function displaySummary(mod) {
   return mod.summary || "Sin descripción";
 }
 
+const CATEGORY_ES = {
+  "overhauls": "Reformas",
+  "user interface": "Interfaz",
+  "gameplay": "Jugabilidad",
+  "models and textures": "Modelos y texturas",
+  "cities, towns, villages, and hamlets": "Ciudades y pueblos",
+  "immersion": "Inmersión",
+  "patches": "Parches",
+  "utilities": "Utilidades",
+  "weapons": "Armas",
+  "armour": "Armaduras",
+  "armor": "Armaduras",
+  "magic - gameplay": "Magia",
+  "audio": "Audio",
+  "visuals": "Visuales",
+  "visuals and graphics": "Visuales",
+  "general": "General",
+  "bug fixes": "Correcciones",
+  "animation": "Animación",
+  "animations": "Animaciones",
+  "creatures and mounts": "Criaturas y monturas",
+  "quests and adventures": "Misiones",
+  "npc": "Personajes",
+  "npcs": "Personajes",
+  "clothing and accessories": "Ropa y accesorios",
+  "environmental": "Entorno",
+  "environment": "Entorno",
+  "items and objects": "Objetos",
+  "skills and leveling": "Habilidades",
+  "combat": "Combate",
+  "alchemy": "Alquimia",
+  "followers": "Seguidores",
+  "locations": "Lugares",
+  "modders resources": "Recursos",
+  "new lands": "Nuevas tierras",
+  "performance": "Rendimiento",
+  "presets": "Preajustes",
+  "stealth": "Sigilo",
+  "survival": "Supervivencia",
+  "weather and lighting": "Clima e iluminación",
+  "lighting": "Iluminación",
+  "hair and face": "Pelo y cara",
+  "body, face, and hair": "Cuerpo y cara",
+  "characters": "Personajes",
+  "buildings": "Edificios",
+  "miscellaneous": "Varios",
+  "player homes": "Casas",
+  "quests": "Misiones",
+  "textures": "Texturas",
+  "weapons and armour": "Armas y armaduras",
+};
+
 function categoryLabel(name, mod) {
   const raw = name || mod?.category || "General";
   if (!state.showEs) return raw;
   if (mod?.categoryEs && (mod.category || "General") === raw) return mod.categoryEs;
+  const known = CATEGORY_ES[String(raw).toLowerCase()];
+  if (known) return known;
   const found = state.mods.find((item) => (item.category || "General") === raw && item.categoryEs);
   return found?.categoryEs || raw;
 }
@@ -247,6 +308,7 @@ async function load() {
   paintKeys();
   const alive = new Set(state.mods.map((mod) => mod.id));
   state.selected.forEach((id) => { if (!alive.has(id)) state.selected.delete(id); });
+  adoptServerGamePrefs();
   ensureActiveGame();
   render();
   enrichActiveGame();
@@ -352,6 +414,62 @@ async function localizeLibrary() {
   }
 }
 
+const GAME_SCORES = {
+  darksoulsremastered: 4.48,
+  fallout4: 3.81,
+  newvegas: 4.43,
+  gta5: 4.47,
+  gtasa: 4.5,
+  minecraft: 4.44,
+  stalkershadowofchernobyl: 4.27,
+  stardewvalley: 4.39,
+  skyrimspecialedition: 4.45,
+};
+
+function readGamePrefs() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("wi-mod-game-prefs") || "{}");
+    return {
+      pinned: Array.isArray(raw.pinned) ? raw.pinned.map((id) => String(id)) : [],
+      favorite: String(raw.favorite || ""),
+    };
+  } catch (_) {
+    return { pinned: [], favorite: "" };
+  }
+}
+
+function writeGamePrefs(prefs) {
+  localStorage.setItem("wi-mod-game-prefs", JSON.stringify({
+    pinned: prefs.pinned || [],
+    favorite: prefs.favorite || "",
+  }));
+}
+
+function gameMeta(id) {
+  const key = String(id || "");
+  const game = catalogGame(key) || {};
+  const prefs = readGamePrefs();
+  const pinned = Object.prototype.hasOwnProperty.call(game, "pinned")
+    ? Boolean(game.pinned)
+    : prefs.pinned.includes(key);
+  const favorite = Object.prototype.hasOwnProperty.call(game, "favorite")
+    ? Boolean(game.favorite)
+    : prefs.favorite === key;
+  const listed = prefs.pinned.indexOf(key);
+  const pinOrder = Number.isFinite(Number(game.pinOrder)) ? Number(game.pinOrder) : listed;
+  return { pinned, favorite, pinOrder };
+}
+
+function gameScore(id) {
+  const game = catalogGame(id);
+  const raw = game && game.rating != null && game.rating !== ""
+    ? game.rating
+    : GAME_SCORES[String(id || "").toLowerCase()];
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return (Math.round(n * 10) / 10).toFixed(1);
+}
+
 function gameOptions() {
   const map = new Map(gameOptionsForPacks());
   (state.catalog.games || []).forEach((item) => {
@@ -364,11 +482,30 @@ function gameOptions() {
   state.modpacks.forEach((pack) => {
     if (pack.gameDomain) map.set(pack.gameDomain, pack.gameName || pack.gameDomain);
   });
-  return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], "es"));
+  return [...map.entries()].sort((a, b) => {
+    const left = gameMeta(a[0]);
+    const right = gameMeta(b[0]);
+    if (left.pinned !== right.pinned) return left.pinned ? -1 : 1;
+    if (left.pinned && left.pinOrder !== right.pinOrder) return left.pinOrder - right.pinOrder;
+    return a[1].localeCompare(b[1], "es");
+  });
+}
+
+let gameBooted = false;
+
+function favoriteGameId() {
+  const fromCat = (state.catalog.games || []).find((item) => item && item.favorite && item.gameDomain);
+  if (fromCat) return String(fromCat.gameDomain);
+  return readGamePrefs().favorite;
 }
 
 function ensureActiveGame() {
   const options = gameOptions();
+  if (!gameBooted) {
+    gameBooted = true;
+    const fav = favoriteGameId();
+    if (fav && options.some(([id]) => id === fav)) state.game = fav;
+  }
   if (state.game && options.some(([id]) => id === state.game)) {
     localStorage.setItem("wi-mod-game", state.game);
     return;
@@ -395,11 +532,23 @@ function gameLabel(domain) {
 }
 
 function gameCover(domain) {
-  return catalogGame(domain)?.imageUrl || "";
+  const row = LOCAL_COVERS[String(domain || "").toLowerCase()];
+  const stored = catalogGame(domain)?.imageUrl || "";
+  if (stored && !stored.includes("/screenshots/")) return stored;
+  if (row) return row[1];
+  return stored;
 }
+
+const LOCAL_COVERS = {
+  darksoulsremastered: ["/brand/darksoulsremastered.jpg", "https://media.rawg.io/media/games/29c/29c6c21cc0c78cff6f45d23631cc82f4.jpg"],
+  minecraft: ["/brand/minecraft.jpg", "https://media.rawg.io/media/games/b4e/b4e4c73d5aa4ec66bbf75375c4847a2b.jpg"],
+  stardewvalley: ["/brand/stardewvalley.jpg", "https://media.rawg.io/media/games/713/713269608dc8f2f40f5a670a14b2de94.jpg"],
+};
 
 function gameMark(domain) {
   const game = catalogGame(domain);
+  const row = LOCAL_COVERS[String(domain || "").toLowerCase()];
+  if (row) return { src: row[0], fallback: row[1], logo: false };
   if (game?.logoUrl) return { src: game.logoUrl, logo: true };
   if (game?.imageUrl) return { src: game.imageUrl, logo: false };
   return { src: "", logo: false };
@@ -410,6 +559,135 @@ function closeGameMenu() {
   const picker = $("game-picker");
   if (menu) menu.hidden = true;
   if (picker) picker.setAttribute("aria-expanded", "false");
+}
+
+function paintGameMenu() {
+  const menu = $("game-menu");
+  if (!menu || menu.hidden) return;
+  let search = menu.querySelector(".game-menu-search");
+  if (!search) {
+    menu.innerHTML = `<input class="game-menu-search" type="search" placeholder="Buscar juego" autocomplete="off" spellcheck="false"><div class="game-menu-list"></div>`;
+    search = menu.querySelector(".game-menu-search");
+    search.addEventListener("input", paintGameMenu);
+    search.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        closeGameMenu();
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        const first = menu.querySelector(".game-menu-list [data-game]");
+        if (first) first.click();
+      }
+    });
+  }
+  const query = search.value.trim().toLowerCase();
+  const options = gameOptions().filter(([id, label]) => (
+    !query || String(label).toLowerCase().includes(query) || String(id).toLowerCase().includes(query)
+  ));
+  const list = menu.querySelector(".game-menu-list");
+  list.innerHTML = options.length
+    ? options.map(([id, label]) => {
+      const mark = gameMark(id);
+      const meta = gameMeta(id);
+      const score = gameScore(id);
+      return `<button type="button" role="option" data-game="${esc(id)}" class="${id === state.game ? "on" : ""}">
+        ${mark.src ? `<img alt="" class="${mark.logo ? "is-logo" : ""}" src="${esc(mark.src)}"${mark.fallback ? ` data-fallback="${esc(mark.fallback)}"` : ""} onerror="if(this.dataset.fallback){this.src=this.dataset.fallback;this.removeAttribute('data-fallback')}">` : `<img alt="" hidden>`}
+        <span class="game-menu-name">${esc(label)}</span>
+        <span class="game-score">${score ? esc(score) : ""}</span>
+        <span class="game-pin ${meta.pinned ? "on" : ""}" data-pin="${esc(id)}" title="${meta.pinned ? "Quitar de arriba" : "Fijar arriba, máximo 3"}">📌</span>
+        <span class="game-fav ${meta.favorite ? "on" : ""}" data-fav="${esc(id)}" title="${meta.favorite ? "Quitar favorito" : "Abrir siempre este juego"}">★</span>
+      </button>`;
+    }).join("")
+    : `<p class="hint">Ningún juego.</p>`;
+  list.querySelectorAll("[data-game]").forEach((button) => {
+    button.onclick = (event) => {
+      const pin = event.target.closest("[data-pin]");
+      const fav = event.target.closest("[data-fav]");
+      if (pin) {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleGamePin(pin.dataset.pin);
+        return;
+      }
+      if (fav) {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleGameFavorite(fav.dataset.fav);
+        return;
+      }
+      selectGame(button.dataset.game);
+      closeGameMenu();
+    };
+  });
+}
+
+function prefsFromCatalog() {
+  const pinned = (state.catalog.games || [])
+    .filter((item) => item && item.pinned && item.gameDomain)
+    .sort((a, b) => Number(a.pinOrder || 0) - Number(b.pinOrder || 0))
+    .map((item) => String(item.gameDomain));
+  const favorite = (state.catalog.games || []).find((item) => item && item.favorite && item.gameDomain);
+  return { pinned, favorite: favorite ? String(favorite.gameDomain) : "" };
+}
+
+function adoptServerGamePrefs() {
+  const remote = prefsFromCatalog();
+  if (remote.pinned.length || remote.favorite) writeGamePrefs(remote);
+}
+
+async function saveGameFlag(id, body) {
+  const prefs = readGamePrefs();
+  let pinned = prefs.pinned.filter((item) => item !== id);
+  let favorite = prefs.favorite;
+  if ("pin" in body) {
+    if (body.pin) {
+      pinned.push(id);
+      if (pinned.length > 3) pinned = pinned.slice(pinned.length - 3);
+    }
+  }
+  if ("favorite" in body) favorite = body.favorite ? id : (favorite === id ? "" : favorite);
+  writeGamePrefs({ pinned, favorite });
+  paintGameMenu();
+  try {
+    let data = await api("/api/catalog/game-flag", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, ...body }),
+    });
+    if (data.catalog) state.catalog = data.catalog;
+    for (const extra of pinned) {
+      if (prefsFromCatalog().pinned.includes(extra)) continue;
+      data = await api("/api/catalog/game-flag", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: extra, pin: true }),
+      });
+      if (data.catalog) state.catalog = data.catalog;
+    }
+    if (favorite && prefsFromCatalog().favorite !== favorite) {
+      data = await api("/api/catalog/game-flag", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: favorite, favorite: true }),
+      });
+      if (data.catalog) state.catalog = data.catalog;
+    }
+    if (state.catalog) writeGamePrefs(prefsFromCatalog());
+    paintGameMenu();
+  } catch (error) {
+    const missing = /404|no encontr|not found/i.test(String(error.message || error));
+    if (!missing) toast(error.message, "bad");
+  }
+}
+
+function toggleGamePin(id) {
+  saveGameFlag(id, { pin: !gameMeta(id).pinned });
+}
+
+function toggleGameFavorite(id) {
+  saveGameFlag(id, { favorite: !gameMeta(id).favorite });
 }
 
 function renderGameScope() {
@@ -432,22 +710,7 @@ function renderGameScope() {
       imgNode.hidden = true;
     }
   }
-  const menu = $("game-menu");
-  if (!menu || menu.hidden) return;
-  const options = gameOptions();
-  menu.innerHTML = options.map(([id, label]) => {
-    const mark = gameMark(id);
-    return `<button type="button" role="option" data-game="${esc(id)}" class="${id === state.game ? "on" : ""}">
-      ${mark.src ? `<img alt="" class="${mark.logo ? "is-logo" : ""}" src="${esc(mark.src)}" loading="lazy">` : `<img alt="" hidden>`}
-      <span>${esc(label)}</span>
-    </button>`;
-  }).join("");
-  menu.querySelectorAll("[data-game]").forEach((button) => {
-    button.onclick = () => {
-      selectGame(button.dataset.game);
-      closeGameMenu();
-    };
-  });
+  paintGameMenu();
 }
 
 function selectGame(domain) {
@@ -506,7 +769,7 @@ function renderGameHero() {
   }
   const meta = catalogGame(domain) || {};
   const name = meta.gameName || gameLabel(domain);
-  const cover = meta.imageUrl || "";
+  const cover = gameCover(domain);
   const mods = scopedMods().length;
   const packs = packsForGame().length;
   const bits = [
@@ -518,11 +781,26 @@ function renderGameHero() {
   ].filter(Boolean);
   node.hidden = false;
   node.style.backgroundImage = "";
+  const packStrip = packHeroStrip();
+  if (localStorage.getItem("wi-mod-hero") === "0") {
+    node.classList.add("mini");
+    node.innerHTML = `<button type="button" class="game-hero-toggle" id="hero-toggle">Mostrar ficha · ${esc(name)}</button>${packStrip}`;
+    $("hero-toggle").onclick = () => {
+      localStorage.setItem("wi-mod-hero", "1");
+      renderGameHero();
+    };
+    bindPackDesc();
+    return;
+  }
+  node.classList.remove("mini");
   node.innerHTML = `
     <div class="game-hero-inner">
       ${cover ? `<img class="game-hero-cover" alt="" src="${esc(cover)}">` : `<div class="game-hero-cover"></div>`}
       <div>
-        <h2>${esc(name)}</h2>
+        <div class="game-hero-head">
+          <h2>${esc(name)}</h2>
+          <button type="button" class="game-hero-toggle" id="hero-toggle">Ocultar</button>
+        </div>
         <p class="meta">${esc(bits.join(" · ") || domain)} · ${mods} mods · ${packs} modpacks</p>
         <p class="desc">${esc((state.lang === "es" ? (meta.descriptionEs || meta.description) : meta.description) || "Añade el juego con + para traer ficha completa desde RAWG, o espera a que se complete sola.")}</p>
         <div class="game-hero-links">
@@ -532,7 +810,36 @@ function renderGameHero() {
         </div>
       </div>
     </div>
+    ${packStrip}
   `;
+  $("hero-toggle").onclick = () => {
+    localStorage.setItem("wi-mod-hero", "0");
+    renderGameHero();
+  };
+  bindPackDesc();
+}
+
+function packHeroStrip() {
+  if (!state.modpack) return "";
+  const pack = packById(state.modpack);
+  if (!pack) return "";
+  const icon = markIcon("modpack", pack.id) || `<span class="side-emoji">📦</span>`;
+  const desc = String(pack.notes || "").trim();
+  const text = desc
+    ? `<p class="pack-hero-desc">${esc(desc)}</p>`
+    : `<button type="button" class="pack-hero-desc pack-hero-add" id="pack-desc-add">Añadir descripción</button>`;
+  return `<div class="pack-hero">${icon}<div><p class="pack-hero-kicker">Modpack</p><p class="pack-hero-name">${esc(pack.name || "")}</p>${text}</div></div>`;
+}
+
+function bindPackDesc() {
+  const btn = $("pack-desc-add");
+  if (!btn) return;
+  btn.onclick = () => {
+    if (!state.modpack) return;
+    openModpacksDialog();
+    editModpack(state.modpack);
+    $("mp-notes")?.focus();
+  };
 }
 
 function scopedMods() {
@@ -725,8 +1032,8 @@ function renderFilters() {
     const cats = pack ? (pack.categories || []) : [];
     const rows = cats.map((cat) => {
       const n = scopedMods().filter((mod) => mod.modpackId === pack.id && mod.modpackCategoryId === cat.id).length;
-      const img = cat.imageUrl ? `<img class="pc-ico" alt="" src="${esc(cat.imageUrl)}">` : "";
-      return `<button type="button" class="pack-cat-chip ${cat.id === state.packCat ? "on" : ""}" data-kind="packCat" data-value="${encodeURIComponent(cat.id)}">${img}<span>${esc(cat.name)} (${n})</span></button>`;
+      const icon = markIcon("packcat", cat.id, { emoji: cat.emoji, imageUrl: cat.imageUrl });
+      return `<button type="button" class="pack-cat-chip ${cat.id === state.packCat ? "on" : ""}" data-kind="packCat" data-value="${encodeURIComponent(cat.id)}" title="${esc(cat.name)}">${icon}<span class="side-initial">${esc(sideInitial(cat.name))}</span><span>${esc(cat.name)} (${n})</span></button>`;
     }).join("");
     inside = `<div class="pack-cats">
       <div class="side-head">
@@ -750,7 +1057,15 @@ function renderFilters() {
   fillCategorySelect($("add-category"), $("add-category").value || "");
   fillModpackSelects($("add-modpack"), $("add-pack-cat"), $("add-modpack")?.value || "", $("add-pack-cat")?.value || "", state.game);
   document.querySelectorAll(".side [data-kind]").forEach((button) => {
-    button.onclick = () => {
+    button.onclick = (event) => {
+      const edit = event.target.closest("[data-edit]");
+      if (edit) {
+        event.preventDefault();
+        event.stopPropagation();
+        openModpacksDialog();
+        editModpack(edit.dataset.edit);
+        return;
+      }
       const kind = button.dataset.kind;
       const raw = button.getAttribute("data-value");
       state[kind] = raw == null ? "" : decodeURIComponent(raw);
@@ -758,6 +1073,14 @@ function renderFilters() {
       sfx.click();
       render();
       if (kind === "platform") scheduleRemoteSearch();
+    };
+    button.oncontextmenu = (event) => {
+      const raw = button.getAttribute("data-value");
+      const value = raw == null ? "" : decodeURIComponent(raw);
+      if (!value) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openMarkPop(button.dataset.kind, value, event.clientX, event.clientY);
     };
     const kind = button.dataset.kind;
     const raw = button.getAttribute("data-value");
@@ -867,9 +1190,50 @@ function startSideName(boxId, placeholder, save) {
   };
 }
 
+function markOf(kind, id) {
+  const marks = state.catalog?.marks || {};
+  return marks[`${String(kind || "").toLowerCase()}:${id}`] || null;
+}
+
+function markIcon(kind, id, fallback) {
+  const mark = markOf(kind, id) || fallback || {};
+  if (mark.imageUrl) return `<img class="side-ico" alt="" src="${esc(mark.imageUrl)}">`;
+  if (String(kind || "").toLowerCase() === "platform") {
+    const brand = platformMark(id);
+    if (brand) return brand;
+  }
+  if (mark.emoji) return `<span class="side-emoji">${esc(mark.emoji)}</span>`;
+  return "";
+}
+
+function platformMark(name) {
+  const key = String(name || "").trim().toLowerCase();
+  if (key === "independiente") {
+    return `<svg class="side-ico side-globe" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><ellipse cx="12" cy="12" rx="4.2" ry="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3.4 12h17.2M4.6 8.2h14.8M4.6 15.8h14.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+  }
+  const src = {
+    nexus: THEME_ICONS.nexus,
+    modrinth: THEME_ICONS.modrinth,
+    curseforge: THEME_ICONS.curseforge,
+    "steam workshop": THEME_ICONS.steam,
+    steam: THEME_ICONS.steam,
+    moddb: THEME_ICONS.moddb,
+  }[key];
+  return src ? `<img class="side-ico" alt="" src="${src}">` : "";
+}
+
+function sideInitial(label) {
+  const clean = String(label || "").replace(/\s*\(\d+\)\s*$/, "").trim();
+  return ([...clean][0] || "·").toUpperCase();
+}
+
 function chip(label, value, current, kind) {
   const on = String(value) === String(current) ? "on" : "";
-  return `<button type="button" class="${on}" data-kind="${kind}" data-value="${encodeURIComponent(value)}">${esc(label)}</button>`;
+  const icon = value ? markIcon(kind, value) : "";
+  const pencil = kind === "modpack" && on && value
+    ? `<span class="chip-edit" data-edit="${esc(value)}" title="Editar modpack">✎</span>`
+    : "";
+  return `<button type="button" class="${on}" data-kind="${kind}" data-value="${encodeURIComponent(value)}" title="${esc(label)}">${icon}<span class="side-initial">${esc(sideInitial(label))}</span><span>${esc(label)}</span>${pencil}</button>`;
 }
 
 const BASE_CATEGORIES = [
@@ -885,7 +1249,7 @@ function categoryOptions(preferred) {
   });
   (state.catalog.categories || []).forEach((name) => set.add(name));
   if (preferred) set.add(preferred);
-  return [...set].sort((a, b) => a.localeCompare(b, "es"));
+  return [...set].sort((a, b) => categoryLabel(a).localeCompare(categoryLabel(b), "es"));
 }
 
 function fillCategorySelect(node, preferred) {
@@ -1240,20 +1604,35 @@ function shot(mod) {
   return "";
 }
 
+function cardScale() {
+  const n = Number(state.cardScale);
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(1.5, Math.max(0.5, Math.round(n * 2) / 2));
+}
+
 function syncViewToggle() {
   const grid = $("grid");
+  const scale = cardScale();
   if (grid) {
     grid.classList.toggle("list", state.view === "list");
     grid.classList.remove("size-sm", "size-md", "size-lg");
-    grid.classList.add(`size-${state.cardSize}`);
+    grid.style.setProperty("--card-scale", String(scale));
     grid.classList.toggle("picking", state.picking);
   }
   document.querySelectorAll(".view-toggle [data-view]").forEach((button) => {
     button.classList.toggle("on", button.dataset.view === state.view);
   });
-  document.querySelectorAll(".view-toggle [data-size]").forEach((button) => {
-    button.classList.toggle("on", button.dataset.size === state.cardSize);
-  });
+  const label = $("size-reset");
+  if (label) {
+    const text = `${scale}×`;
+    label.textContent = text;
+    label.classList.toggle("on", scale === 1);
+    label.title = scale === 1 ? "Tamaño normal" : `${text}. Clic para volver a 1×`;
+  }
+  const down = $("size-down");
+  const up = $("size-up");
+  if (down) down.disabled = scale <= 0.5;
+  if (up) up.disabled = scale >= 1.5;
 }
 
 function setView(view) {
@@ -1276,6 +1655,19 @@ function setPicking(on) {
   }
   sfx.click();
   render();
+}
+
+function paintSelection() {
+  document.querySelectorAll("#grid .card").forEach((card) => {
+    const on = state.selected.has(card.dataset.id);
+    card.classList.toggle("on", on);
+    card.draggable = on;
+  });
+  document.querySelectorAll("#grid [data-check]").forEach((box) => {
+    box.checked = state.selected.has(box.dataset.check);
+  });
+  paintPickAll();
+  paintBulk();
 }
 
 function paintPickAll() {
@@ -1423,39 +1815,69 @@ function dragIdsFor(id) {
   return [id];
 }
 
-function dragBadge() {
-  let badge = $("drag-badge");
-  if (badge) return badge;
-  badge = document.createElement("div");
-  badge.id = "drag-badge";
-  badge.hidden = true;
-  document.body.appendChild(badge);
-  return badge;
+let dragGhost = null;
+
+function showDragGhost(card, count, x, y) {
+  hideDragGhost(true);
+  const rect = card.getBoundingClientRect();
+  const copy = card.cloneNode(true);
+  copy.classList.remove("dragging", "drag-group", "on");
+  copy.style.animation = "none";
+  copy.style.transition = "none";
+  copy.style.transform = "none";
+  copy.style.width = "100%";
+  copy.style.height = "100%";
+  copy.style.minHeight = "0";
+  copy.style.margin = "0";
+  const wrap = document.createElement("div");
+  wrap.id = "drag-ghost";
+  wrap.style.left = `${rect.left}px`;
+  wrap.style.top = `${rect.top}px`;
+  wrap.style.width = `${rect.width}px`;
+  wrap.style.height = `${rect.height}px`;
+  wrap.style.transform = "translate(0px, 0px) scale(1)";
+  const chip = document.createElement("span");
+  chip.className = "drag-count";
+  chip.textContent = count === 1 ? "1 mod" : `${count} mods`;
+  wrap.append(copy, chip);
+  document.body.appendChild(wrap);
+  const pointerX = x || rect.left + rect.width / 2;
+  const pointerY = y || rect.top + rect.height / 2;
+  dragGhost = { node: wrap, left: rect.left, top: rect.top, w: rect.width, h: rect.height, follow: false };
+  wrap.offsetWidth;
+  wrap.classList.add("fly");
+  placeDragGhost(pointerX, pointerY);
+  wrap.addEventListener("transitionend", (event) => {
+    if (event.propertyName !== "transform" || !dragGhost || dragGhost.node !== wrap) return;
+    wrap.classList.remove("fly");
+    dragGhost.follow = true;
+  });
 }
 
-function showDragBadge(count, x, y) {
-  const badge = dragBadge();
-  badge.textContent = count === 1 ? "1 mod" : `${count} mods`;
-  badge.hidden = false;
-  moveDragBadge(x, y);
+function placeDragGhost(x, y) {
+  if (!dragGhost || (!x && !y)) return;
+  const tx = x - dragGhost.left - dragGhost.w / 2;
+  const ty = y - dragGhost.top - dragGhost.h / 2;
+  dragGhost.node.style.transform = `translate(${tx}px, ${ty}px) scale(0.32)`;
 }
 
-function moveDragBadge(x, y) {
-  if (!x && !y) return;
-  const badge = $("drag-badge");
-  if (!badge || badge.hidden) return;
-  badge.style.left = `${x + 14}px`;
-  badge.style.top = `${y + 18}px`;
-}
-
-function hideDragBadge() {
-  const badge = $("drag-badge");
-  if (!badge) return;
-  badge.hidden = true;
+function hideDragGhost(instant) {
+  const wrap = dragGhost?.node || document.getElementById("drag-ghost");
+  dragGhost = null;
   document.querySelectorAll(".card.drag-group").forEach((card) => card.classList.remove("drag-group"));
+  if (!wrap) return;
+  if (instant) {
+    wrap.remove();
+    return;
+  }
+  wrap.classList.add("gone");
+  setTimeout(() => wrap.remove(), 180);
 }
 
-document.addEventListener("dragover", (event) => moveDragBadge(event.clientX, event.clientY));
+document.addEventListener("dragover", (event) => {
+  if (!dragGhost?.follow) return;
+  placeDragGhost(event.clientX, event.clientY);
+});
 
 function beginMarquee(event, fromCard) {
   if (event.button !== 0) return;
@@ -1517,17 +1939,23 @@ function beginMarquee(event, fromCard) {
     if (!moved) {
       if (!fromCard && state.picking) {
         state.selected.clear();
-        render();
+        paintSelection();
       }
       return;
     }
     state.dragged = true;
     setTimeout(() => { state.dragged = false; }, 0);
-    if (state.selected.size) armPicking();
     const ids = [...state.selected];
-    if (ids.length) state.lastCheck = ids[ids.length - 1];
+    if (!ids.length) {
+      paintSelection();
+      return;
+    }
+    state.lastCheck = ids[ids.length - 1];
+    const wasPicking = state.picking;
+    armPicking();
     sfx.soft();
-    render();
+    if (wasPicking) paintSelection();
+    else render();
   };
   window.addEventListener("mousemove", onMove);
   window.addEventListener("mouseup", onUp);
@@ -1569,9 +1997,11 @@ async function dropMarked(kind, value, ids) {
   await load();
 }
 
-function setCardSize(size) {
-  state.cardSize = size === "sm" || size === "lg" ? size : "md";
-  localStorage.setItem("wi-mod-size", state.cardSize);
+function setCardScale(next) {
+  const value = Math.min(1.5, Math.max(0.5, Math.round(Number(next) * 2) / 2));
+  if (value === cardScale()) return;
+  state.cardScale = value;
+  localStorage.setItem("wi-mod-scale", String(value));
   sfx.click();
   syncViewToggle();
 }
@@ -1582,9 +2012,6 @@ function paintBulk() {
   bar.hidden = n === 0;
   if (!n) return;
   $("bulk-count").textContent = `${n} marcados`;
-  const visibleIds = visible().map((mod) => mod.id);
-  const allOn = visibleIds.length > 0 && visibleIds.every((id) => state.selected.has(id));
-  $("bulk-all").textContent = allOn ? "Desmarcar visibles" : "Marcar visibles";
   fillCategorySelect($("bulk-category"), $("bulk-category").value || "General");
   fillModpackSelects(
     $("bulk-pack"),
@@ -1603,10 +2030,7 @@ function render() {
   paintBulk();
   paintSearchPlatform();
   const mods = visible();
-  const selected = mods.filter((mod) => state.selected.has(mod.id)).length;
-  $("count").textContent = selected
-    ? `${mods.length} mods · ${selected} marcados`
-    : `${mods.length} mods`;
+  $("count").textContent = "";
   if (!mods.length) {
     const inGame = scopedMods().length;
     const other = state.mods.length - inGame;
@@ -1645,12 +2069,12 @@ function render() {
       event.dataTransfer.setDragImage(blank, 0, 0);
       ids.forEach((id) => document.querySelector(`.card[data-id="${id}"]`)?.classList.add("drag-group"));
       card.classList.add("dragging");
-      showDragBadge(ids.length, event.clientX, event.clientY);
+      showDragGhost(card, ids.length, event.clientX, event.clientY);
       state.dragged = true;
     };
     card.ondragend = () => {
       card.classList.remove("dragging");
-      hideDragBadge();
+      hideDragGhost();
       setTimeout(() => { state.dragged = false; }, 0);
     };
     card.draggable = state.selected.has(card.dataset.id);
@@ -2381,15 +2805,10 @@ $("more-open").onclick = (event) => {
 };
 $("tape-open").onclick = (event) => {
   event.stopPropagation();
-  const pop = $("tape-pop");
   $("more-pop").hidden = true;
+  $("tape-pop").hidden = true;
   $("more-open").setAttribute("aria-expanded", "false");
-  if (!pop.hidden) {
-    pop.hidden = true;
-    return;
-  }
-  sfx.open();
-  placePop(pop, $("more-open"));
+  openPackDialog();
 };
 document.addEventListener("pointerdown", (event) => {
   const more = $("more-pop");
@@ -2452,6 +2871,18 @@ function openModMenu(id, x, y) {
   menu.style.top = `${Math.max(pad, Math.min(y, window.innerHeight - height - pad))}px`;
 }
 
+function openEdit(id) {
+  const mod = state.mods.find((item) => item.id === id);
+  if (!mod) return;
+  $("edit-dialog").dataset.id = id;
+  $("edit-title").textContent = mod.name || "";
+  $("edit-name").value = mod.name || "";
+  $("edit-note").value = mod.notes || "";
+  fillCategorySelect($("edit-category"), mod.category || "General");
+  $("edit-dialog").showModal();
+  $("edit-name").focus();
+}
+
 function openNote(id) {
   const mod = state.mods.find((item) => item.id === id);
   if (!mod) return;
@@ -2485,6 +2916,11 @@ $("mod-menu").onclick = (event) => {
   const id = menuModId;
   hideModMenu();
   if (!id || !act) return;
+  if (act === "view") {
+    sfx.open();
+    openDetail(id);
+  }
+  if (act === "edit") openEdit(id);
   if (act === "note") openNote(id);
   if (act === "move") openMove(id);
   if (act === "pick") {
@@ -2512,6 +2948,33 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") hideModMenu();
 });
 window.addEventListener("scroll", hideModMenu, true);
+
+$("edit-x").onclick = () => $("edit-dialog").close();
+$("edit-cancel").onclick = () => $("edit-dialog").close();
+$("edit-form").onsubmit = async (event) => {
+  event.preventDefault();
+  const id = $("edit-dialog").dataset.id;
+  const button = event.submitter;
+  setLoading(button, true, "Guardando");
+  try {
+    await api(`/api/mods/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: $("edit-name").value.trim(),
+        category: $("edit-category").value || "General",
+        notes: $("edit-note").value || "",
+      }),
+    });
+    toast("Mod actualizado.");
+    $("edit-dialog").close();
+    await load();
+  } catch (error) {
+    toast(error.message, "bad");
+  } finally {
+    setLoading(button, false);
+  }
+};
 
 $("note-x").onclick = () => $("note-dialog").close();
 $("note-cancel").onclick = () => $("note-dialog").close();
@@ -2566,14 +3029,6 @@ $("bulk-cat").onclick = () => assignMarked("category");
 $("bulk-move").onclick = () => assignMarked("pack");
 $("bulk-refresh").onclick = () => refreshMarked();
 $("bulk-delete").onclick = () => deleteMarked();
-$("bulk-clear").onclick = () => { state.selected.clear(); sfx.soft(); render(); };
-$("bulk-all").onclick = () => {
-  const ids = visible().map((mod) => mod.id);
-  const allOn = ids.length > 0 && ids.every((id) => state.selected.has(id));
-  ids.forEach((id) => { if (allOn) state.selected.delete(id); else state.selected.add(id); });
-  sfx.soft();
-  render();
-};
 $("add-url").oninput = () => syncAddSource();
 $("detect").onclick = detect;
 $("manual-toggle").onclick = () => {
@@ -2811,7 +3266,10 @@ $("game-picker").onclick = (event) => {
   if (open) {
     menu.hidden = false;
     $("game-picker").setAttribute("aria-expanded", "true");
+    const search = menu.querySelector(".game-menu-search");
+    if (search) search.value = "";
     renderGameScope();
+    menu.querySelector(".game-menu-search")?.focus();
   } else {
     closeGameMenu();
   }
@@ -2955,18 +3413,21 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") hideRemoteSearch();
 });
 $("sort").onchange = (event) => { state.sort = event.target.value; sfx.click(); render(); };
-$("pick-mode").onclick = () => setPicking(!state.picking);
 $("pick-all").onclick = () => selectAllVisible();
 document.querySelectorAll(".view-toggle [data-view]").forEach((button) => {
   button.onclick = () => setView(button.dataset.view);
 });
-document.querySelectorAll(".view-toggle [data-size]").forEach((button) => {
-  button.onclick = () => setCardSize(button.dataset.size);
-});
-$("export").onclick = () => { $("tape-pop").hidden = true; openPackDialog("export"); };
-$("import").onclick = () => { $("tape-pop").hidden = true; openPackDialog("import"); };
+$("size-down").onclick = () => setCardScale(cardScale() - 0.5);
+$("size-reset").onclick = () => setCardScale(1);
+$("size-up").onclick = () => setCardScale(cardScale() + 0.5);
+$("export").onclick = () => { $("tape-pop").hidden = true; openPackDialog(); };
+$("import").onclick = () => { $("tape-pop").hidden = true; openPackDialog(); };
 $("pack-scope").onchange = syncPackDialog;
-$("pack-form").onsubmit = runPackAction;
+$("pack-value").onchange = syncPackDialog;
+$("pack-file").onchange = previewPackFile;
+$("pack-form").onsubmit = (event) => event.preventDefault();
+$("pack-export").onclick = (event) => runPackAction(event, "export");
+$("pack-import").onclick = (event) => runPackAction(event, "import");
 if ($("packs-open")) $("packs-open").onclick = () => { sfx.open(); openModpacksDialog(); };
 $("mp-reset").onclick = () => resetModpackForm();
 $("modpacks-form").onsubmit = saveModpackForm;
@@ -3163,20 +3624,13 @@ $("refresh-all").onclick = async () => {
   }
 };
 
-function openPackDialog(mode) {
-  state.packMode = mode === "import" ? "import" : "export";
+function openPackDialog() {
+  state.packPreview = null;
   sfx.open();
-  $("pack-title").textContent = state.packMode === "import" ? "Restaurar" : "Comprimir";
-  $("pack-go").textContent = state.packMode === "import" ? "Restaurar" : "Comprimir";
-  $("pack-hint").textContent = state.packMode === "import"
-    ? "Elige qué traer del .zip: todo, una plataforma, un juego o un modpack."
-    : "Empaqueta ficha + archivos. Puedes filtrar por plataforma, juego o modpack.";
-  const selectedOpt = $("pack-scope").querySelector('option[value="selected"]');
-  if (selectedOpt) selectedOpt.hidden = state.packMode === "import";
-  if (state.packMode === "import" && $("pack-scope").value === "selected") {
-    $("pack-scope").value = "all";
-  }
+  $("pack-title").textContent = "Importar y exportar";
+  $("pack-hint").textContent = "Todo guarda juegos, modpacks, mods y archivos. También puedes limitarlo a un juego o a un modpack.";
   $("pack-file").value = "";
+  if ($("pack-scope").value === "selected" && !state.selected.size) $("pack-scope").value = "all";
   syncPackDialog();
   $("pack-dialog").showModal();
 }
@@ -3203,55 +3657,93 @@ function countForPack(filt) {
   }).length;
 }
 
+async function previewPackFile() {
+  const file = $("pack-file").files?.[0];
+  state.packPreview = null;
+  if (!file) {
+    syncPackDialog();
+    return;
+  }
+  const form = new FormData();
+  form.append("file", file);
+  try {
+    const data = await api("/api/import/preview", { method: "POST", body: form });
+    state.packPreview = data.preview || null;
+  } catch (error) {
+    toast(error.message, "bad");
+  }
+  syncPackDialog();
+}
+
 function syncPackDialog() {
   const scope = $("pack-scope").value;
   const wrap = $("pack-value-wrap");
-  const fileWrap = $("pack-file-wrap");
   const select = $("pack-value");
-  fileWrap.hidden = state.packMode !== "import";
+  const selectedOpt = $("pack-scope").querySelector('option[value="selected"]');
+  if (selectedOpt) selectedOpt.hidden = false;
   const needsValue = scope === "platform" || scope === "game" || scope === "modpack";
   wrap.hidden = !needsValue;
+  const preview = state.packPreview;
   if (needsValue) {
     let options = [];
     if (scope === "platform") {
       options = counts((mod) => mod.platform || "Nexus", state.mods).map((row) => [row.id, `${row.label} (${row.count})`]);
     } else if (scope === "game") {
-      options = counts(gameKey, state.mods).filter((row) => row.id).map((row) => [row.id, `${row.label} (${row.count})`]);
+      if (preview?.games?.length) {
+        options = preview.games.map((row) => [row.id, `${row.name} (${row.count})`]);
+      } else {
+        options = gameOptions().filter(([id]) => id).map(([id, label]) => {
+          const n = state.mods.filter((mod) => String(mod.gameDomain || "") === id).length;
+          return [id, `${label} (${n})`];
+        });
+      }
+    } else if (preview?.modpacks?.length) {
+      options = preview.modpacks.map((row) => [row.id, `${row.name}${row.game ? ` · ${row.game}` : ""} (${row.count})`]);
     } else {
       options = state.modpacks.map((pack) => {
         const n = state.mods.filter((mod) => mod.modpackId === pack.id).length;
         return [pack.id, `${pack.name} · ${pack.gameName || pack.gameDomain} (${n})`];
       });
     }
+    const current = select.value;
     select.innerHTML = options.length
       ? options.map(([id, label]) => `<option value="${esc(id)}">${esc(label)}</option>`).join("")
       : `<option value="">(vacío)</option>`;
+    if (current && [...select.options].some((opt) => opt.value === current)) select.value = current;
   }
   const filt = packFilter();
   const n = countForPack(filt);
-  if (state.packMode === "import") {
-    $("pack-count").textContent = filt.scope === "all"
-      ? "Se restaurará todo lo que traiga el paquete (filtrable)."
-      : `Filtro listo · en tu biblioteca hay ${n} mod(s) con ese criterio.`;
-  } else {
-    $("pack-count").textContent = `${n} mod(s) entrarán en el zip.`;
+  if (preview && scope === "all") {
+    $("pack-count").textContent = `El zip trae ${preview.mods} mods, ${preview.games.length} juegos y ${preview.modpacks.length} modpacks.`;
+    return;
   }
+  if (scope === "all") {
+    $("pack-count").textContent = `Todo: ${state.mods.length} mods, ${(state.catalog.games || []).length} juegos, ${state.modpacks.length} modpacks.`;
+    return;
+  }
+  $("pack-count").textContent = preview
+    ? `Ese filtro en el zip. En tu biblioteca hay ${n} mod(s) parecidos.`
+    : `${n} mod(s) con ese filtro.`;
 }
 
-async function runPackAction(event) {
+async function runPackAction(event, mode) {
   event.preventDefault();
   const filt = packFilter();
-  const button = $("pack-go");
-  if (state.packMode === "export") {
+  const button = mode === "import" ? $("pack-import") : $("pack-export");
+  if (mode === "export") {
     if (filt.scope === "selected" && !filt.ids.length) {
       toast("Marca mods o cambia el alcance.", "warn");
       return;
     }
-    if (!countForPack(filt)) {
+    if (filt.scope !== "all" && filt.scope !== "game" && filt.scope !== "modpack" && !countForPack(filt)) {
       toast("No hay mods con ese filtro.", "warn");
       return;
     }
-    setLoading(button, true, "Comprimiendo");
+    if ((filt.scope === "game" || filt.scope === "modpack" || filt.scope === "platform") && !($("pack-value").value || "")) {
+      toast("Elige uno.", "warn");
+      return;
+    }
+    setLoading(button, true, "Exportando");
     sfx.sniff();
     try {
       const res = await api("/api/export", {
@@ -3267,7 +3759,7 @@ async function runPackAction(event) {
       link.click();
       URL.revokeObjectURL(url);
       $("pack-dialog").close();
-      toast(`Paquete listo (${countForPack(filt)} mods).`);
+      toast("Paquete exportado.");
     } catch (error) {
       toast(error.message, "bad");
     } finally {
@@ -3277,10 +3769,14 @@ async function runPackAction(event) {
   }
   const file = $("pack-file").files[0];
   if (!file) {
-    toast("Elige el .zip a restaurar.", "warn");
+    toast("Elige el .zip a importar.", "warn");
     return;
   }
-  setLoading(button, true, "Restaurando");
+  if ((filt.scope === "game" || filt.scope === "modpack" || filt.scope === "platform") && !($("pack-value").value || "")) {
+    toast("Elige uno.", "warn");
+    return;
+  }
+  setLoading(button, true, "Importando");
   sfx.sniff();
   const form = new FormData();
   form.append("file", file);
@@ -3292,7 +3788,7 @@ async function runPackAction(event) {
     const data = await api("/api/import", { method: "POST", body: form });
     const skip = data.result.skipped ? ` · ${data.result.skipped} omitidos` : "";
     $("pack-dialog").close();
-    toast(`Restaurado: ${data.result.added} nuevos, ${data.result.updated} actualizados${skip}.`);
+    toast(`Importado: ${data.result.added} nuevos, ${data.result.updated} actualizados${skip}.`);
     await load();
   } catch (error) {
     toast(error.message, "bad");
@@ -3494,6 +3990,7 @@ function hideBoot() {
   if (!boot || boot.classList.contains("hide")) return;
   boot.classList.add("hide");
   setTimeout(() => boot.remove(), 400);
+  window.dispatchEvent(new Event("wimod-ready"));
 }
 
 async function enterApp() {
@@ -3637,3 +4134,306 @@ function installLog() {
 }
 
 installLog();
+
+function upgradeSelect(select) {
+  if (!select || select.dataset.combo) return;
+  const parent = select.parentNode;
+  if (!parent) return;
+  select.dataset.combo = "1";
+  const combo = document.createElement("span");
+  combo.className = "combo";
+  parent.insertBefore(combo, select);
+  combo.appendChild(select);
+  select.classList.add("combo-native");
+  const face = document.createElement("button");
+  face.type = "button";
+  face.className = "combo-face";
+  const pop = document.createElement("div");
+  pop.className = "combo-pop";
+  pop.hidden = true;
+  const search = document.createElement("input");
+  search.type = "search";
+  search.className = "combo-search";
+  search.placeholder = "Buscar";
+  search.setAttribute("aria-label", "Buscar");
+  const list = document.createElement("div");
+  list.className = "combo-list";
+  pop.append(search, list);
+  combo.append(face, pop);
+  const paint = () => {
+    const option = [...select.options].find((item) => item.value === select.value) || select.selectedOptions[0];
+    face.textContent = option ? option.textContent : "";
+    face.disabled = select.disabled;
+    combo.classList.toggle("off", select.disabled);
+  };
+  const close = () => {
+    pop.hidden = true;
+    combo.classList.remove("open");
+  };
+  const renderList = () => {
+    const query = search.value.trim().toLowerCase();
+    const options = [...select.options].filter((item) => !query || item.textContent.toLowerCase().includes(query));
+    if (!options.length) {
+      list.innerHTML = `<p class="combo-empty">Sin resultados</p>`;
+      return;
+    }
+    list.innerHTML = options.map((item) => (
+      `<button type="button" class="combo-opt${item.value === select.value ? " on" : ""}" data-value="${esc(item.value)}">${esc(item.textContent)}</button>`
+    )).join("");
+    list.querySelectorAll(".combo-opt").forEach((button) => {
+      button.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        select.value = button.dataset.value;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        paint();
+        close();
+      };
+    });
+  };
+  const place = () => {
+    if (pop.parentNode !== document.body) document.body.appendChild(pop);
+    const rect = face.getBoundingClientRect();
+    const width = Math.max(rect.width, 220);
+    let left = rect.left;
+    if (left + width > window.innerWidth - 8) left = window.innerWidth - 8 - width;
+    pop.style.width = `${width}px`;
+    pop.style.left = `${Math.max(8, left)}px`;
+    const gap = 6;
+    if (window.innerHeight - rect.bottom < 240 && rect.top > 160) {
+      pop.style.top = "auto";
+      pop.style.bottom = `${window.innerHeight - rect.top + gap}px`;
+    } else {
+      pop.style.bottom = "auto";
+      pop.style.top = `${rect.bottom + gap}px`;
+    }
+  };
+  const open = () => {
+    if (select.disabled) return;
+    document.querySelectorAll(".combo-pop").forEach((panel) => {
+      if (panel !== pop) panel.hidden = true;
+    });
+    document.querySelectorAll(".combo.open").forEach((node) => node.classList.remove("open"));
+    search.value = "";
+    renderList();
+    pop.hidden = false;
+    combo.classList.add("open");
+    place();
+    search.focus();
+  };
+  face.onclick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (pop.hidden) open();
+    else close();
+  };
+  search.oninput = renderList;
+  search.onclick = (event) => event.stopPropagation();
+  search.onkeydown = (event) => {
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      close();
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const first = list.querySelector(".combo-opt");
+      if (first) first.click();
+    }
+  };
+  select.addEventListener("change", paint);
+  new MutationObserver(paint).observe(select, { childList: true, attributes: true, attributeFilter: ["disabled"] });
+  paint();
+}
+
+function installCombos() {
+  document.querySelectorAll("select").forEach(upgradeSelect);
+  document.addEventListener("click", (event) => {
+    if (event.target.closest(".combo, .combo-pop")) return;
+    document.querySelectorAll(".combo-pop").forEach((panel) => { panel.hidden = true; });
+    document.querySelectorAll(".combo.open").forEach((node) => node.classList.remove("open"));
+  });
+}
+installCombos();
+
+const MARK_EMOJIS = [
+  ["espada combate", "⚔️"], ["escudo", "🛡️"], ["arco", "🏹"], ["hacha", "🪓"], ["daga", "🗡️"],
+  ["magia", "🪄"], ["fuego", "🔥"], ["hielo", "❄️"], ["rayo", "⚡"], ["veneno", "☠️"],
+  ["pocion", "🧪"], ["corazon vida", "❤️"], ["calavera", "💀"], ["dragon", "🐉"], ["lobo", "🐺"],
+  ["armadura", "🪖"], ["casco", "⛑️"], ["bota", "👢"], ["anillo", "💍"], ["gema", "💎"],
+  ["oro", "🪙"], ["moneda", "💰"], ["cofre", "🧰"], ["llave", "🗝️"], ["mapa", "🗺️"],
+  ["brujula", "🧭"], ["libro", "📖"], ["pergamino", "📜"], ["nota", "📝"], ["engranaje", "⚙️"],
+  ["herramienta", "🔧"], ["martillo", "🔨"], ["casa", "🏠"], ["castillo", "🏰"], ["tienda", "⛺"],
+  ["arbol", "🌲"], ["montaña", "⛰️"], ["agua", "💧"], ["sol", "☀️"], ["luna", "🌙"],
+  ["estrella", "⭐"], ["corona", "👑"], ["bandera", "🚩"], ["objetivo", "🎯"], ["dado", "🎲"],
+  ["control", "🎮"], ["pc", "💻"], ["nexus", "🌀"], ["caja mod", "📦"], ["carpeta", "📁"],
+  ["musica", "🎵"], ["ojo", "👁️"], ["huella", "🐾"], ["caballo", "🐴"], ["ciudad", "🏙️"],
+  ["pueblo", "🏘️"], ["comida", "🍖"], ["pan", "🍞"], ["espada laser", "🔫"], ["bomba", "💣"],
+  ["reloj", "⏱️"], ["check", "✅"], ["alerta", "⚠️"], ["nuevo", "✨"], ["pin", "📌"],
+  ["etiqueta", "🏷️"], ["usuario", "👤"], ["grupo", "👥"], ["mundo", "🌍"], ["nieve", "🌨️"],
+];
+
+let markTarget = null;
+
+function paintMarkGrid() {
+  const query = ($("mark-search").value || "").trim().toLowerCase();
+  $("mark-grid").innerHTML = MARK_EMOJIS.map(([name, emoji], index) => (
+    !query || name.includes(query) || emoji.includes(query)
+      ? `<button type="button" data-i="${index}">${emoji}</button>`
+      : ""
+  )).join("");
+}
+
+function placeMarkPop(x, y) {
+  const pop = $("mark-pop");
+  pop.hidden = false;
+  const dock = document.querySelector(".dock");
+  const bottomGap = (dock ? dock.getBoundingClientRect().height : 0) + 12;
+  const margin = 8;
+  const width = pop.offsetWidth;
+  const height = pop.offsetHeight;
+  const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+  const maxTop = Math.max(margin, window.innerHeight - height - bottomGap);
+  pop.style.left = `${Math.min(Math.max(margin, x), maxLeft)}px`;
+  pop.style.top = `${Math.min(Math.max(margin, y), maxTop)}px`;
+}
+
+function openMarkPop(kind, id, x, y) {
+  markTarget = { kind: String(kind || "").toLowerCase(), id };
+  const mark = markOf(markTarget.kind, id) || {};
+  $("mark-search").value = "";
+  $("mark-url").value = mark.imageUrl || "";
+  $("mark-file").value = "";
+  paintMarkGrid();
+  placeMarkPop(x, y);
+}
+
+async function saveMark(emoji, imageUrl) {
+  if (!markTarget) return;
+  const data = await api("/api/catalog/mark", {
+    method: "POST",
+    body: JSON.stringify({
+      kind: markTarget.kind,
+      id: markTarget.id,
+      emoji: emoji || "",
+      imageUrl: imageUrl || "",
+    }),
+  });
+  state.catalog = data.catalog || state.catalog;
+  $("mark-pop").hidden = true;
+  render();
+}
+
+function installMarks() {
+  const pop = $("mark-pop");
+  if (!pop) return;
+  $("mark-search").addEventListener("input", paintMarkGrid);
+  $("mark-grid").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-i]");
+    if (!button) return;
+    const emoji = MARK_EMOJIS[Number(button.dataset.i)]?.[1] || "";
+    if (!emoji) return;
+    saveMark(emoji, "").catch((error) => toast(error.message, "bad"));
+  });
+  $("mark-file").addEventListener("change", async () => {
+    const file = $("mark-file").files?.[0];
+    if (!file || !markTarget) return;
+    try {
+      const upload = new FormData();
+      upload.append("file", file);
+      const uploaded = await api("/api/images", { method: "POST", body: upload });
+      await saveMark("", uploaded.imageUrl || "");
+    } catch (error) {
+      toast(error.message, "bad");
+    }
+  });
+  $("mark-url-go").addEventListener("click", () => {
+    const imageUrl = ($("mark-url").value || "").trim();
+    if (!imageUrl) {
+      toast("Pega una URL.", "warn");
+      return;
+    }
+    saveMark("", imageUrl).catch((error) => toast(error.message, "bad"));
+  });
+  $("mark-clear").addEventListener("click", () => {
+    saveMark("", "").catch((error) => toast(error.message, "bad"));
+  });
+  document.addEventListener("click", (event) => {
+    if (pop.hidden || event.target.closest("#mark-pop")) return;
+    pop.hidden = true;
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || pop.hidden) return;
+    pop.hidden = true;
+  });
+}
+installMarks();
+
+function bindSideFolds() {
+  const key = "wi-mod-side-folds";
+  let shut = [];
+  try {
+    const raw = JSON.parse(localStorage.getItem(key) || "[]");
+    shut = Array.isArray(raw) ? raw.map((id) => String(id)) : [];
+  } catch (_) {
+    shut = [];
+  }
+  document.querySelectorAll(".side-block").forEach((block) => {
+    const id = block.dataset.fold;
+    const btn = block.querySelector(".side-fold");
+    if (!id || !btn) return;
+    const apply = (closed) => {
+      block.classList.toggle("is-shut", closed);
+      btn.setAttribute("aria-expanded", closed ? "false" : "true");
+    };
+    apply(shut.includes(id));
+    btn.addEventListener("click", () => {
+      const closed = !block.classList.contains("is-shut");
+      apply(closed);
+      shut = shut.filter((item) => item !== id);
+      if (closed) shut.push(id);
+      localStorage.setItem(key, JSON.stringify(shut));
+    });
+  });
+}
+bindSideFolds();
+
+function bindSideSize() {
+  const layout = document.querySelector(".layout");
+  const handle = $("side-resize");
+  const rail = $("side-rail");
+  if (!layout || !handle || !rail) return;
+  const saved = Number(localStorage.getItem("wi-mod-side-w"));
+  if (saved >= 160 && saved <= 480) layout.style.setProperty("--side-w", `${saved}px`);
+  const paintRail = (icons) => {
+    layout.classList.toggle("side-icons", icons);
+    rail.setAttribute("aria-pressed", icons ? "true" : "false");
+    rail.title = icons ? "Mostrar nombres" : "Solo iconos";
+    rail.textContent = icons ? "»" : "«";
+  };
+  paintRail(localStorage.getItem("wi-mod-side-icons") === "1");
+  rail.onclick = () => {
+    const icons = !layout.classList.contains("side-icons");
+    paintRail(icons);
+    localStorage.setItem("wi-mod-side-icons", icons ? "1" : "0");
+  };
+  handle.addEventListener("pointerdown", (event) => {
+    if (layout.classList.contains("side-icons")) return;
+    event.preventDefault();
+    handle.classList.add("on");
+    const move = (ev) => {
+      const width = Math.min(480, Math.max(160, ev.clientX - layout.getBoundingClientRect().left));
+      layout.style.setProperty("--side-w", `${width}px`);
+    };
+    const up = () => {
+      handle.classList.remove("on");
+      const width = Math.round(parseFloat(getComputedStyle(layout).getPropertyValue("--side-w")));
+      if (width) localStorage.setItem("wi-mod-side-w", String(width));
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  });
+}
+bindSideSize();

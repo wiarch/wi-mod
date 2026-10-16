@@ -11,18 +11,24 @@
     <form id="login-form" class="login-card">
       <div class="brand">wi-mod</div>
       <p class="hint" id="login-hint">Escribe tu usuario.</p>
-      <label>Usuario
-        <input id="login-user" autocomplete="username" spellcheck="false">
+      <label class="login-field">Usuario
+        <span class="login-input">
+          <svg class="login-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <input id="login-user" autocomplete="username" spellcheck="false">
+        </span>
       </label>
-      <label>Clave
-        <input id="login-pass" type="password" autocomplete="current-password">
+      <label class="login-field">Clave
+        <span class="login-input">
+          <svg class="login-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <input id="login-pass" type="password" autocomplete="current-password">
+        </span>
       </label>
-    <p id="login-status" class="status"></p>
-    <label class="login-keep">
-      <input id="login-keep" type="checkbox">
-      Guardar sesión 60 días
-    </label>
-    <div class="login-actions">
+      <p id="login-status" class="status"></p>
+      <label class="login-keep">
+        <input id="login-keep" type="checkbox">
+        Guardar sesión 60 días
+      </label>
+      <div class="login-actions">
         <button id="login-reset" class="text-btn" type="button" hidden>Olvidé la clave</button>
         <button id="login-go" class="solid" type="submit" disabled>Entrar</button>
       </div>
@@ -36,7 +42,6 @@
   <header class="top">
     <div class="brand">wi-mod</div>
     <div class="game-scope">
-      <span>Juego</span>
       <div class="game-picker-wrap">
         <button type="button" id="game-picker" class="game-picker" aria-haspopup="listbox" aria-expanded="false">
           <img id="game-picker-img" alt="" hidden>
@@ -57,28 +62,44 @@
 
   <div class="layout">
     <aside class="side">
-      <div class="side-head">
-        <p class="side-label">Plataforma</p>
+      <div class="side-block" data-fold="platforms">
+        <div class="side-head">
+          <button type="button" class="side-fold" aria-expanded="true">
+            <span class="side-caret" aria-hidden="true"></span>
+            <span class="side-label">Plataforma</span>
+          </button>
+        </div>
+        <div id="platforms"></div>
       </div>
-      <div id="platforms"></div>
-      <div class="side-head">
-        <p class="side-label">Modpack</p>
-        <button type="button" class="side-add" data-add="modpack" title="Crear modpack">+</button>
+      <div class="side-block" data-fold="modpacks">
+        <div class="side-head">
+          <button type="button" class="side-fold" aria-expanded="true">
+            <span class="side-caret" aria-hidden="true"></span>
+            <span class="side-label">Modpack</span>
+          </button>
+          <button type="button" class="side-add" data-add="modpack" title="Crear modpack">+</button>
+        </div>
+        <div id="modpacks"></div>
       </div>
-      <div id="modpacks"></div>
-      <div class="side-head">
-        <p class="side-label">Categoría Nexus</p>
-        <button type="button" class="side-add" data-add="category" title="Añadir categoría Nexus">+</button>
+      <div class="side-block" data-fold="categories">
+        <div class="side-head">
+          <button type="button" class="side-fold" aria-expanded="true">
+            <span class="side-caret" aria-hidden="true"></span>
+            <span class="side-label">Categoría</span>
+          </button>
+          <button type="button" class="side-add" data-add="category" title="Añadir categoría">+</button>
+        </div>
+        <div id="categories"></div>
       </div>
-      <div id="categories"></div>
+      <button type="button" id="side-rail" class="side-rail" title="Solo iconos" aria-pressed="false">«</button>
     </aside>
+    <div class="side-resize" id="side-resize" role="separator" aria-orientation="vertical" title="Arrastra el ancho"></div>
     <main>
       <section id="game-hero" class="game-hero" hidden></section>
       <div class="bar">
         <p id="count"></p>
         <div class="view-dock">
           <div class="pick-tools">
-            <button type="button" id="pick-mode" class="ghost">Habilitar selección</button>
             <button type="button" id="pick-all" class="ghost" hidden>Seleccionar todo</button>
           </div>
           <span class="view-split" aria-hidden="true"></span>
@@ -87,9 +108,9 @@
             <button type="button" id="view-list" data-view="list" title="Listado">☰</button>
           </div>
           <div class="view-toggle" role="group" aria-label="Tamaño">
-            <button type="button" id="size-sm" data-size="sm" title="Achicar">−</button>
-            <button type="button" id="size-md" data-size="md" title="Normal">□</button>
-            <button type="button" id="size-lg" data-size="lg" title="Agrandar">+</button>
+            <button type="button" id="size-down" title="Achicar">−</button>
+            <button type="button" id="size-reset" class="size-read" title="Tamaño normal. Clic para volver a 1×">1×</button>
+            <button type="button" id="size-up" title="Agrandar, máximo 1.5×">+</button>
           </div>
           <label class="sort-pick">
             <span>Orden</span>
@@ -105,8 +126,6 @@
       <div id="bulk" class="bulk" hidden>
         <div class="bulk-tools">
           <p id="bulk-count"></p>
-          <button type="button" id="bulk-all" class="ghost">Marcar visibles</button>
-          <button type="button" id="bulk-clear" class="ghost">Quitar marcas</button>
         </div>
         <div class="bulk-rows">
           <div class="bulk-action cat">
@@ -255,7 +274,7 @@
             <option value="Nexus" selected>Nexus</option>
           </select>
         </label>
-        <label style="flex:1">Categoría Nexus
+        <label style="flex:1">Categoría
           <select id="add-category"></select>
         </label>
       </div>
@@ -361,28 +380,29 @@
   <dialog id="pack-dialog">
     <form id="pack-form">
       <header>
-        <h2 id="pack-title">Comprimir</h2>
+        <h2 id="pack-title">Importar y exportar</h2>
         <button type="button" class="icon" data-close>✕</button>
       </header>
-      <p class="hint" id="pack-hint"></p>
-      <label>Alcance
+      <p class="hint" id="pack-hint">Todo guarda juegos, modpacks, mods y archivos. También puedes limitarlo a un juego o a un modpack.</p>
+      <label>Qué
         <select id="pack-scope">
           <option value="all">Todo</option>
+          <option value="game">Un juego</option>
+          <option value="modpack">Un modpack</option>
           <option value="platform">Por plataforma</option>
-          <option value="game">Por juego</option>
-          <option value="modpack">Por modpack</option>
           <option value="selected">Solo marcados</option>
         </select>
       </label>
       <label id="pack-value-wrap" hidden>Elige
         <select id="pack-value"></select>
       </label>
-      <label id="pack-file-wrap" hidden>Paquete .zip
+      <label id="pack-file-wrap">Paquete .zip
         <input id="pack-file" type="file" accept=".zip,application/zip">
       </label>
       <p id="pack-count" class="meta"></p>
       <footer>
-        <button id="pack-go" class="solid" type="submit">Comprimir</button>
+        <button id="pack-export" class="ghost" type="button">Exportar</button>
+        <button id="pack-import" class="solid" type="button">Importar</button>
       </footer>
     </form>
   </dialog>
@@ -404,7 +424,7 @@
         <button type="button" class="ghost" id="mp-cat-add" title="Otra categoría">+</button>
       </div>
       <div id="mp-cats" class="mp-cats"></div>
-      <label>Notas<textarea id="mp-notes" rows="2" placeholder="Opcional"></textarea></label>
+      <label>Descripción<textarea id="mp-notes" rows="3" placeholder="De qué va este modpack…"></textarea></label>
       <input id="mp-edit-id" type="hidden">
       <footer>
         <button id="mp-reset" class="ghost" type="button">Nuevo</button>
@@ -491,11 +511,49 @@
     </form>
   </dialog>
 
+  <div id="mark-pop" class="mark-pop" hidden>
+    <input id="mark-search" type="search" placeholder="Buscar emoji" autocomplete="off">
+    <div id="mark-grid" class="mark-grid"></div>
+    <label class="mark-file">Imagen
+      <input id="mark-file" type="file" accept="image/*">
+    </label>
+    <input id="mark-url" type="url" placeholder="https://… o /media/…">
+    <footer>
+      <button type="button" class="ghost" id="mark-clear">Quitar</button>
+      <button type="button" class="solid" id="mark-url-go">Usar imagen</button>
+    </footer>
+  </div>
+
   <div id="mod-menu" class="mod-menu" hidden>
+    <button type="button" data-act="view">Ver</button>
+    <button type="button" data-act="edit">Editar</button>
     <button type="button" data-act="note">Nota</button>
     <button type="button" data-act="pick">Seleccionar</button>
     <button type="button" data-act="move">Mover a modpack</button>
   </div>
+
+  <dialog id="edit-dialog">
+    <form id="edit-form">
+      <header>
+        <h2>Editar</h2>
+        <button type="button" class="icon" id="edit-x">✕</button>
+      </header>
+      <p class="hint" id="edit-title"></p>
+      <label>Nombre
+        <input id="edit-name" type="text" autocomplete="off" required>
+      </label>
+      <label>Categoría
+        <select id="edit-category"></select>
+      </label>
+      <label>Nota
+        <textarea id="edit-note" rows="3" placeholder="Nota de este mod"></textarea>
+      </label>
+      <footer>
+        <button type="button" class="ghost" id="edit-cancel">Cancelar</button>
+        <button type="submit" class="solid">Guardar</button>
+      </footer>
+    </form>
+  </dialog>
 
   <dialog id="note-dialog">
     <form id="note-form">
@@ -542,7 +600,7 @@
     </button>
     <button type="button" id="tape-open">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="15.5" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.2 12h3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-      Comprimir y restaurar
+      Importar y exportar
     </button>
     <button type="button" id="logout">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2M4 12h11M12 9l3 3-3 3"/></svg>

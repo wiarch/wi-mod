@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-destroy-splashscreen"
+description = "Cierra el splash y muestra la ventana principal cuando la interfaz ya está lista."
+commands.allow = ["destroy_splashscreen"]

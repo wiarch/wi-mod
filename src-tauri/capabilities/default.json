@@ -2,11 +2,12 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capacidad por defecto de la ventana principal",
-  "windows": ["main"],
+  "windows": ["main", "splashscreen"],
   "permissions": [
     "core:default",
     "sql:default",
     "sql:allow-execute",
-    "allow-fetch-external-api"
+    "allow-fetch-external-api",
+    "allow-destroy-splashscreen"
   ]
 }
