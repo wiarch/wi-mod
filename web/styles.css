@@ -2771,6 +2771,7 @@ body:has(#boot) .dock { display: none; }
   color: #f4ece3;
   font-size: 14px;
 }
+.pack-cards {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
