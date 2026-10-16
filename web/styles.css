@@ -211,12 +211,13 @@ a:hover { color: var(--copper-hot); }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  margin: 0 0 14px;
+  gap: 0;
+  margin: 0;
   flex: 0 0 auto;
 }
+.side .brand-row + .side-block .side-fold { padding-top: 2px; padding-bottom: 2px; }
 .app-version {
-  margin: 0 0 3px;
+  margin: 0;
   color: var(--muted);
   font-size: 11px;
   font-weight: 600;
@@ -259,12 +260,41 @@ a:hover { color: var(--copper-hot); }
 
 .game-scope {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: stretch;
+  gap: 0;
   flex: 0 0 auto;
   position: relative;
+  border-radius: 999px;
 }
-.game-picker-wrap { position: relative; flex: 0 0 auto; }
+.game-picker-wrap { position: relative; flex: 0 0 auto; display: flex; }
+.game-play {
+  width: 38px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 0 2px 0 0;
+  margin: 0;
+  border-radius: 0 999px 999px 0;
+  border: 1px solid var(--line);
+  border-left: 0;
+  background: color-mix(in srgb, var(--panel) 90%, black);
+  color: var(--text);
+  cursor: default;
+}
+.game-play svg { width: 14px; height: 14px; display: block; }
+.game-play:active { transform: none; }
+.game-scope:has(.game-picker:hover) .game-play,
+.game-scope:has(.game-picker[aria-expanded="true"]) .game-play,
+.game-scope:has(.game-play:hover) .game-picker,
+.game-play:hover {
+  border-color: var(--copper);
+  color: var(--text);
+}
+.game-scope:has(.game-picker:hover),
+.game-scope:has(.game-picker[aria-expanded="true"]),
+.game-scope:has(.game-play:hover) {
+  box-shadow: 0 0 0 3px var(--glow);
+}
 .game-picker {
   display: flex;
   align-items: center;
@@ -274,9 +304,9 @@ a:hover { color: var(--copper-hot); }
   flex: 0 0 auto;
   background: color-mix(in srgb, var(--panel) 90%, black);
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 999px 0 0 999px;
   color: var(--text);
-  padding: 4px 12px 4px 4px;
+  padding: 4px 10px 4px 4px;
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -284,7 +314,6 @@ a:hover { color: var(--copper-hot); }
 .game-picker:hover,
 .game-picker[aria-expanded="true"] {
   border-color: var(--copper);
-  box-shadow: 0 0 0 3px var(--glow);
 }
 .game-picker img {
   width: 36px;
@@ -555,13 +584,11 @@ button.pack-hero-add {
   text-align: left;
 }
 button.pack-hero-add:hover { color: var(--copper-hot); }
-.game-hero.mini { padding: 0; }
-.game-hero.mini .game-hero-toggle {
-  width: 100%;
-  border: 0;
-  border-radius: 18px;
-  padding: 8px 12px;
-  text-align: left;
+.game-hero.mini { padding: 0; margin-bottom: 8px; }
+#hero-show {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
 }
 @media (max-width: 720px) {
   .game-hero-inner { grid-template-columns: 120px 1fr; }

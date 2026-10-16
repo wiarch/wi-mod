@@ -921,16 +921,21 @@ function renderGameHero() {
   node.hidden = false;
   node.style.backgroundImage = "";
   const packStrip = packHeroStrip();
+  const show = $("hero-show");
   if (localStorage.getItem("wi-mod-hero") === "0") {
     node.classList.add("mini");
-    node.innerHTML = `<button type="button" class="game-hero-toggle" id="hero-toggle">Mostrar ficha · ${esc(name)}</button>${packStrip}`;
-    $("hero-toggle").onclick = () => {
-      localStorage.setItem("wi-mod-hero", "1");
-      renderGameHero();
-    };
-    bindPackDesc();
+    if (show) show.hidden = false;
+    if (packStrip) {
+      node.hidden = false;
+      node.innerHTML = packStrip;
+      bindPackDesc();
+    } else {
+      node.hidden = true;
+      node.innerHTML = "";
+    }
     return;
   }
+  if (show) show.hidden = true;
   node.classList.remove("mini");
   node.innerHTML = `
     <div class="game-hero-inner">
@@ -3769,6 +3774,10 @@ document.querySelectorAll(".view-toggle [data-view]").forEach((button) => {
 $("size-down").onclick = () => setCardScale(cardScale() - 0.5);
 $("size-reset").onclick = () => setCardScale(1);
 $("size-up").onclick = () => setCardScale(cardScale() + 0.5);
+$("hero-show").onclick = () => {
+  localStorage.setItem("wi-mod-hero", "1");
+  renderGameHero();
+};
 $("export").onclick = () => { $("tape-pop").hidden = true; openPackDialog(); };
 $("import").onclick = () => { $("tape-pop").hidden = true; openPackDialog(); };
 $("pack-scope").onchange = syncPackDialog;
