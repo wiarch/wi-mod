@@ -5,6 +5,9 @@
   "windows": ["main", "splashscreen"],
   "permissions": [
     "core:default",
+    "core:window:allow-show",
+    "core:window:allow-close",
+    "core:window:allow-set-focus",
     "sql:default",
     "sql:allow-execute",
     "allow-fetch-external-api",

@@ -1,6 +1,6 @@
 [package]
 name = "wi-mod"
-version = "0.12.2"
+version = "0.13.0"
 description = "Biblioteca local y portable de mods"
 authors = ["wiarch"]
 edition = "2021"

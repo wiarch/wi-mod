@@ -14,6 +14,31 @@ from wi_mod import __version__
 
 API = "https://api.nexusmods.com/v1"
 APP_NAME = "wi-mod"
+LAST_LIMITS: dict[str, int] = {}
+
+
+def _as_int(value: Any) -> int | None:
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def remember_limits(headers: dict[str, str]) -> None:
+    mapping = {
+        "hourlyRemaining": "x-rl-hourly-remaining",
+        "hourlyLimit": "x-rl-hourly-limit",
+        "dailyRemaining": "x-rl-daily-remaining",
+        "dailyLimit": "x-rl-daily-limit",
+    }
+    for key, header in mapping.items():
+        n = _as_int(headers.get(header))
+        if n is not None:
+            LAST_LIMITS[key] = n
+
+
+def last_limits() -> dict[str, int]:
+    return dict(LAST_LIMITS)
 _URL = re.compile(
     r"^https?://(?:www\.)?nexusmods\.com/([A-Za-z0-9_-]+)/mods/(\d+)",
     re.IGNORECASE,
@@ -54,8 +79,13 @@ def request_json(path: str, api_key: str) -> tuple[Any, dict[str, str]]:
         with urllib.request.urlopen(req, timeout=40) as res:
             payload = json.loads(res.read().decode("utf-8"))
             headers = {k.lower(): v for k, v in res.headers.items()}
+            remember_limits(headers)
             return payload, headers
     except urllib.error.HTTPError as exc:
+        try:
+            remember_limits({k.lower(): v for k, v in (exc.headers or {}).items()})
+        except Exception:
+            pass
         detail = _error_message(exc)
         if exc.code == 401:
             detail = "Clave API de Nexus rechazada."
@@ -75,8 +105,10 @@ def validate_key(api_key: str) -> dict[str, Any]:
     return {
         "name": data.get("name") or "",
         "isPremium": bool(data.get("is_premium")),
-        "hourlyRemaining": headers.get("x-rl-hourly-remaining"),
-        "dailyRemaining": headers.get("x-rl-daily-remaining"),
+        "hourlyRemaining": LAST_LIMITS.get("hourlyRemaining"),
+        "hourlyLimit": LAST_LIMITS.get("hourlyLimit"),
+        "dailyRemaining": LAST_LIMITS.get("dailyRemaining"),
+        "dailyLimit": LAST_LIMITS.get("dailyLimit"),
     }
 
 

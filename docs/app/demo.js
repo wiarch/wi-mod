@@ -745,10 +745,20 @@
         windowsUser: "WYDEX",
         pcName: "PC",
         quitMode: "",
-        appVersion: "0.12.2",
+        appVersion: "0.13.0",
       });
     }
     if (path === "/api/logout" && method === "POST") return reply(200, { ok: true });
+    if (path === "/api/status") {
+      return reply(200, {
+        diskFreeBytes: 145 * 1024 * 1024 * 1024,
+        diskTotalBytes: 512 * 1024 * 1024 * 1024,
+        ramBytes: 42 * 1024 * 1024,
+        online: typeof navigator === "undefined" ? true : navigator.onLine,
+        downBps: 180000,
+        upBps: 22000,
+      });
+    }
     if (path === "/api/library") return reply(200, library(data));
     if (path === "/api/settings" && method === "GET") {
       const flags = keyFlags();

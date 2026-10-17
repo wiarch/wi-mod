@@ -1,0 +1,12 @@
+---
+description: Prohíbe testeo automático, casos masivos y bucles de diagnóstico salvo petición explícita
+alwaysApply: true
+---
+
+# Sin testeo automático
+
+Queda terminantemente prohibido activar modo de testeo, entornos de prueba automáticos, generación masiva de test cases o bucles repetitivos de diagnóstico de errores, salvo que el usuario lo pida de forma explícita y manual en un prompt.
+
+Esos modos gastan demasiados tokens del plan.
+
+Prioriza solo respuestas directas, arreglo en caliente del problema planteado y máxima eficiencia de tokens.

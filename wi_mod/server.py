@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import ctypes
 import json
 import os
 import re
 import shutil
+import socket
 import sys
+import time
 import uuid
 import urllib.error
 import urllib.request
@@ -26,6 +29,7 @@ from wi_mod.nexus import (
     canonical_url,
     download_links,
     fetch_mod,
+    last_limits,
     parse_mod_url,
     search_mods,
     validate_key,
@@ -62,6 +66,210 @@ def _locations() -> tuple[Path, Path]:
 
 BUNDLE, ROOT = _locations()
 WEB = BUNDLE / "web"
+_ONLINE_AT = 0.0
+_ONLINE_OK = True
+
+
+def _rss_bytes() -> int:
+    try:
+        if os.name != "nt":
+            pages = int(Path("/proc/self/statm").read_text().split()[1])
+            return pages * int(os.sysconf("SC_PAGE_SIZE"))
+        from ctypes import wintypes
+
+        class PROCESS_MEMORY_COUNTERS(ctypes.Structure):
+            _fields_ = [
+                ("cb", wintypes.DWORD),
+                ("PageFaultCount", wintypes.DWORD),
+                ("PeakWorkingSetSize", ctypes.c_size_t),
+                ("WorkingSetSize", ctypes.c_size_t),
+                ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                ("PagefileUsage", ctypes.c_size_t),
+                ("PeakPagefileUsage", ctypes.c_size_t),
+            ]
+
+        class PROCESSENTRY32W(ctypes.Structure):
+            _fields_ = [
+                ("dwSize", wintypes.DWORD),
+                ("cntUsage", wintypes.DWORD),
+                ("th32ProcessID", wintypes.DWORD),
+                ("th32DefaultHeapID", ctypes.POINTER(ctypes.c_ulong)),
+                ("th32ModuleID", wintypes.DWORD),
+                ("cntThreads", wintypes.DWORD),
+                ("th32ParentProcessID", wintypes.DWORD),
+                ("pcPriClassBase", ctypes.c_long),
+                ("dwFlags", wintypes.DWORD),
+                ("szExeFile", wintypes.WCHAR * 260),
+            ]
+
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        psapi = ctypes.WinDLL("psapi", use_last_error=True)
+        k32.GetCurrentProcess.restype = ctypes.c_void_p
+        k32.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+        k32.CreateToolhelp32Snapshot.restype = ctypes.c_void_p
+        k32.Process32FirstW.argtypes = [ctypes.c_void_p, ctypes.POINTER(PROCESSENTRY32W)]
+        k32.Process32FirstW.restype = wintypes.BOOL
+        k32.Process32NextW.argtypes = [ctypes.c_void_p, ctypes.POINTER(PROCESSENTRY32W)]
+        k32.Process32NextW.restype = wintypes.BOOL
+        k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        k32.OpenProcess.restype = ctypes.c_void_p
+        k32.CloseHandle.argtypes = [ctypes.c_void_p]
+        psapi.GetProcessMemoryInfo.argtypes = [ctypes.c_void_p, ctypes.POINTER(PROCESS_MEMORY_COUNTERS), wintypes.DWORD]
+        psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
+
+        def ws(handle: int) -> int:
+            counters = PROCESS_MEMORY_COUNTERS()
+            counters.cb = ctypes.sizeof(counters)
+            if not handle or not psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
+                return 0
+            return int(counters.WorkingSetSize)
+
+        total = ws(k32.GetCurrentProcess())
+        me = os.getpid()
+        snap = k32.CreateToolhelp32Snapshot(0x2, 0)
+        if snap in (0, -1, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF):
+            return total
+        entry = PROCESSENTRY32W()
+        entry.dwSize = ctypes.sizeof(entry)
+        ok = k32.Process32FirstW(snap, ctypes.byref(entry))
+        while ok:
+            if int(entry.th32ParentProcessID) == me:
+                child = k32.OpenProcess(0x1000, False, int(entry.th32ProcessID))
+                if child:
+                    total += ws(child)
+                    k32.CloseHandle(child)
+            ok = k32.Process32NextW(snap, ctypes.byref(entry))
+        k32.CloseHandle(snap)
+        return total
+    except Exception:
+        return 0
+
+
+class _IfRow(ctypes.Structure):
+    _fields_ = [
+        ("wszName", ctypes.c_wchar * 256),
+        ("dwIndex", ctypes.c_ulong),
+        ("dwType", ctypes.c_ulong),
+        ("dwMtu", ctypes.c_ulong),
+        ("dwSpeed", ctypes.c_ulong),
+        ("dwPhysAddrLen", ctypes.c_ulong),
+        ("bPhysAddr", ctypes.c_ubyte * 8),
+        ("dwAdminStatus", ctypes.c_ulong),
+        ("dwOperStatus", ctypes.c_ulong),
+        ("dwLastChange", ctypes.c_ulong),
+        ("dwInOctets", ctypes.c_ulong),
+        ("dwInUcastPkts", ctypes.c_ulong),
+        ("dwInNUcastPkts", ctypes.c_ulong),
+        ("dwInDiscards", ctypes.c_ulong),
+        ("dwInErrors", ctypes.c_ulong),
+        ("dwInUnknownProtos", ctypes.c_ulong),
+        ("dwOutOctets", ctypes.c_ulong),
+        ("dwOutUcastPkts", ctypes.c_ulong),
+        ("dwOutNUcastPkts", ctypes.c_ulong),
+        ("dwOutDiscards", ctypes.c_ulong),
+        ("dwOutErrors", ctypes.c_ulong),
+        ("dwOutQLen", ctypes.c_ulong),
+        ("dwDescrLen", ctypes.c_ulong),
+        ("bDescr", ctypes.c_ubyte * 256),
+    ]
+
+
+def _if_octets() -> tuple[int, int]:
+    if os.name != "nt":
+        inn = out = 0
+        try:
+            for line in Path("/proc/net/dev").read_text().splitlines()[2:]:
+                name, _, rest = line.partition(":")
+                if name.strip() == "lo":
+                    continue
+                cols = rest.split()
+                inn += int(cols[0])
+                out += int(cols[8])
+        except Exception:
+            return 0, 0
+        return inn, out
+    try:
+        from ctypes import wintypes
+
+        iph = ctypes.WinDLL("iphlpapi", use_last_error=True)
+        iph.GetIfTable.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_ulong), wintypes.BOOL]
+        iph.GetIfTable.restype = ctypes.c_ulong
+        size = ctypes.c_ulong(0)
+        iph.GetIfTable(None, ctypes.byref(size), 0)
+        if size.value < 8:
+            return 0, 0
+        n = max(1, (size.value - 4) // ctypes.sizeof(_IfRow))
+        table_t = type(
+            "IfTable",
+            (ctypes.Structure,),
+            {"_fields_": [("dwNumEntries", ctypes.c_ulong), ("table", _IfRow * n)]},
+        )
+        table = table_t()
+        got = ctypes.c_ulong(ctypes.sizeof(table))
+        if iph.GetIfTable(ctypes.byref(table), ctypes.byref(got), 0) != 0:
+            return 0, 0
+        inn = out = 0
+        for i in range(min(int(table.dwNumEntries), n)):
+            row = table.table[i]
+            if int(row.dwType) in {24, 131}:
+                continue
+            inn += int(row.dwInOctets) & 0xFFFFFFFF
+            out += int(row.dwOutOctets) & 0xFFFFFFFF
+        return inn, out
+    except Exception:
+        return 0, 0
+
+
+_NET_T = 0.0
+_NET_IN = 0
+_NET_OUT = 0
+
+
+def _net_rates() -> tuple[int, int]:
+    global _NET_T, _NET_IN, _NET_OUT
+    inn, out = _if_octets()
+    now = time.monotonic()
+    dt = now - _NET_T
+    down = up = 0.0
+    if _NET_T and dt > 0.2:
+        down = ((inn - _NET_IN) % (1 << 32)) / dt
+        up = ((out - _NET_OUT) % (1 << 32)) / dt
+    _NET_T, _NET_IN, _NET_OUT = now, inn, out
+    return int(down), int(up)
+
+
+def _online() -> bool:
+    global _ONLINE_AT, _ONLINE_OK
+    now = time.monotonic()
+    if now - _ONLINE_AT < 8:
+        return _ONLINE_OK
+    try:
+        socket.create_connection(("1.1.1.1", 53), 1.2).close()
+        _ONLINE_OK = True
+    except OSError:
+        _ONLINE_OK = False
+    _ONLINE_AT = now
+    return _ONLINE_OK
+
+
+def _status_payload(app: App) -> dict:
+    try:
+        usage = shutil.disk_usage(app.root)
+        free, total = int(usage.free), int(usage.total)
+    except Exception:
+        free, total = 0, 0
+    down, up = _net_rates()
+    return {
+        "diskFreeBytes": free,
+        "diskTotalBytes": total,
+        "ramBytes": _rss_bytes(),
+        "online": _online(),
+        "downBps": down,
+        "upBps": up,
+    }
 # De momento la app abre sin usuario ni clave.
 LOGIN_OFF = True
 _BRAND = {
@@ -203,7 +411,7 @@ def make_handler(app: App):
 
         def _open(self) -> bool:
             path = urlparse(self.path).path
-            if path in {"/", "/index.html", "/app.js", "/styles.css", "/api/session", "/api/login", "/api/logout", "/api/users/lookup", "/api/users", "/api/password/reset"}:
+            if path in {"/", "/index.html", "/app.js", "/styles.css", "/api/session", "/api/status", "/api/login", "/api/logout", "/api/users/lookup", "/api/users", "/api/password/reset"}:
                 return True
             if path.startswith("/media/"):
                 return True
@@ -235,6 +443,9 @@ def make_handler(app: App):
                     "quitMode": str(app.library.settings().get("quitMode") or ""),
                     "appVersion": __version__,
                 })
+                return
+            if path == "/api/status":
+                self._json(200, _status_payload(app))
                 return
             if not self._open():
                 return
@@ -1672,8 +1883,10 @@ def _public_settings(settings: dict) -> dict:
         "profile": {
             "name": profile.get("name") or "",
             "isPremium": bool(profile.get("isPremium")),
-            "hourlyRemaining": profile.get("hourlyRemaining"),
-            "dailyRemaining": profile.get("dailyRemaining"),
+            "hourlyRemaining": profile.get("hourlyRemaining") if profile.get("hourlyRemaining") is not None else last_limits().get("hourlyRemaining"),
+            "hourlyLimit": profile.get("hourlyLimit") if profile.get("hourlyLimit") is not None else last_limits().get("hourlyLimit"),
+            "dailyRemaining": profile.get("dailyRemaining") if profile.get("dailyRemaining") is not None else last_limits().get("dailyRemaining"),
+            "dailyLimit": profile.get("dailyLimit") if profile.get("dailyLimit") is not None else last_limits().get("dailyLimit"),
         },
     }
 
