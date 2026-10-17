@@ -12,7 +12,7 @@ const state = {
   view: localStorage.getItem("wi-mod-view") === "list" ? "list" : "grid",
   cardScale: (() => {
     const saved = Number(localStorage.getItem("wi-mod-scale"));
-    if (Number.isFinite(saved)) return Math.min(1.5, Math.max(0.5, Math.round(saved * 2) / 2));
+    if (Number.isFinite(saved)) return Math.min(1.5, Math.max(0.5, Math.round(saved * 10) / 10));
     const old = localStorage.getItem("wi-mod-size");
     if (old === "sm") return 0.5;
     if (old === "lg") return 1.5;
@@ -2171,7 +2171,13 @@ function shot(mod) {
 function cardScale() {
   const n = Number(state.cardScale);
   if (!Number.isFinite(n)) return 1;
-  return Math.min(1.5, Math.max(0.5, Math.round(n * 2) / 2));
+  return Math.min(1.5, Math.max(0.5, Math.round(n * 10) / 10));
+}
+
+function visualScale(scale) {
+  const n = Math.min(1.5, Math.max(0.5, scale));
+  if (n <= 1) return 0.78 + (n - 0.5) * 0.2;
+  return 0.88 + (n - 1) * 0.34;
 }
 
 function syncViewToggle() {
@@ -2180,7 +2186,7 @@ function syncViewToggle() {
   if (grid) {
     grid.classList.toggle("list", state.view === "list");
     grid.classList.remove("size-sm", "size-md", "size-lg");
-    grid.style.setProperty("--card-scale", String(scale));
+    grid.style.setProperty("--card-scale", String(visualScale(scale)));
     grid.classList.toggle("picking", state.picking);
   }
   document.querySelectorAll(".view-toggle [data-view]").forEach((button) => {
@@ -2222,6 +2228,8 @@ function setPicking(on) {
 }
 
 function paintSelection() {
+  const grid = $("grid");
+  if (grid) grid.classList.toggle("picking", state.picking);
   document.querySelectorAll("#grid .card").forEach((card) => {
     const on = state.selected.has(card.dataset.id);
     card.classList.toggle("on", on);
@@ -2246,11 +2254,19 @@ function paintPickAll() {
 function selectEverything() {
   const ids = visible().map((mod) => mod.id);
   if (!ids.length) return;
+  const allOn = ids.every((id) => state.selected.has(id));
+  if (allOn) {
+    ids.forEach((id) => state.selected.delete(id));
+    dropPickingIfEmpty();
+    sfx.soft();
+    paintSelection();
+    return;
+  }
   armPicking();
   ids.forEach((id) => state.selected.add(id));
   state.lastCheck = ids[ids.length - 1];
   sfx.soft();
-  render();
+  paintSelection();
 }
 
 let clipIds = [];
@@ -2333,8 +2349,21 @@ function selectAllVisible() {
     if (allOn) state.selected.delete(id);
     else state.selected.add(id);
   });
+  dropPickingIfEmpty();
   sfx.soft();
-  render();
+  paintSelection();
+}
+
+function dropPickingIfEmpty() {
+  if (state.selected.size) return false;
+  state.picking = false;
+  state.lastCheck = "";
+  const button = $("pick-mode");
+  if (button) {
+    button.classList.remove("on");
+    button.textContent = "Habilitar selección";
+  }
+  return true;
 }
 
 function armPicking() {
@@ -2351,6 +2380,7 @@ function pickClick(id, event) {
   const ids = visible().map((mod) => mod.id);
   const ctrl = Boolean(event?.ctrlKey || event?.metaKey);
   const shift = Boolean(event?.shiftKey);
+  const toggle = ctrl || state.picking;
   armPicking();
   if (shift) {
     const anchor = state.lastCheck && ids.includes(state.lastCheck) ? state.lastCheck : id;
@@ -2361,7 +2391,7 @@ function pickClick(id, event) {
       const [from, to] = a < b ? [a, b] : [b, a];
       ids.slice(from, to + 1).forEach((item) => state.selected.add(item));
     }
-  } else if (ctrl) {
+  } else if (toggle) {
     if (state.selected.has(id)) state.selected.delete(id);
     else state.selected.add(id);
     state.lastCheck = id;
@@ -2370,8 +2400,9 @@ function pickClick(id, event) {
     state.selected.add(id);
     state.lastCheck = id;
   }
+  dropPickingIfEmpty();
   sfx.soft();
-  render();
+  paintSelection();
 }
 
 function dragIdsFor(id) {
@@ -2500,26 +2531,19 @@ function beginMarquee(event, fromCard) {
     window.removeEventListener("mouseup", onUp);
     box.remove();
     document.body.classList.remove("marquee-on");
-    if (!moved) {
-      if (!fromCard && state.picking) {
-        state.selected.clear();
-        paintSelection();
-      }
-      return;
-    }
+    if (!moved) return;
     state.dragged = true;
     setTimeout(() => { state.dragged = false; }, 0);
     const ids = [...state.selected];
     if (!ids.length) {
+      dropPickingIfEmpty();
       paintSelection();
       return;
     }
     state.lastCheck = ids[ids.length - 1];
-    const wasPicking = state.picking;
     armPicking();
     sfx.soft();
-    if (wasPicking) paintSelection();
-    else render();
+    paintSelection();
   };
   window.addEventListener("mousemove", onMove);
   window.addEventListener("mouseup", onUp);
@@ -2561,12 +2585,12 @@ async function dropMarked(kind, value, ids) {
   await load();
 }
 
-function setCardScale(next) {
-  const value = Math.min(1.5, Math.max(0.5, Math.round(Number(next) * 2) / 2));
+function setCardScale(next, quiet) {
+  const value = Math.min(1.5, Math.max(0.5, Math.round(Number(next) * 10) / 10));
   if (value === cardScale()) return;
   state.cardScale = value;
   localStorage.setItem("wi-mod-scale", String(value));
-  sfx.click();
+  if (!quiet) sfx.click();
   syncViewToggle();
 }
 
@@ -2587,8 +2611,8 @@ function paintBulk() {
 }
 
 const MOD_STATUS = [
-  ["got", "Descargado"],
-  ["in", "Instalado"],
+  ["got", "Descargado", "Sin descargar"],
+  ["in", "Instalado", "No instalado"],
 ];
 
 function statusOn(mod, id) {
@@ -2596,9 +2620,11 @@ function statusOn(mod, id) {
 }
 
 function statusPicks(mod) {
-  return `<span class="status-picks">${MOD_STATUS.map(([id, label]) => (
-    `<button type="button" class="status-pick ${statusOn(mod, id) ? "on" : ""}" data-status="${id}" title="${label}">${label}</button>`
-  )).join("")}</span>`;
+  return `<span class="status-picks">${MOD_STATUS.map(([id, onLabel, offLabel]) => {
+    const on = statusOn(mod, id);
+    const label = on ? onLabel : offLabel;
+    return `<button type="button" class="status-pick ${on ? "on" : ""}" data-status="${id}" title="${label}">${label}</button>`;
+  }).join("")}</span>`;
 }
 
 function packMoves() {
@@ -2701,7 +2727,7 @@ function render() {
       <footer>
         ${statusPicks(mod)}
         ${packMoves()}
-        ${state.picking ? `<label class="check"><input type="checkbox" data-check="${mod.id}" ${state.selected.has(mod.id) ? "checked" : ""}> marcar</label>` : `<span></span>`}
+        <label class="check"><input type="checkbox" data-check="${mod.id}" ${state.selected.has(mod.id) ? "checked" : ""}> marcar</label>
         <span class="meta">${esc(fmtDate(mod.updatedAt))}</span>
       </footer>
     </article>
@@ -4156,6 +4182,12 @@ document.querySelectorAll(".view-toggle [data-view]").forEach((button) => {
 $("size-down").onclick = () => setCardScale(cardScale() - 0.5);
 $("size-reset").onclick = () => setCardScale(1);
 $("size-up").onclick = () => setCardScale(cardScale() + 0.5);
+window.addEventListener("wheel", (event) => {
+  if (!event.ctrlKey && !event.metaKey) return;
+  if (typingField(event)) return;
+  event.preventDefault();
+  setCardScale(cardScale() + (event.deltaY < 0 ? 0.1 : -0.1), true);
+}, { capture: true, passive: false });
 $("hero-show").onclick = () => {
   localStorage.setItem("wi-mod-hero", "1");
   renderGameHero();

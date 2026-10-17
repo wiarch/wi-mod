@@ -745,7 +745,7 @@
         windowsUser: "WYDEX",
         pcName: "PC",
         quitMode: "",
-        appVersion: "0.13.0",
+        appVersion: "0.14.0",
       });
     }
     if (path === "/api/logout" && method === "POST") return reply(200, { ok: true });
