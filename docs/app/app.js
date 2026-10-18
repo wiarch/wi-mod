@@ -1136,9 +1136,9 @@ function gameCover(domain) {
 }
 
 const LOCAL_COVERS = {
-  darksoulsremastered: ["/brand/darksoulsremastered.jpg", "https://media.rawg.io/media/games/29c/29c6c21cc0c78cff6f45d23631cc82f4.jpg"],
-  minecraft: ["/brand/minecraft.jpg", "https://media.rawg.io/media/games/b4e/b4e4c73d5aa4ec66bbf75375c4847a2b.jpg"],
-  stardewvalley: ["/brand/stardewvalley.jpg", "https://media.rawg.io/media/games/713/713269608dc8f2f40f5a670a14b2de94.jpg"],
+  darksoulsremastered: ["brand/darksoulsremastered.jpg", "https://media.rawg.io/media/games/29c/29c6c21cc0c78cff6f45d23631cc82f4.jpg"],
+  minecraft: ["brand/minecraft.jpg", "https://media.rawg.io/media/games/b4e/b4e4c73d5aa4ec66bbf75375c4847a2b.jpg"],
+  stardewvalley: ["brand/stardewvalley.jpg", "https://media.rawg.io/media/games/713/713269608dc8f2f40f5a670a14b2de94.jpg"],
 };
 
 function gameMark(domain) {
@@ -2229,12 +2229,12 @@ function fillCategorySelect(node, preferred) {
 }
 
 const THEME_ICONS = {
-  nexus: "/brand/nexus.ico",
-  modrinth: "/brand/modrinth.png",
-  curseforge: "/brand/curseforge.ico",
-  steam: "/brand/steam.ico",
-  moddb: "/brand/moddb.png",
-  rawg: "/brand/rawg.png",
+  nexus: "brand/nexus.ico",
+  modrinth: "brand/modrinth.png",
+  curseforge: "brand/curseforge.ico",
+  steam: "brand/steam.ico",
+  moddb: "brand/moddb.png",
+  rawg: "brand/rawg.png",
 };
 
 function applyTheme(theme) {

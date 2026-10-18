@@ -143,7 +143,7 @@ body {
   --cover-image: none;
   background-color: var(--bg);
   background-image:
-    url("/brand/game_pattern.png"),
+    url("brand/game_pattern.png"),
     radial-gradient(900px 480px at 8% -10%, color-mix(in srgb, var(--ember) 22%, transparent), transparent 55%),
     radial-gradient(700px 420px at 100% 0%, color-mix(in srgb, var(--copper) 18%, transparent), transparent 50%),
     linear-gradient(165deg, var(--bg-2) 0%, var(--bg) 42%, var(--bg-deep) 100%);
@@ -3226,7 +3226,7 @@ select optgroup {
   overflow: hidden;
   background-color: var(--bg);
   background-image:
-    url("/brand/game_pattern.png"),
+    url("brand/game_pattern.png"),
     radial-gradient(680px 420px at 0% 0%, var(--glow), transparent 62%),
     radial-gradient(560px 380px at 100% 100%, color-mix(in srgb, var(--copper-hot) 28%, transparent), transparent 64%),
     radial-gradient(420px 280px at 70% 10%, color-mix(in srgb, var(--ember) 22%, transparent), transparent 70%),
