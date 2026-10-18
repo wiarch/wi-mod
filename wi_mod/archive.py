@@ -12,7 +12,7 @@ from typing import Any
 from wi_mod.store import Library
 
 FORMAT = "wimod"
-VERSION = 1
+VERSION = 2
 
 
 def select_mods(
@@ -117,10 +117,97 @@ def export_library(
     label_pack = next((pack for pack in packs if pack.get("id") == modpack), packs[0] if packs else None)
     count = 0
     with zipfile.ZipFile(dest, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+        # Copia mutable: reescribe rutas de imagen a carpetas del zip
+        packs_out = [dict(pack) for pack in packs]
+        mods_out = [dict(mod) for mod in mods]
+        raw_marks = catalog.get("marks") if isinstance(catalog.get("marks"), dict) else {}
+        catalog_out = {
+            **catalog,
+            "marks": {
+                str(key): dict(value)
+                for key, value in raw_marks.items()
+                if isinstance(value, dict)
+            },
+            "games": [dict(item) for item in (catalog.get("games") or []) if isinstance(item, dict)],
+        }
+        used_arcs: set[str] = set()
+
+        def put(source_rel: str | None, arcname: str) -> str | None:
+            return _add_as(bundle, library, source_rel, arcname, used_arcs)
+
+        # Marcas de modpack / categoría / plataforma → carpetas propias
+        for key, mark in list(catalog_out["marks"].items()):
+            kind_name, _, item_id = str(key).partition(":")
+            src = _media_rel(mark.get("imageUrl"))
+            if not src:
+                continue
+            if kind_name == "modpack":
+                pack = next((row for row in packs_out if str(row.get("id") or "") == item_id), None)
+                folder = _slug(str((pack or {}).get("name") or item_id))
+                arc = put(src, f"modpacks/{folder}/mark{_suffix(src)}")
+            elif kind_name == "category":
+                arc = put(src, f"categories/{_slug(item_id)}/mark{_suffix(src)}")
+            elif kind_name == "platform":
+                arc = put(src, f"platforms/{_slug(item_id)}/mark{_suffix(src)}")
+            else:
+                arc = put(src, f"marks/{_slug(key)}/mark{_suffix(src)}")
+            if arc:
+                mark["imageUrl"] = f"/media/{arc}"
+
+        # Imágenes de categorías dentro de cada modpack
+        for pack in packs_out:
+            pack_folder = _slug(str(pack.get("name") or pack.get("id") or "pack"))
+            cats = []
+            for cat in pack.get("categories") or []:
+                if not isinstance(cat, dict):
+                    continue
+                row = dict(cat)
+                src = _media_rel(row.get("imageUrl"))
+                if src:
+                    cat_folder = _slug(str(row.get("name") or row.get("id") or "cat"))
+                    arc = put(src, f"modpacks/{pack_folder}/categories/{cat_folder}/image{_suffix(src)}")
+                    if arc:
+                        row["imageUrl"] = f"/media/{arc}"
+                cats.append(row)
+            pack["categories"] = cats
+
+        # Portadas de mods + archivos descargados
+        for mod in mods_out:
+            count += 1
+            mod_folder = _slug(str(mod.get("name") or mod.get("id") or "mod"))
+            pic = str(mod.get("pictureFile") or "").strip()
+            if pic:
+                arc = put(pic, f"fichas/{mod_folder}/picture{_suffix(pic)}")
+                if arc:
+                    mod["pictureFile"] = arc
+            files_out = []
+            for item in mod.get("files") or []:
+                if not isinstance(item, dict):
+                    continue
+                row = dict(item)
+                stored = str(row.get("storedAs") or "").strip()
+                if stored:
+                    raw_name = Path(stored).name
+                    safe = re.sub(r"[^\w.\-]+", "-", raw_name).strip(".-")[:80] or "file"
+                    # Prefijo mods/ → carpeta de descargas del programa al importar
+                    arc = put(stored, f"mods/{mod_folder}/{safe}")
+                    if arc:
+                        row["storedAs"] = arc
+                files_out.append(row)
+            mod["files"] = files_out
+
         manifest = {
             "format": FORMAT,
             "version": VERSION,
             "exportedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "layout": {
+                "manifest": "manifest.json",
+                "modpacks": "modpacks/<nombre>/mark.* + categories/<cat>/image.*",
+                "categories": "categories/<nombre>/mark.*",
+                "platforms": "platforms/<nombre>/mark.*",
+                "fichas": "fichas/<mod>/picture.*",
+                "archivos": "mods/<mod>/*",
+            },
             "scope": {
                 "kind": scope,
                 "platform": platform,
@@ -128,18 +215,11 @@ def export_library(
                 "modpack": modpack,
                 "modpackName": (label_pack or {}).get("name"),
             },
-            "catalog": catalog,
-            "modpacks": packs,
-            "mods": mods,
+            "catalog": catalog_out,
+            "modpacks": packs_out,
+            "mods": mods_out,
         }
         bundle.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
-        for relative in _catalog_files(catalog):
-            _add_if_present(bundle, library, relative)
-        for mod in mods:
-            count += 1
-            _add_if_present(bundle, library, mod.get("pictureFile"))
-            for item in mod.get("files") or []:
-                _add_if_present(bundle, library, item.get("storedAs"))
     return dest, count
 
 
@@ -166,10 +246,11 @@ def import_library(
         if manifest.get("format") != FORMAT:
             raise ValueError("El archivo no es un paquete wi-mod.")
         _restore_catalog(library, manifest.get("catalog"), scope=scope, game=game, modpack=modpack)
-        for relative in _catalog_files(manifest.get("catalog") if isinstance(manifest.get("catalog"), dict) else {}):
+        catalog_blob = manifest.get("catalog") if isinstance(manifest.get("catalog"), dict) else {}
+        raw_packs = [item for item in (manifest.get("modpacks") or []) if isinstance(item, dict) and item.get("name")]
+        for relative in _asset_paths(catalog_blob, raw_packs, []):
             _extract(bundle, library, relative)
         id_map: dict[str, str] = {}
-        raw_packs = [item for item in (manifest.get("modpacks") or []) if isinstance(item, dict) and item.get("name")]
         kind = (scope or "all").strip().lower()
         if kind == "game" and game:
             raw_packs = [item for item in raw_packs if str(item.get("gameDomain") or "").lower() == str(game).lower()]
@@ -335,7 +416,9 @@ def _catalog_slice(library: Library, kind: str, game: str | None, packs: list[di
         kind_name, _, item_id = str(key).partition(":")
         if kind_name == "modpack" and any(str(pack.get("id") or "") == item_id for pack in packs):
             marks[key] = value
-        elif kind_name == "platform" and kind == "platform":
+        elif kind_name == "category" and (kind == "all" or kind == "modpack" or kind == "game"):
+            marks[key] = value
+        elif kind_name == "platform" and (kind == "platform" or kind == "all"):
             marks[key] = value
         elif kind == "all":
             marks[key] = value
@@ -349,18 +432,56 @@ def _catalog_slice(library: Library, kind: str, game: str | None, packs: list[di
     }
 
 
-def _catalog_files(catalog: dict[str, Any]) -> list[str]:
+def _media_rel(url: str | None) -> str | None:
+    text = str(url or "").strip()
+    if text.startswith("/media/"):
+        return text[len("/media/") :].replace("\\", "/")
+    return None
+
+
+def _suffix(relative: str) -> str:
+    return Path(relative).suffix.lower() or ".bin"
+
+
+def _asset_paths(
+    catalog: dict[str, Any],
+    packs: list[dict[str, Any]],
+    mods: list[dict[str, Any]],
+) -> list[str]:
+    """Rutas locales de imágenes de marcas, categorías de pack y mods."""
     found: list[str] = []
-    blobs = list(catalog.get("games") or [])
-    blobs.extend((catalog.get("marks") or {}).values())
-    for item in blobs:
-        if not isinstance(item, dict):
+    seen: set[str] = set()
+
+    def add(rel: str | None) -> None:
+        if not rel:
+            return
+        key = rel.replace("\\", "/")
+        if key in seen:
+            return
+        seen.add(key)
+        found.append(key)
+
+    marks = catalog.get("marks") if isinstance(catalog.get("marks"), dict) else {}
+    for mark in marks.values():
+        if isinstance(mark, dict):
+            add(_media_rel(mark.get("imageUrl")))
+    for pack in packs:
+        if not isinstance(pack, dict):
             continue
-        for key in ("imageUrl", "logoUrl"):
-            url = str(item.get(key) or "").strip()
-            if url.startswith("/media/"):
-                found.append(url[len("/media/"):])
+        for cat in pack.get("categories") or []:
+            if isinstance(cat, dict):
+                add(_media_rel(cat.get("imageUrl")))
+    for mod in mods:
+        if isinstance(mod, dict):
+            pic = str(mod.get("pictureFile") or "").strip()
+            if pic:
+                add(pic.replace("\\", "/"))
     return found
+
+
+def _catalog_files(catalog: dict[str, Any]) -> list[str]:
+    """Compat: solo marcas/juegos del catálogo (imports viejos)."""
+    return _asset_paths(catalog, [], [])
 
 
 def _restore_catalog(library: Library, catalog: Any, *, scope: str, game: str | None, modpack: str | None) -> None:
@@ -478,11 +599,39 @@ def _extract(bundle: zipfile.ZipFile, library: Library, relative: str) -> str | 
 
 
 def _add_if_present(bundle: zipfile.ZipFile, library: Library, relative: str | None) -> None:
-    if not relative:
-        return
+    _add_as(bundle, library, relative, str(relative or "").replace("\\", "/"), set())
+
+
+def _add_as(
+    bundle: zipfile.ZipFile,
+    library: Library,
+    relative: str | None,
+    arcname: str,
+    used: set[str],
+) -> str | None:
+    if not relative or not arcname:
+        return None
     try:
         path = library.absolute(relative)
     except ValueError:
-        return
-    if path.is_file():
-        bundle.write(path, relative.replace("\\", "/"))
+        return None
+    if not path.is_file():
+        return None
+    arc = arcname.replace("\\", "/").lstrip("/")
+    if ".." in Path(arc).parts:
+        return None
+    final = arc
+    if final in used:
+        stem = Path(final).stem
+        suffix = Path(final).suffix
+        parent = str(Path(final).parent).replace("\\", "/")
+        n = 2
+        while True:
+            candidate = f"{parent}/{stem}-{n}{suffix}" if parent != "." else f"{stem}-{n}{suffix}"
+            if candidate not in used:
+                final = candidate
+                break
+            n += 1
+    used.add(final)
+    bundle.write(path, final)
+    return final
