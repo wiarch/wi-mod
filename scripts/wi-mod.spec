@@ -1,20 +1,25 @@
 # -*- mode: python ; coding: utf-8 -*-
+# Run from repo root:  pyinstaller scripts/wi-mod.spec
+from pathlib import Path
+
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('web', 'web')]
+ROOT = Path(SPECPATH).resolve().parent
+
+datas = [(str(ROOT / "web"), "web")]
 binaries = []
-hiddenimports = ['webview']
-tmp_ret = collect_all('webview')
+hiddenimports = ["webview"]
+tmp_ret = collect_all("webview")
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-tmp_ret = collect_all('pythonnet')
+tmp_ret = collect_all("pythonnet")
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-tmp_ret = collect_all('clr_loader')
+tmp_ret = collect_all("clr_loader")
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 
 a = Analysis(
-    ['app.py'],
-    pathex=[],
+    [str(ROOT / "app.py")],
+    pathex=[str(ROOT)],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
@@ -33,7 +38,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='wi-mod',
+    name="wi-mod",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

@@ -82,19 +82,34 @@ Try the interface directly in your browser at **[wiarch.github.io/wi-mod](https:
 
 
 
+## 📝 Commits
+
+Mensajes con [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `chore:`, etc. Así se pueden generar changelogs automáticamente.
+
+## 📂 Repo layout
+
+| Path | Role |
+|------|------|
+| `web/` | Shared UI (Python shell + Vite import) |
+| `src/` + `src-tauri/` | Tauri v2 frontend entry + Rust |
+| `wi_mod/` + `app.py` | Legacy Python desktop (until cutover) |
+| `scripts/` | `wi-mod.bat`, PyInstaller `wi-mod.spec` |
+| `data/keys.example.json` | API key template (`data/keys.json` is local-only) |
+| `docs/` | Landing + GitHub Pages demo |
+
 ## 💻 Local Development
 
-To contribute or build the project locally:
-
 ```bash
-# 1. Clone the repository
-git clone [https://github.com/wiarch/wi-mod.git](https://github.com/wiarch/wi-mod.git)
+git clone https://github.com/wiarch/wi-mod.git
 cd wi-mod
 
-# 2. Install Node.js dependencies
+# Tauri (recommended)
 npm install
+npm run tauri:dev
 
-# 3. Run the development environment with Tauri
-npm run tauri dev
+# Legacy Python shell
+pip install -r requirements.txt
+python app.py
+# or: scripts\wi-mod.bat
 ```
 

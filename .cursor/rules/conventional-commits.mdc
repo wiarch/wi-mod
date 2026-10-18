@@ -1,0 +1,38 @@
+---
+description: Conventional Commits for mensajes de git y changelogs
+alwaysApply: true
+---
+
+# Conventional Commits
+
+Todo commit de producto usa [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>(<scope opcional>): <imperativo corto>
+```
+
+## Types
+
+| Type | Cuándo |
+|------|--------|
+| `feat` | Función nueva visible |
+| `fix` | Bug / regresión |
+| `refactor` | Reestructura sin cambiar comportamiento |
+| `chore` | Repo, scripts, ignore, tooling |
+| `docs` | Solo documentación / landing |
+| `style` | Formato UI/CSS sin lógica |
+| `perf` | Rendimiento |
+| `build` | Empaquetado, Vite, Tauri, PyInstaller |
+| `ci` | GitHub Actions |
+
+## Reglas
+
+- Imperativo, ≤72 caracteres en el subject, **sin** punto final.
+- Scope útil: `ui`, `demo`, `api`, `store`, `tauri`, `docs`, `repo`.
+- Body solo si hace falta el *porqué* (breaking, migración).
+- Versión: sigue `version.mdc` — bumpea número en el mismo commit de producto.
+- **No** reescribir historia de `main` solo para “arreglar” mensajes viejos.
+- Ejemplos buenos:
+  - `feat(ui): add sidebar mod list under filters`
+  - `fix(demo): use relative assets on GitHub Pages`
+  - `chore(repo): move launcher scripts into scripts/`

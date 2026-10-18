@@ -7,20 +7,15 @@ Rama `tauri`. UI compartida en `web/`; Vite/Tauri entran por `src/`.
 ```
 wi-mod/
 ├── web/                      # UI canónica (Python + Vite importan de aquí)
-│   ├── index.html            # pywebview
-│   ├── app.js / styles.css
-│   └── brand/
-├── src/                      # Entry Vite / Tauri
-│   ├── index.html
-│   ├── main.js               # import ../web/{styles,app}
-│   └── services/
-│       ├── runtime.ts        # isTauriRuntime()
-│       ├── storage/          # SQLite | IndexedDB
-│       └── api/              # invoke Rust | window.fetch
+├── src/ + src-tauri/         # Entry Vite / Tauri (Rust)
 ├── public/brand/             # estáticos Vite → dist/brand/
-├── src-tauri/                # Rust (SQL plugin + http_proxy)
 ├── docs/                     # Landing + demo Pages (docs/app)
 ├── wi_mod/ + app.py          # LEGACY Python (activo hasta corte)
+├── requirements.txt          # deps Python
+├── scripts/                  # bat + PyInstaller (legacy)
+│   ├── wi-mod.bat
+│   └── wi-mod.spec
+├── data/keys.example.json    # plantilla de claves (data/keys.json gitignored)
 ├── package.json / vite.config.js
 └── .github/workflows/        # build-and-release
 ```
@@ -41,7 +36,7 @@ Portable Tauri: `src-tauri/target/release/wi-mod.exe` (+ `data/` al lado).
 | Pieza | Rol | Al cortar |
 |-------|-----|-----------|
 | `app.py`, `wi_mod/server.py` | HTTP + pywebview | → commands Rust |
-| `wi-mod.spec`, `wi-mod.bat`, `requirements.txt` | PyInstaller / dev | eliminar |
+| `scripts/wi-mod.spec`, `scripts/wi-mod.bat`, `requirements.txt` | PyInstaller / dev | eliminar |
 | `docs/app` | demo limitada Pages | opcional si gh-pages = `dist/` |
 
 ## Storage
