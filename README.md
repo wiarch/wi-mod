@@ -48,14 +48,16 @@ It is not designed to replace advanced installation managers like *Mod Organizer
 
 ## 🛠️ Tech Stack
 
+The GitHub language bar is high in **Python** because the shipping desktop shell today is still `app.py` + `wi_mod/` (HTTP API, pywebview, Nexus/RAWG/etc.). **Tauri v2 + Rust** is the target stack and already powers the Vite/`src-tauri` path; both share the same UI in `web/`.
 
-| Layer                | Technology                                                          |
-| -------------------- | ------------------------------------------------------------------- |
-| **Core / Backend**   | [Rust](https://www.rust-lang.org/) + [Tauri v2](https://tauri.app/) |
-| **Frontend UI**      | HTML5, CSS3, JavaScript (Vite)                                      |
-| **Database**         | SQLite (Desktop) / IndexedDB (Web Demo)                             |
-| **API Integrations** | Nexus Mods API, CurseForge API, Steam Web API, RAWG API             |
-| **CI/CD**            | GitHub Actions (Automated cross-platform releases)                  |
+| Layer | Technology |
+| ----- | ---------- |
+| **Desktop (current)** | [Python 3](https://www.python.org/) — `app.py`, `wi_mod/`, `requirements.txt` (local HTTP + [pywebview](https://pywebview.flowrl.com/)) |
+| **Desktop (Tauri)** | [Rust](https://www.rust-lang.org/) + [Tauri v2](https://tauri.app/) — `src-tauri/` (migration in progress; see `docs/MIGRATION-TAURI.md`) |
+| **Frontend UI** | HTML5, CSS3, JavaScript — shared `web/` (also Vite via `src/`) |
+| **Database** | SQLite (desktop) / IndexedDB (web demo) |
+| **API integrations** | Nexus Mods, Modrinth, CurseForge, Steam Workshop, ModDB, RAWG |
+| **CI/CD** | GitHub Actions (web Pages + Tauri releases) |
 
 
 ---
