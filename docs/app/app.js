@@ -37,6 +37,8 @@ const state = {
   detected: null,
   manual: false,
   packMode: "export",
+  packsDir: "",
+  importZipPath: "",
   muted: localStorage.getItem("wi-mod-mute") === "1",
   coverBg: localStorage.getItem("wi-mod-cover-bg") === "1",
   lang: (() => {
@@ -150,14 +152,21 @@ const UI = {
     launchTitle: "Lanzador",
     launchMissing: "Este juego no tiene lanzador vinculado. ¿Quieres que wi-mod lo busque solo o lo eliges a mano?",
     launchAuto: "Detectar automáticamente", launchManual: "Elegir manualmente",
-    launchSearching: "Buscando en discos y carpetas (sin tocar carpetas del sistema)…",
-    launchNone: "No encontré nada parecido. Elige el .exe a mano.",
-    launchPick: "Encontré esto. Elige el correcto:",
+    launchSearching: "Buscando en todos los discos y carpetas (sin tocar carpetas del sistema)…",
+    launchNone: "No encontré la carpeta del juego. Elige la carpeta o el .exe a mano.",
+    launchPick: "Encontré esto. Elige la carpeta del juego (o el .exe):",
     launchSaved: "Lanzador guardado.", launchOk: "Abriendo el juego…",
     launchPathPh: "Ruta del .exe o pegar steam://run/…",
     launchNeedGame: "Elige un juego arriba.",
     launchUnlinked: "Sin lanzador. Clic o Ctrl+Enter para vincular.",
     launchLinked: "Lanzar juego (Ctrl+Enter). Mayús+clic para cambiar",
+    launchFolder: "Carpeta",
+    launchExe: "Ejecutable",
+    launchBrowseHint: "Elige la carpeta del juego o pega la ruta.",
+    launchPathLabel: "Ruta",
+    browse: "Examinar",
+    detectGames: "Detectar",
+    detectGamesTip: "Busca la carpeta del juego activo en todos los discos",
     searchMods: "Buscar mods", searchIn: "Buscar en {name}", listSearch: "Filtrar lista", menu: "Menú",
     platform: "Plataforma", modpack: "Modpack", category: "Categoría",
     createPack: "Crear modpack", addCategory: "Añadir categoría",
@@ -168,8 +177,11 @@ const UI = {
     sizeReset: "Tamaño base 0.5×. Clic para volver", sizeUp: "Agrandar, máximo 1.5×",
     sort: "Orden", sortAdded: "Recién guardados", sortDownloaded: "Recién descargados", sortUpdated: "Última actualización", sortName: "Nombre",
     mods: "Mods",
+    sideRefresh: "Actualizar mods",
+    sideFoldsToggle: "Plegar o expandir secciones",
+    sideFoldsCollapse: "Minimizar secciones",
+    sideFoldsExpand: "Expandir secciones",
     sideSearch: "Buscar en filtros y mods", sidePage: "Página", sidePrev: "Anterior", sideNext: "Siguiente", sidePageSize: "Por página",
-    sideNoMods: "Sin mods aquí",
     assign: "Asignar", insidePack: "Dentro del pack", move: "Mover", refresh: "Actualizar",
     delete: "Eliminar", log: "Log", errors: "Errores", alerts: "Alertas", requests: "Peticiones",
     clear: "Limpiar", addMod: "Añadir mod", link: "Enlace",
@@ -190,6 +202,9 @@ const UI = {
     rawgData: "Datos de juegos vía RAWG.", close: "Cerrar", importExport: "Importar y exportar",
     export: "Exportar", import: "Importar",
     exportHint: "Todo, o solo un juego, un modpack, una plataforma o los marcados.",
+    exportElsewhere: "Otra ruta",
+    packsFolder: "Carpeta: {path}",
+    zipFilePh: "Elige un .zip…",
     whatExport: "Qué exportar", all: "Todo", oneGame: "Un juego", onePack: "Un modpack",
     byPlatform: "Por plataforma", selectedOnly: "Solo marcados", choose: "Elige", back: "Volver",
     zipFile: "Archivo .zip", whatImport: "Qué importar", modpacks: "Modpacks",
@@ -276,14 +291,21 @@ const UI = {
     launchTitle: "Launcher",
     launchMissing: "This game has no launcher linked. Should wi-mod find it, or pick it yourself?",
     launchAuto: "Detect automatically", launchManual: "Choose manually",
-    launchSearching: "Searching disks and folders (skipping OS system folders)…",
-    launchNone: "Nothing similar found. Pick the .exe yourself.",
-    launchPick: "Found these. Pick the right one:",
+    launchSearching: "Searching all disks and folders (skipping OS system folders)…",
+    launchNone: "Game folder not found. Pick the folder or .exe yourself.",
+    launchPick: "Found these. Pick the game folder (or .exe):",
     launchSaved: "Launcher saved.", launchOk: "Opening the game…",
     launchPathPh: "Path to .exe or paste steam://run/…",
     launchNeedGame: "Pick a game above.",
     launchUnlinked: "No launcher. Click or Ctrl+Enter to link.",
     launchLinked: "Launch game (Ctrl+Enter). Shift+click to change",
+    launchFolder: "Folder",
+    launchExe: "Executable",
+    launchBrowseHint: "Pick the game folder or paste the path.",
+    launchPathLabel: "Path",
+    browse: "Browse",
+    detectGames: "Detect",
+    detectGamesTip: "Find the active game folder across all disks",
     searchMods: "Search mods", searchIn: "Search {name}", listSearch: "Filter list", menu: "Menu",
     platform: "Platform", modpack: "Modpack", category: "Category",
     createPack: "Create modpack", addCategory: "Add category",
@@ -294,8 +316,11 @@ const UI = {
     sizeReset: "Base size 0.5×. Click to reset", sizeUp: "Larger, max 1.5×",
     sort: "Sort", sortAdded: "Recently saved", sortDownloaded: "Recently downloaded", sortUpdated: "Last update", sortName: "Name",
     mods: "Mods",
+    sideRefresh: "Refresh mods",
+    sideFoldsToggle: "Collapse or expand sections",
+    sideFoldsCollapse: "Collapse sections",
+    sideFoldsExpand: "Expand sections",
     sideSearch: "Search filters and mods", sidePage: "Page", sidePrev: "Previous", sideNext: "Next", sidePageSize: "Per page",
-    sideNoMods: "No mods here",
     assign: "Assign", insidePack: "Inside the pack", move: "Move", refresh: "Refresh",
     delete: "Delete", log: "Log", errors: "Errors", alerts: "Alerts", requests: "Requests",
     clear: "Clear", addMod: "Add mod", link: "Link",
@@ -316,6 +341,9 @@ const UI = {
     rawgData: "Game data via RAWG.", close: "Close", importExport: "Import and export",
     export: "Export", import: "Import",
     exportHint: "Everything, or one game, one modpack, one platform, or the selected mods.",
+    exportElsewhere: "Other path",
+    packsFolder: "Folder: {path}",
+    zipFilePh: "Pick a .zip…",
     whatExport: "What to export", all: "All", oneGame: "One game", onePack: "One modpack",
     byPlatform: "By platform", selectedOnly: "Selected only", choose: "Choose", back: "Back",
     zipFile: "Zip file", whatImport: "What to import", modpacks: "Modpacks",
@@ -641,9 +669,14 @@ function statRow(mod) {
 
 function toast(text, kind = "ok") {
   const node = $("toast");
+  if (!node) return;
   node.hidden = false;
   node.className = `toast ${kind}`;
   node.textContent = text;
+  // popover = capa sobre <dialog modal> (z-index solo no basta)
+  try {
+    if (typeof node.showPopover === "function") node.showPopover();
+  } catch (_) { /* ya abierto */ }
   if (kind === "bad") sfx.err();
   else if (kind === "warn") sfx.warn();
   else sfx.ok();
@@ -651,10 +684,13 @@ function toast(text, kind = "ok") {
   toast._t = setTimeout(() => {
     node.classList.add("out");
     setTimeout(() => {
+      try {
+        if (typeof node.hidePopover === "function" && node.matches(":popover-open")) node.hidePopover();
+      } catch (_) { /* ignore */ }
       node.hidden = true;
       node.classList.remove("out");
     }, 220);
-  }, 3000);
+  }, 3200);
 }
 
 async function api(path, options = {}) {
@@ -694,12 +730,29 @@ async function api(path, options = {}) {
   }
 }
 
+function joinPackPath(dir, name) {
+  const base = String(dir || "").replace(/[\\/]+$/, "");
+  const file = String(name || "").replace(/^[/\\]+/, "");
+  if (!base) return file;
+  return `${base}\\${file}`;
+}
+
 async function load() {
   const data = await api("/api/library");
   state.mods = data.mods || [];
   state.modpacks = data.modpacks || [];
   state.catalog = data.catalog || { platforms: [], games: [], categories: [], skills: [], rules: [] };
   state.sources = data.sources || {};
+  if (data.packsDir) state.packsDir = String(data.packsDir);
+  else {
+    try {
+      const host = window.pywebview && window.pywebview.api;
+      if (host && typeof host.packs_dir === "function") {
+        const dir = await host.packs_dir();
+        if (dir) state.packsDir = String(dir);
+      }
+    } catch (_) { /* ignore */ }
+  }
   {
     const saved = localStorage.getItem("wi-mod-lang");
     if (saved === "en" || saved === "es") applyLang(saved);
@@ -1136,9 +1189,9 @@ function gameCover(domain) {
 }
 
 const LOCAL_COVERS = {
-  darksoulsremastered: ["brand/darksoulsremastered.jpg", "https://media.rawg.io/media/games/29c/29c6c21cc0c78cff6f45d23631cc82f4.jpg"],
-  minecraft: ["brand/minecraft.jpg", "https://media.rawg.io/media/games/b4e/b4e4c73d5aa4ec66bbf75375c4847a2b.jpg"],
-  stardewvalley: ["brand/stardewvalley.jpg", "https://media.rawg.io/media/games/713/713269608dc8f2f40f5a670a14b2de94.jpg"],
+  darksoulsremastered: ["/brand/darksoulsremastered.jpg", "https://media.rawg.io/media/games/29c/29c6c21cc0c78cff6f45d23631cc82f4.jpg"],
+  minecraft: ["/brand/minecraft.jpg", "https://media.rawg.io/media/games/b4e/b4e4c73d5aa4ec66bbf75375c4847a2b.jpg"],
+  stardewvalley: ["/brand/stardewvalley.jpg", "https://media.rawg.io/media/games/713/713269608dc8f2f40f5a670a14b2de94.jpg"],
 };
 
 function gameMark(domain) {
@@ -1610,17 +1663,23 @@ function clearFilters() {
   if ($("side-search")) $("side-search").value = "";
 }
 
-function askInput({ title, hint = "", placeholder = "", value = "", okLabel = "Añadir", mode = "text", options = [] }) {
+function askInput({
+  title, hint = "", placeholder = "", value = "", okLabel = "Añadir",
+  mode = "text", options = [], browse = "", label = "",
+}) {
   return new Promise((resolve) => {
     const dialog = $("ask-dialog");
     const textWrap = $("ask-text-wrap");
     const selectWrap = $("ask-select-wrap");
     const text = $("ask-text");
     const select = $("ask-select");
+    const browseBtn = $("ask-browse");
+    const textLabel = $("ask-text-label");
     $("ask-title").textContent = title;
     $("ask-hint").hidden = !hint;
     $("ask-hint").textContent = hint || "";
     $("ask-ok").textContent = okLabel;
+    if (textLabel) textLabel.textContent = label || t("name");
     const finish = (result) => {
       dialog.close();
       resolve(result);
@@ -1629,16 +1688,32 @@ function askInput({ title, hint = "", placeholder = "", value = "", okLabel = "A
       textWrap.hidden = true;
       selectWrap.hidden = false;
       text.required = false;
+      if (browseBtn) browseBtn.hidden = true;
       select.innerHTML = options.map(([id, label]) => (
         `<option value="${esc(id)}">${esc(label)}</option>`
       )).join("");
     } else {
       textWrap.hidden = false;
       selectWrap.hidden = true;
-      text.required = true;
+      text.required = !browse;
       text.value = value || "";
       text.placeholder = placeholder || "";
+      if (browseBtn) {
+        browseBtn.hidden = !browse;
+        browseBtn.textContent = t("browse");
+      }
     }
+    const onBrowse = async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      let picked = "";
+      if (browse === "folder") picked = await pickFolderPath({ forceNative: true });
+      else if (browse === "file") picked = await pickExePath({ forceNative: true });
+      if (picked) {
+        text.value = picked;
+        text.focus();
+      }
+    };
     const onSubmit = (event) => {
       event.preventDefault();
       cleanup();
@@ -1650,13 +1725,15 @@ function askInput({ title, hint = "", placeholder = "", value = "", okLabel = "A
       $("ask-form").removeEventListener("submit", onSubmit);
       $("ask-cancel").removeEventListener("click", onCancel);
       $("ask-x").removeEventListener("click", onCancel);
+      browseBtn?.removeEventListener("click", onBrowse);
     };
     $("ask-form").addEventListener("submit", onSubmit);
     $("ask-cancel").addEventListener("click", onCancel);
     $("ask-x").addEventListener("click", onCancel);
+    browseBtn?.addEventListener("click", onBrowse);
     sfx.open();
     dialog.showModal();
-    if (mode !== "select") setTimeout(() => text.focus(), 30);
+    if (mode !== "select") setTimeout(() => (browse ? browseBtn || text : text)?.focus?.(), 30);
   });
 }
 
@@ -1942,10 +2019,8 @@ function renderFilters() {
   const modsBox = $("side-mods-list");
   if (modsBox) {
     modsBox.innerHTML = modsPage.navHtml + (modsPage.shown.length
-      ? `<div class="side-mods side-mods-root">${modsPage.shown.map((mod) => (
-        `<button type="button" class="side-mod" data-mod-jump="${esc(mod.id)}" title="${esc(mod.name)}"><span>${esc(mod.name)}</span></button>`
-      )).join("")}</div>`
-      : `<div class="side-mods side-mods-root"><p class="side-mods-empty">${esc(t("sideNoMods"))}</p></div>`);
+      ? `<div class="side-mods side-mods-root">${modsPage.shown.map((mod) => sideModButton(mod)).join("")}</div>`
+      : "");
   }
 
   const foldCount = (id, n) => {
@@ -2167,13 +2242,23 @@ function sideModsVisible(mods, groupLabel) {
   return mods.filter((mod) => String(mod.name || "").toLowerCase().includes(q));
 }
 
+function modPictureSrc(mod) {
+  if (mod?.pictureFile) return `/media/${encodeURI(mod.pictureFile)}`;
+  if (mod?.pictureUrl) return String(mod.pictureUrl);
+  return "";
+}
+
+function sideModButton(mod) {
+  const src = modPictureSrc(mod);
+  const thumb = src
+    ? `<img class="side-mod-thumb" alt="" src="${esc(src)}" loading="lazy">`
+    : `<span class="side-mod-thumb empty" aria-hidden="true"></span>`;
+  return `<button type="button" class="side-mod" data-mod-jump="${esc(mod.id)}" title="${esc(mod.name)}">${thumb}<span>${esc(mod.name)}</span></button>`;
+}
+
 function sideModsHtml(mods) {
-  if (!mods.length) {
-    return `<div class="side-mods"><p class="side-mods-empty">${esc(t("sideNoMods"))}</p></div>`;
-  }
-  return `<div class="side-mods">${mods.map((mod) => (
-    `<button type="button" class="side-mod" data-mod-jump="${esc(mod.id)}" title="${esc(mod.name)}"><span>${esc(mod.name)}</span></button>`
-  )).join("")}</div>`;
+  if (!mods.length) return "";
+  return `<div class="side-mods">${mods.map((mod) => sideModButton(mod)).join("")}</div>`;
 }
 
 function sideEntry(label, value, current, kind, mods, markFallback) {
@@ -2229,12 +2314,12 @@ function fillCategorySelect(node, preferred) {
 }
 
 const THEME_ICONS = {
-  nexus: "brand/nexus.ico",
-  modrinth: "brand/modrinth.png",
-  curseforge: "brand/curseforge.ico",
-  steam: "brand/steam.ico",
-  moddb: "brand/moddb.png",
-  rawg: "brand/rawg.png",
+  nexus: "/brand/nexus.ico",
+  modrinth: "/brand/modrinth.png",
+  curseforge: "/brand/curseforge.ico",
+  steam: "/brand/steam.ico",
+  moddb: "/brand/moddb.png",
+  rawg: "/brand/rawg.png",
 };
 
 function applyTheme(theme) {
@@ -4607,7 +4692,7 @@ $("clear-key").onclick = async () => {
 };
 let launchSetupBound = null;
 
-async function pickExePath() {
+async function pickExePath({ forceNative = false } = {}) {
   const host = window.pywebview && window.pywebview.api;
   if (host && typeof host.pick_exe === "function") {
     try {
@@ -4615,13 +4700,28 @@ async function pickExePath() {
       if (picked) return String(picked);
     } catch (_) { /* fallback */ }
   }
+  if (forceNative) return "";
   return askInput({
     title: t("launchManual"),
-    hint: t("launchMissing"),
+    hint: t("launchBrowseHint"),
     placeholder: t("launchPathPh"),
+    label: t("launchPathLabel"),
+    browse: "folder",
     value: "",
     okLabel: t("save"),
   });
+}
+
+async function pickFolderPath({ forceNative = false } = {}) {
+  const host = window.pywebview && window.pywebview.api;
+  if (host && typeof host.pick_folder === "function") {
+    try {
+      const picked = await host.pick_folder();
+      if (picked) return String(picked);
+    } catch (_) { /* fallback */ }
+  }
+  if (forceNative) return "";
+  return "";
 }
 
 function closeLaunchDialog() {
@@ -4685,12 +4785,13 @@ function paintLaunchHits(domain, candidates) {
   const status = $("launch-status");
   if (!box) return;
   box.hidden = false;
-  box.innerHTML = candidates.map((hit, index) => `
-    <button type="button" class="launch-hit" data-launch-hit="${index}">
+  box.innerHTML = candidates.map((hit, index) => {
+    const kind = hit.isFile === false || hit.kind === "folder" ? t("launchFolder") : t("launchExe");
+    return `<button type="button" class="launch-hit" data-launch-hit="${index}">
       <b>${esc(hit.name || hit.path)}</b>
-      <span class="meta">${esc(hit.path)}</span>
-    </button>
-  `).join("");
+      <span class="meta">${esc(kind)} · ${esc(hit.path)}</span>
+    </button>`;
+  }).join("");
   if (status) {
     status.hidden = false;
     status.textContent = t("launchPick");
@@ -4699,18 +4800,12 @@ function paintLaunchHits(domain, candidates) {
     button.onclick = async () => {
       const hit = candidates[Number(button.dataset.launchHit)];
       if (!hit?.path) return;
-      let path = hit.path;
-      if (hit.isFile === false) {
-        toast(t("launchNone"), "bad");
-        path = await pickExePath();
-        if (!path) return;
-      }
       setLoading(button, true, "…");
       try {
-        await saveLaunchPath(domain, path);
+        await saveLaunchPath(domain, hit.path);
         closeLaunchDialog();
         toast(t("launchSaved"));
-        await runLaunch(domain, path);
+        await runLaunch(domain, hit.path);
       } catch (error) {
         toast(error.message, "bad");
         sfx.err();
@@ -4742,11 +4837,17 @@ async function launchAutoDetect(domain) {
       await launchManualPick(domain);
       return;
     }
-    if (hits.length === 1 && hits[0].isFile !== false) {
-      await saveLaunchPath(domain, hits[0].path);
+    // Carpeta/exe claro (uno solo, o el top gana por mucho) → vincular y listo
+    const top = hits[0];
+    const second = hits[1];
+    const clear =
+      hits.length === 1
+      || (Number(top.score) >= 70 && (!second || Number(top.score) - Number(second.score) >= 25));
+    if (clear) {
+      await saveLaunchPath(domain, top.path);
       closeLaunchDialog();
       toast(t("launchSaved"));
-      await runLaunch(domain, hits[0].path);
+      await runLaunch(domain, top.path);
       return;
     }
     paintLaunchHits(domain, hits);
@@ -4761,7 +4862,16 @@ async function launchAutoDetect(domain) {
 }
 
 async function launchManualPick(domain) {
-  const path = await pickExePath();
+  // Diálogo con Examinar → selector de carpetas de Windows
+  let path = await askInput({
+    title: t("launchManual"),
+    hint: t("launchBrowseHint"),
+    placeholder: t("launchPathPh"),
+    label: t("launchPathLabel"),
+    browse: "folder",
+    value: "",
+    okLabel: t("save"),
+  });
   if (!path) return;
   try {
     await saveLaunchPath(domain, path);
@@ -4774,7 +4884,7 @@ async function launchManualPick(domain) {
   }
 }
 
-function openLaunchSetup(game) {
+function openLaunchSetup(game, { auto = false } = {}) {
   const dialog = $("launch-dialog");
   if (!dialog) return;
   const domain = String(game?.gameDomain || state.game || "");
@@ -4798,16 +4908,27 @@ function openLaunchSetup(game) {
     $("launch-auto")?.removeEventListener("click", onAuto);
     $("launch-manual")?.removeEventListener("click", onManual);
     $("launch-cancel")?.removeEventListener("click", finish);
-    $("launch-x")?.removeEventListener("click", finish);
     launchSetupBound = null;
   };
   launchSetupBound = { cleanup, domain };
   $("launch-auto")?.addEventListener("click", onAuto);
   $("launch-manual")?.addEventListener("click", onManual);
   $("launch-cancel")?.addEventListener("click", finish);
-  $("launch-x")?.addEventListener("click", finish);
   sfx.warn();
   dialog.showModal();
+  if (auto) launchAutoDetect(domain);
+}
+
+function startGameDetect() {
+  const domain = state.game;
+  if (!domain) {
+    toast(t("launchNeedGame"), "bad");
+    return;
+  }
+  const more = $("more-pop");
+  if (more) more.hidden = true;
+  const game = catalogGame(domain) || { gameDomain: domain, gameName: gameLabel(domain) };
+  openLaunchSetup(game, { auto: true });
 }
 
 async function playActiveGame(event) {
@@ -5055,12 +5176,37 @@ $("pack-value").onchange = syncPackDialog;
 $("pack-file").onchange = previewPackFile;
 $("pack-form").onsubmit = (event) => event.preventDefault();
 $("pack-export").onclick = (event) => runPackAction(event, "export");
+if ($("pack-export-elsewhere")) {
+  $("pack-export-elsewhere").onclick = (event) => runPackAction(event, "export", { choosePath: true });
+}
 $("pack-import").onclick = (event) => runPackAction(event, "import");
 $("pack-go-export").onclick = () => showPackPane("export");
 $("pack-go-import").onclick = () => showPackPane("import");
 $("pack-back").onclick = () => showPackPane("home");
 $("pack-back-2").onclick = () => showPackPane("home");
 $("pack-in-scope").onchange = fillImportChoices;
+if ($("pack-file-browse")) {
+  $("pack-file-browse").onclick = async () => {
+    sfx.click();
+    const host = window.pywebview && window.pywebview.api;
+    if (host && typeof host.pick_zip === "function") {
+      try {
+        const picked = await host.pick_zip();
+        if (!picked) return;
+        state.importZipPath = String(picked);
+        const pathInput = $("pack-file-path");
+        if (pathInput) pathInput.value = state.importZipPath;
+        $("pack-file").value = "";
+        await previewPackFromPath(state.importZipPath);
+        return;
+      } catch (error) {
+        toast(error.message, "bad");
+        return;
+      }
+    }
+    $("pack-file")?.click();
+  };
+}
 if ($("packs-open")) $("packs-open").onclick = () => { sfx.open(); openModpacksDialog(); };
 $("mp-delete").onclick = () => deleteCurrentModpack();
 $("modpacks-form").onsubmit = saveModpackForm;
@@ -5421,13 +5567,20 @@ async function saveModpackForm(event) {
     setLoading(button, false);
   }
 }
-$("refresh-all").onclick = async () => {
-  const button = $("refresh-all");
+if ($("detect-games")) {
+  $("detect-games").onclick = () => {
+    sfx.click();
+    startGameDetect();
+  };
+}
+
+async function refreshAllMods(button) {
+  if (!button) return;
   setLoading(button, true, "Revisando");
   sfx.sniff();
   try {
     const data = await api("/api/refresh", { method: "POST" });
-    const fails = data.failed.length ? ` ${data.failed.length} fallaron.` : "";
+    const fails = data.failed?.length ? ` ${data.failed.length} fallaron.` : "";
     toast(
       data.available
         ? `Revisados ${data.checked}. ${data.available} con versión nueva (ábrelo y confirma).${fails}`
@@ -5440,12 +5593,17 @@ $("refresh-all").onclick = async () => {
   } finally {
     setLoading(button, false);
   }
-};
+}
+
+$("refresh-all").onclick = () => refreshAllMods($("refresh-all"));
+if ($("side-refresh")) $("side-refresh").onclick = () => refreshAllMods($("side-refresh"));
 
 function openPackDialog() {
   state.packPreview = null;
+  state.importZipPath = "";
   sfx.open();
   $("pack-file").value = "";
+  if ($("pack-file-path")) $("pack-file-path").value = "";
   if ($("pack-scope").value === "selected" && !state.selected.size) $("pack-scope").value = "all";
   showPackPane("home");
   $("pack-dialog").showModal();
@@ -5457,8 +5615,28 @@ function showPackPane(mode) {
   $("pack-export-pane").hidden = mode !== "export";
   $("pack-import-pane").hidden = mode !== "import";
   $("pack-title").textContent = mode === "export" ? "Exportar" : mode === "import" ? "Importar" : "Importar y exportar";
+  paintPackFolderHints();
   if (mode === "export") syncPackDialog();
   if (mode === "import") paintImportPreview();
+}
+
+function paintPackFolderHints() {
+  const dir = state.packsDir || "";
+  const out = $("pack-export-path");
+  const inn = $("pack-import-path");
+  if (out) {
+    out.hidden = !dir;
+    out.textContent = dir ? t("packsFolder", { path: dir }) : "";
+  }
+  if (inn) {
+    inn.hidden = !dir;
+    inn.textContent = dir ? t("packsFolder", { path: dir }) : "";
+  }
+  const pathInput = $("pack-file-path");
+  if (pathInput && !state.importZipPath) {
+    pathInput.placeholder = t("zipFilePh");
+    pathInput.value = "";
+  }
 }
 
 function packFilter() {
@@ -5491,9 +5669,33 @@ function countForPack(filt) {
   }).length;
 }
 
+async function previewPackFromPath(path) {
+  state.packPreview = null;
+  if (!path) {
+    paintImportPreview();
+    return;
+  }
+  try {
+    const data = await api("/api/import/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    });
+    state.packPreview = data.preview || null;
+    paintImportPreview();
+  } catch (error) {
+    state.packPreview = null;
+    paintImportPreview();
+    toast(error.message, "bad");
+  }
+}
+
 async function previewPackFile() {
   const file = $("pack-file").files?.[0];
   state.packPreview = null;
+  state.importZipPath = "";
+  const pathInput = $("pack-file-path");
+  if (pathInput) pathInput.value = file ? file.name : "";
   if (!file) {
     paintImportPreview();
     return;
@@ -5597,10 +5799,64 @@ function syncPackDialog() {
     : `${n} mod(s) con ese filtro.`;
 }
 
-async function runPackAction(event, mode) {
+function exportSuggestedName(filt) {
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, (ch) => (ch === "T" ? "-" : ""));
+  const scope = filt?.scope || "all";
+  let label = "wi-mod";
+  if (scope === "platform" && filt.platform) label = `wi-mod-${filt.platform}`;
+  else if (scope === "game" && filt.game) label = `wi-mod-${filt.game}`;
+  else if (scope === "modpack" && filt.modpack) label = `wi-mod-pack`;
+  else if (scope === "selected") label = "wi-mod-seleccion";
+  return `${String(label).replace(/[^\w.-]+/g, "-").replace(/-+/g, "-")}-${stamp}.zip`;
+}
+
+/** null = canceló; string = ruta; undefined = sin diálogo nativo (web). */
+async function pickSavePath(filename) {
+  const host = window.pywebview && window.pywebview.api;
+  if (host && typeof host.pick_save === "function") {
+    try {
+      const picked = await host.pick_save(filename || "wi-mod.zip");
+      return picked ? String(picked) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+  if (typeof window.showSaveFilePicker === "function") {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename || "wi-mod.zip",
+        types: [{ description: "ZIP", accept: { "application/zip": [".zip"] } }],
+      });
+      return handle; // FileSystemFileHandle → saveBlobAs
+    } catch (error) {
+      if (error && error.name === "AbortError") return null;
+    }
+  }
+  return undefined;
+}
+
+async function saveBlobAs(blob, filename, handle) {
+  if (handle && typeof handle.createWritable === "function") {
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename || "wi-mod.zip";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+async function runPackAction(event, mode, opts = {}) {
   event.preventDefault();
   const filt = packFilter();
-  const button = mode === "import" ? $("pack-import") : $("pack-export");
+  const choosePath = Boolean(opts.choosePath);
+  const button = mode === "import"
+    ? $("pack-import")
+    : (choosePath ? $("pack-export-elsewhere") : $("pack-export"));
   if (mode === "export") {
     if (filt.scope === "selected" && !filt.ids.length) {
       toast("Marca mods o cambia el alcance.", "warn");
@@ -5614,23 +5870,46 @@ async function runPackAction(event, mode) {
       toast("Elige uno.", "warn");
       return;
     }
+    const suggested = exportSuggestedName(filt);
+    let destPath = "";
+    let fileHandle = null;
+    if (choosePath) {
+      const picked = await pickSavePath(suggested);
+      if (picked === null) return;
+      destPath = typeof picked === "string" ? picked : "";
+      fileHandle = picked && typeof picked === "object" ? picked : null;
+    } else if (state.packsDir) {
+      // Ruta por defecto: Documents\wi-mod\packs (se crea sola)
+      try {
+        const host = window.pywebview && window.pywebview.api;
+        if (host && typeof host.packs_dir === "function") {
+          const dir = await host.packs_dir();
+          if (dir) state.packsDir = String(dir);
+        }
+      } catch (_) { /* ignore */ }
+      destPath = joinPackPath(state.packsDir, suggested);
+    }
     setLoading(button, true, "Exportando");
     sfx.sniff();
     try {
+      const payload = destPath ? { ...filt, dest: destPath } : { ...filt };
       const res = await api("/api/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(filt),
+        body: JSON.stringify(payload),
       });
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "wi-mod.zip";
-      link.click();
-      URL.revokeObjectURL(url);
-      $("pack-dialog").close();
-      toast("Paquete exportado.");
+      if (res && typeof res === "object" && !(res instanceof Response) && res.ok) {
+        $("pack-dialog").close();
+        toast(res.path ? `Guardado en ${res.path}` : "Paquete exportado.");
+      } else if (res instanceof Response) {
+        const blob = await res.blob();
+        await saveBlobAs(blob, suggested, fileHandle);
+        $("pack-dialog").close();
+        toast("Paquete exportado.");
+      } else {
+        $("pack-dialog").close();
+        toast("Paquete exportado.");
+      }
     } catch (error) {
       toast(error.message, "bad");
     } finally {
@@ -5638,8 +5917,9 @@ async function runPackAction(event, mode) {
     }
     return;
   }
+  const zipPath = state.importZipPath;
   const file = $("pack-file").files[0];
-  if (!file) {
+  if (!zipPath && !file) {
     toast("Elige el .zip a importar.", "warn");
     return;
   }
@@ -5649,14 +5929,23 @@ async function runPackAction(event, mode) {
   }
   setLoading(button, true, "Importando");
   sfx.sniff();
-  const form = new FormData();
-  form.append("file", file);
-  form.append("scope", filt.scope);
-  if (filt.platform) form.append("platform", filt.platform);
-  if (filt.game) form.append("game", filt.game);
-  if (filt.modpack) form.append("modpack", filt.modpack);
   try {
-    const data = await api("/api/import", { method: "POST", body: form });
+    let data;
+    if (zipPath) {
+      data = await api("/api/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...filt, path: zipPath }),
+      });
+    } else {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("scope", filt.scope);
+      if (filt.platform) form.append("platform", filt.platform);
+      if (filt.game) form.append("game", filt.game);
+      if (filt.modpack) form.append("modpack", filt.modpack);
+      data = await api("/api/import", { method: "POST", body: form });
+    }
     const skip = data.result.skipped ? ` · ${data.result.skipped} omitidos` : "";
     $("pack-dialog").close();
     toast(`Importado: ${data.result.added} nuevos, ${data.result.updated} actualizados${skip}.`);
@@ -6338,23 +6627,58 @@ function bindSideFolds() {
   } catch (_) {
     shut = [];
   }
+  const persist = () => localStorage.setItem(key, JSON.stringify(shut));
+  const applyBlock = (block, closed) => {
+    const btn = block.querySelector(".side-fold");
+    block.classList.toggle("is-shut", closed);
+    if (btn) btn.setAttribute("aria-expanded", closed ? "false" : "true");
+  };
+  const paintFoldsToggle = () => {
+    const toggle = $("side-folds-toggle");
+    if (!toggle) return;
+    const blocks = [...document.querySelectorAll(".side-block[data-fold]")];
+    const allShut = blocks.length > 0 && blocks.every((block) => block.classList.contains("is-shut"));
+    toggle.setAttribute("aria-pressed", allShut ? "true" : "false");
+    toggle.title = allShut ? t("sideFoldsExpand") : t("sideFoldsCollapse");
+    toggle.setAttribute("aria-label", toggle.title);
+    const collapse = toggle.querySelector(".folds-collapse");
+    const expand = toggle.querySelector(".folds-expand");
+    if (collapse) collapse.hidden = allShut;
+    if (expand) expand.hidden = !allShut;
+  };
   document.querySelectorAll(".side-block").forEach((block) => {
     const id = block.dataset.fold;
     const btn = block.querySelector(".side-fold");
     if (!id || !btn) return;
-    const apply = (closed) => {
-      block.classList.toggle("is-shut", closed);
-      btn.setAttribute("aria-expanded", closed ? "false" : "true");
-    };
-    apply(shut.includes(id));
+    applyBlock(block, shut.includes(id));
     btn.addEventListener("click", () => {
       const closed = !block.classList.contains("is-shut");
-      apply(closed);
+      applyBlock(block, closed);
       shut = shut.filter((item) => item !== id);
       if (closed) shut.push(id);
-      localStorage.setItem(key, JSON.stringify(shut));
+      persist();
+      paintFoldsToggle();
     });
   });
+  const toggle = $("side-folds-toggle");
+  if (toggle && !toggle.dataset.bound) {
+    toggle.dataset.bound = "1";
+    toggle.addEventListener("click", () => {
+      const blocks = [...document.querySelectorAll(".side-block[data-fold]")];
+      const allShut = blocks.length > 0 && blocks.every((block) => block.classList.contains("is-shut"));
+      const closeAll = !allShut;
+      shut = [];
+      blocks.forEach((block) => {
+        const id = block.dataset.fold;
+        applyBlock(block, closeAll);
+        if (closeAll && id) shut.push(id);
+      });
+      persist();
+      paintFoldsToggle();
+      sfx.click();
+    });
+  }
+  paintFoldsToggle();
 }
 bindSideFolds();
 bindSideSearch();

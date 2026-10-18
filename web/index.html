@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>wi-mod</title>
   <link rel="icon" href="/brand/wi-mod.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css?v=0.16.1">
+  <link rel="stylesheet" href="/styles.css?v=0.17.0">
 </head>
 <body>
   <div id="login" class="login" hidden>
@@ -37,7 +37,10 @@
   </div>
 
   <div id="boot" class="boot" aria-hidden="true">
-    <div class="boot-mark">wi-mod<small id="boot-line" data-i18n="bootLine">olfateando la guarida…</small></div>
+    <div class="boot-stack">
+      <div class="boot-mark">wi-mod<small id="boot-line" data-i18n="bootLine">olfateando la guarida…</small></div>
+      <span class="boot-loader" aria-hidden="true"></span>
+    </div>
   </div>
 
   <header class="top">
@@ -74,10 +77,21 @@
   <div class="layout">
     <aside class="side">
       <div class="brand-row">
-        <div class="brand">wi-mod</div>
-        <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.16.1</a>
+        <div class="brand-main">
+          <div class="brand">wi-mod</div>
+          <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.17.0</a>
+        </div>
       </div>
       <input id="side-search" class="side-search" type="search" placeholder="Buscar en filtros y mods" data-i18n-placeholder="sideSearch" autocomplete="off" spellcheck="false" aria-label="Buscar">
+      <div class="brand-tools">
+        <button type="button" id="side-refresh" class="brand-tool" title="Actualizar mods" data-i18n-title="sideRefresh" aria-label="Actualizar">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 12a8 8 0 1 1-2.2-5.5M20 4v5h-5"/></svg>
+        </button>
+        <button type="button" id="side-folds-toggle" class="brand-tool" title="Plegar o expandir secciones" data-i18n-title="sideFoldsToggle" aria-label="Plegar secciones" aria-pressed="false">
+          <svg class="folds-ico folds-collapse" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M5 8h14M5 12h10M5 16h14"/></svg>
+          <svg class="folds-ico folds-expand" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" hidden><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M5 7h14M5 12h14M5 17h14"/></svg>
+        </button>
+      </div>
       <div class="side-block" data-fold="platforms">
         <div class="side-head">
           <button type="button" class="side-fold" aria-expanded="true">
@@ -390,14 +404,21 @@
           <select id="pack-value"></select>
         </label>
         <p id="pack-count" class="meta"></p>
+        <p id="pack-export-path" class="meta pack-path" hidden></p>
         <footer>
           <button type="button" class="ghost" id="pack-back" data-i18n="back">Volver</button>
+          <button type="button" class="ghost" id="pack-export-elsewhere" data-i18n="exportElsewhere">Otra ruta</button>
           <button id="pack-export" class="solid" type="button" data-i18n="export">Exportar</button>
         </footer>
       </div>
       <div id="pack-import-pane" hidden>
+        <p id="pack-import-path" class="meta pack-path" hidden></p>
         <label><span data-i18n="zipFile">Archivo .zip</span>
-          <input id="pack-file" type="file" accept=".zip,application/zip">
+          <div class="ask-path-row">
+            <input id="pack-file-path" type="text" readonly placeholder="" data-i18n-placeholder="zipFilePh">
+            <button type="button" class="ghost" id="pack-file-browse" data-i18n="browse">Examinar</button>
+          </div>
+          <input id="pack-file" type="file" accept=".zip,application/zip" hidden>
         </label>
         <div id="pack-preview" class="pack-preview" hidden></div>
         <div id="pack-import-pick" hidden>
@@ -543,8 +564,11 @@
         <button type="button" class="icon" id="ask-x">✕</button>
       </header>
       <p class="hint" id="ask-hint" hidden></p>
-      <label id="ask-text-wrap"><span data-i18n="name">Nombre</span>
-        <input id="ask-text" type="text" autocomplete="off">
+      <label id="ask-text-wrap"><span id="ask-text-label" data-i18n="name">Nombre</span>
+        <div class="ask-path-row">
+          <input id="ask-text" type="text" autocomplete="off">
+          <button type="button" class="ghost" id="ask-browse" hidden data-i18n="browse">Examinar</button>
+        </div>
       </label>
       <label id="ask-select-wrap" hidden><span data-i18n="choose">Elige</span>
         <select id="ask-select"></select>
@@ -574,7 +598,6 @@
     <form id="launch-form">
       <header>
         <h2 data-i18n="launchTitle">Lanzador</h2>
-        <button type="button" class="icon" id="launch-x">✕</button>
       </header>
       <p class="hint" id="launch-msg" data-i18n="launchMissing">Este juego no tiene lanzador vinculado.</p>
       <p class="hint" id="launch-status" hidden></p>
@@ -683,7 +706,7 @@
     </form>
   </dialog>
 
-  <p id="toast" class="toast" hidden></p>
+  <p id="toast" class="toast" popover="manual" hidden></p>
   <div id="more-pop" class="key-pop tape-pop more-pop" hidden>
     <button type="button" id="tape-open">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="15.5" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.2 12h3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -699,6 +722,10 @@
     <button type="button" id="refresh-all">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 12a8 8 0 1 1-2.2-5.5M20 4v5h-5"/></svg>
       <span data-i18n="refresh">Actualizar</span>
+    </button>
+    <button type="button" id="detect-games" title="Busca el .exe del juego activo en todos los discos y carpetas">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="11" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+      <span data-i18n="detectGames">Detectar</span>
     </button>
     <button type="button" id="tour-open">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v6M12 7.5h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -830,6 +857,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=0.16.1"></script>
+  <script src="/app.js?v=0.17.0"></script>
 </body>
 </html>

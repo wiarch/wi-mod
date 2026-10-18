@@ -33,44 +33,75 @@ _SKIP_DIRS = {
     "node_modules",
     ".git",
     "appdata",
+    "winsxs",
+    "system32",
+    "syswow64",
+    "sendto",
+    "cookies",
+    "nethood",
+    "printhood",
+    "recent",
 }
 
 # Exes que no son el juego.
 _SKIP_EXE = re.compile(
     r"(unins|setup|install|crash|report|update|launcher_data|vcredist|dxsetup|"
-    r"redist|helper|service|overlay|cef|chrome|unitycrash|bugreport)",
+    r"redist|helper|service|overlay|cef|chrome|unitycrash|bugreport|dotnet|"
+    r"vc_redist|directx|prune|crashhandler|errorreporter)",
     re.I,
+)
+
+_KNOWN = (
+    "skyrim", "fallout", "oblivion", "starfield", "witcher", "cyberpunk",
+    "elden", "stardew", "terraria", "minecraft", "valheim", "hollow",
+    "hades", "doom", "wolfenstein", "dishonored", "prey", "outer",
+    "baldur", "divinity", "bg3", "gta", "rdr2", "sekiro", "souls",
+)
+
+# Nombres típicos de .exe cuando solo tenemos la carpeta del juego.
+_EXE_HINTS = (
+    "skyrimse.exe", "skyrimvr.exe", "tesv.exe", "skyrim.exe",
+    "fallout4.exe", "falloutnv.exe", "fallout3.exe", "fo4.exe",
+    "oblivion.exe", "starfield.exe",
+    "witcher3.exe", "cyberpunk2077.exe", "eldenring.exe",
+    "stardew valley.exe", "stardewvalley.exe", "terraria.exe",
+    "minecraft.exe", "javaw.exe", "valheim.exe",
 )
 
 
 def _tokens(name: str, domain: str = "") -> list[str]:
     raw = f"{name} {domain}".lower()
     bits = re.findall(r"[a-z0-9]{3,}", raw.replace("_", " "))
-    # Dominios tipo skyrimspecialedition → trozos largos útiles
     extra: list[str] = []
-    for known in ("skyrim", "fallout", "minecraft", "witcher", "cyberpunk", "elden", "stardew", "terraria"):
+    for known in _KNOWN:
         if known in raw and known not in bits:
             extra.append(known)
+        for bit in bits:
+            if known in bit and known not in bits and known not in extra:
+                extra.append(known)
     out: list[str] = []
     for bit in bits + extra:
-        if bit not in out and bit not in {"the", "and", "for", "edition", "special", "game", "mods"}:
+        if bit not in out and bit not in {"the", "and", "for", "edition", "special", "game", "mods", "softworks"}:
             out.append(bit)
-    return out[:8] or ([domain.lower()] if domain else [])
+    return out[:10] or ([domain.lower()] if domain else [])
 
 
 def _score_name(text: str, tokens: list[str]) -> int:
     low = text.lower()
+    compact = re.sub(r"[^a-z0-9]+", "", low)
     if not tokens:
         return 0
-    hits = sum(1 for t in tokens if t in low)
+    hits = sum(1 for t in tokens if t in low or t in compact)
     if hits == 0:
         return 0
     score = hits * 10
-    if all(t in low for t in tokens[:2]):
+    if all(t in low or t in compact for t in tokens[:2]):
         score += 15
     joined = "".join(tokens)
-    if joined and joined in low.replace(" ", "").replace("-", "").replace("_", ""):
+    if joined and joined in compact:
         score += 25
+    if low.endswith(".exe") and tokens and any(t in compact for t in tokens[:3]):
+        score += 12
     return score
 
 
@@ -86,6 +117,14 @@ def _drives() -> list[Path]:
     return roots
 
 
+def _safe_iter(path: Path) -> list[Path]:
+    """Lista entradas; materializa para atrapar PermissionError al leer."""
+    try:
+        return list(path.iterdir())
+    except OSError:
+        return []
+
+
 def _steam_libraries() -> list[Path]:
     found: list[Path] = []
     candidates = [
@@ -94,9 +133,18 @@ def _steam_libraries() -> list[Path]:
     ]
     home = Path.home()
     candidates.append(home / "Steam" / "steamapps" / "libraryfolders.vdf")
+    for drive in _drives():
+        candidates.append(drive / "Program Files (x86)" / "Steam" / "steamapps" / "libraryfolders.vdf")
+        candidates.append(drive / "Program Files" / "Steam" / "steamapps" / "libraryfolders.vdf")
+        candidates.append(drive / "Steam" / "steamapps" / "libraryfolders.vdf")
+        candidates.append(drive / "SteamLibrary" / "steamapps" / "libraryfolders.vdf")
+        candidates.append(drive / "Juegos" / "SteamLibrary" / "steamapps" / "libraryfolders.vdf")
+    seen_vdf: set[str] = set()
     for vdf in candidates:
-        if not vdf.is_file():
+        key = str(vdf).lower()
+        if key in seen_vdf or not vdf.is_file():
             continue
+        seen_vdf.add(key)
         try:
             text = vdf.read_text(encoding="utf-8", errors="ignore")
         except OSError:
@@ -108,6 +156,21 @@ def _steam_libraries() -> list[Path]:
         local = vdf.parent / "common"
         if local.is_dir() and local not in found:
             found.append(local)
+    # Rutas fijas por si el VDF falla
+    for drive in _drives():
+        for rel in (
+            Path("Program Files (x86)") / "Steam" / "steamapps" / "common",
+            Path("Program Files") / "Steam" / "steamapps" / "common",
+            Path("SteamLibrary") / "steamapps" / "common",
+            Path("Steam") / "steamapps" / "common",
+            Path("Juegos") / "SteamLibrary" / "steamapps" / "common",
+        ):
+            base = drive / rel
+            try:
+                if base.is_dir() and base not in found:
+                    found.append(base)
+            except OSError:
+                continue
     return found
 
 
@@ -123,6 +186,9 @@ def _priority_roots() -> list[Path]:
         r"C:\Games",
         r"D:\Games",
         r"E:\Games",
+        r"F:\Games",
+        r"D:\Juegos",
+        r"E:\Juegos",
         r"C:\XboxGames",
         r"C:\Epic Games",
         r"C:\GOG Games",
@@ -130,6 +196,8 @@ def _priority_roots() -> list[Path]:
         r"C:\Program Files\Epic Games",
         r"C:\Program Files (x86)\Epic Games",
         r"C:\Program Files (x86)\GOG Galaxy\Games",
+        r"C:\Program Files (x86)\Bethesda Softworks",
+        r"C:\Program Files\Bethesda Softworks",
     ]
     for raw in env_paths:
         if not raw:
@@ -141,7 +209,10 @@ def _priority_roots() -> list[Path]:
         except OSError:
             continue
     for drive in _drives():
-        for name in ("Games", "SteamLibrary", "Steam", "GOG Games", "Epic Games", "XboxGames"):
+        for name in (
+            "Games", "Juegos", "SteamLibrary", "Steam", "GOG Games", "Epic Games",
+            "XboxGames", "Bethesda Softworks", "Bethesda",
+        ):
             path = drive / name
             try:
                 if path.is_dir() and path not in roots:
@@ -151,14 +222,7 @@ def _priority_roots() -> list[Path]:
     return roots
 
 
-def _safe_iter(path: Path):
-    try:
-        return path.iterdir()
-    except OSError:
-        return []
-
-
-def _walk_limited(root: Path, *, max_depth: int, deadline: float, tokens: list[str]) -> list[tuple[int, Path]]:
+def _walk_limited(root: Path, *, max_depth: int, deadline: float, tokens: list[str], min_score: int = 8) -> list[tuple[int, Path]]:
     hits: list[tuple[int, Path]] = []
     stack: list[tuple[Path, int]] = [(root, 0)]
     while stack:
@@ -175,87 +239,191 @@ def _walk_limited(root: Path, *, max_depth: int, deadline: float, tokens: list[s
                     if low in _SKIP_DIRS or low.startswith("."):
                         continue
                     score = _score_name(name, tokens)
-                    if score >= 10:
+                    if score >= min_score:
                         hits.append((score + 5, entry))
-                    if depth < max_depth:
+                    next_depth = max_depth + (1 if score >= 10 else 0)
+                    if depth < next_depth:
                         stack.append((entry, depth + 1))
                 elif entry.is_file() and low.endswith((".exe", ".bat", ".cmd")):
                     if _SKIP_EXE.search(low):
                         continue
                     score = _score_name(name, tokens)
-                    if score >= 10:
+                    if score >= min_score:
                         hits.append((score + 20, entry))
             except OSError:
                 continue
     return hits
 
 
-def detect_game(game_name: str, game_domain: str = "", *, timeout: float = 22.0, limit: int = 12) -> list[dict[str, Any]]:
-    """Busca carpetas/exes parecidos al nombre del juego. Devuelve candidatos ordenados."""
+def _looks_like_install_dir(path: Path) -> bool:
+    low = str(path).lower().replace("/", "\\")
+    return "\\steamapps\\common\\" in low or "\\gog games\\" in low or "\\epic games\\" in low
+
+
+def _resolve_exe(folder: Path, tokens: list[str] | None = None) -> Path | None:
+    """Dentro de la carpeta del juego, elige el .exe jugable (no el launcher)."""
+    best: tuple[int, Path] | None = None
+    tokens = tokens or []
+    for child in _safe_iter(folder):
+        try:
+            if not child.is_file() or child.suffix.lower() != ".exe":
+                continue
+            if _SKIP_EXE.search(child.name):
+                continue
+            low = child.name.lower()
+            score = _score_name(child.name, tokens) if tokens else 0
+            if low in _EXE_HINTS:
+                score += 50
+            # Preferir el juego real frente a *Launcher.exe
+            if re.search(r"launcher", low):
+                score -= 25
+            if best is None or score > best[0]:
+                best = (score, child)
+        except OSError:
+            continue
+    if best and best[0] > 0:
+        return best[1]
+    for hint in _EXE_HINTS:
+        candidate = folder / hint
+        if candidate.is_file():
+            return candidate
+    return best[1] if best else None
+
+
+def _norm_key(path: Path | str) -> str:
+    return str(path).lower().replace("/", "\\").rstrip("\\")
+
+
+def _is_under(child: Path, parent: Path) -> bool:
+    try:
+        child.resolve().relative_to(parent.resolve())
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def _hit(path: Path, score: int) -> dict[str, Any]:
+    return {
+        "path": str(path),
+        "name": path.name,
+        "score": score,
+        "isFile": path.is_file(),
+        "kind": "file" if path.is_file() else "folder",
+    }
+
+
+def detect_game(game_name: str, game_domain: str = "", *, timeout: float = 45.0, limit: int = 16) -> list[dict[str, Any]]:
+    """Busca la carpeta de instalación del juego (con .exe dentro), no un ejemplo fijo."""
     tokens = _tokens(game_name, game_domain)
     if not tokens:
         return []
-    deadline = time.monotonic() + max(4.0, timeout)
+    deadline = time.monotonic() + max(8.0, timeout)
     scored: list[tuple[int, Path]] = []
 
+    # 1) steamapps/common: carpeta del juego + .exe real → respuesta definitiva
+    steam_hits: list[tuple[int, Path]] = []
+    for common in _steam_libraries():
+        if time.monotonic() > deadline:
+            break
+        for entry in _safe_iter(common):
+            try:
+                if not entry.is_dir():
+                    continue
+                score = _score_name(entry.name, tokens)
+                if score < 8:
+                    continue
+                exe = _resolve_exe(entry, tokens)
+                # Carpeta Steam con ejecutable = instalación real
+                total = score + 50 + (40 if exe else 0)
+                steam_hits.append((total, entry))
+                scored.append((total, entry))
+            except OSError:
+                continue
+
+    steam_hits.sort(key=lambda row: (-row[0], str(row[1]).lower()))
+    if steam_hits and steam_hits[0][0] >= 60 and _resolve_exe(steam_hits[0][1], tokens):
+        best_score, best_path = steam_hits[0]
+        # Una sola carpeta clara: no ensuciar con subcarpetas ni launchers
+        return [_hit(best_path, best_score)]
+
+    # 2) Otras raíces habituales (si Steam no dio match fuerte)
     for root in _priority_roots():
         if time.monotonic() > deadline:
             break
-        scored.extend(_walk_limited(root, max_depth=4, deadline=deadline, tokens=tokens))
+        if root.name.lower() == "common" and "steamapps" in str(root).lower():
+            continue
+        scored.extend(_walk_limited(root, max_depth=3, deadline=deadline, tokens=tokens))
 
-    # Barrido amplio de discos (poco profundo) si aún no hay nada bueno.
-    if not any(score >= 25 for score, _ in scored):
+    # 3) Barrido amplio solo si aún no hay carpeta clara
+    if not any(score >= 40 and path.is_dir() for score, path in scored):
         for drive in _drives():
             if time.monotonic() > deadline:
                 break
             for entry in _safe_iter(drive):
+                if time.monotonic() > deadline:
+                    break
                 try:
                     if not entry.is_dir():
                         continue
-                    if entry.name.lower() in _SKIP_DIRS:
-                        continue
-                    # En raíz del disco solo bajamos a Program Files / Users / Games-like
                     low = entry.name.lower()
-                    if low in {"program files", "program files (x86)", "users"} or "game" in low or "steam" in low:
-                        scored.extend(_walk_limited(entry, max_depth=3, deadline=deadline, tokens=tokens))
+                    if low in _SKIP_DIRS:
+                        continue
+                    scored.extend(_walk_limited(entry, max_depth=3, deadline=deadline, tokens=tokens, min_score=10))
                 except OSError:
                     continue
 
-    # Si el hit es carpeta, busca un .exe dentro (1 nivel + common)
+    # Preferir carpetas de instalación con .exe; no listar hijos ni launchers sueltos
     expanded: list[tuple[int, Path]] = []
     for score, path in scored:
-        if path.is_file():
-            expanded.append((score, path))
-            continue
-        best: tuple[int, Path] | None = None
-        for child in _safe_iter(path):
-            try:
-                if child.is_file() and child.suffix.lower() == ".exe" and not _SKIP_EXE.search(child.name):
-                    child_score = score + _score_name(child.name, tokens)
-                    if best is None or child_score > best[0]:
-                        best = (child_score, child)
-            except OSError:
+        try:
+            if path.is_file():
+                if re.search(r"launcher", path.name, re.I):
+                    continue
+                expanded.append((score, path))
                 continue
-        if best:
-            expanded.append(best)
-        else:
-            # carpeta sin exe visible: aún útil si el usuario elige después
-            expanded.append((score, path))
+            if not path.is_dir():
+                continue
+            exe = _resolve_exe(path, tokens)
+            bonus = 0
+            if _looks_like_install_dir(path):
+                bonus += 20
+            if exe:
+                bonus += 30
+            elif _looks_like_install_dir(path):
+                # Carpeta Steam/GOG sin .exe jugable: casi seguro basura (p. ej. subcarpeta)
+                bonus -= 15
+            else:
+                # Carpeta genérica sin ejecutable: baja prioridad
+                bonus -= 10
+            expanded.append((score + bonus, path))
+        except OSError:
+            continue
 
-    expanded.sort(key=lambda row: (-row[0], str(row[1]).lower()))
+    expanded.sort(key=lambda row: (-row[0], 0 if row[1].is_dir() else 1, str(row[1]).lower()))
     seen: set[str] = set()
+    kept_dirs: list[Path] = []
     out: list[dict[str, Any]] = []
     for score, path in expanded:
-        key = str(path).lower()
+        key = _norm_key(path)
         if key in seen:
             continue
+        if "\\mods\\" in key or "mod.organizer" in key or "\\my games\\" in key:
+            score -= 30
+            if score < 15:
+                continue
+        # No devolver subcarpetas dentro de una instalación ya elegida
+        if any(_is_under(path, parent) for parent in kept_dirs):
+            continue
+        # No devolver .exe si ya tenemos su carpeta padre
+        if path.is_file() and any(_is_under(path, parent) for parent in kept_dirs):
+            continue
         seen.add(key)
-        out.append({
-            "path": str(path),
-            "name": path.name,
-            "score": score,
-            "isFile": path.is_file(),
-        })
+        if path.is_dir():
+            kept_dirs.append(path)
+        out.append(_hit(path, score))
+        # Si el primero es carpeta fuerte con .exe, basta
+        if len(out) == 1 and path.is_dir() and score >= 70 and _resolve_exe(path, tokens):
+            break
         if len(out) >= limit:
             break
     return out
@@ -272,7 +440,10 @@ def launch_path(path: str) -> None:
     if not file.exists():
         raise ValueError("El lanzador ya no está en esa ruta.")
     if file.is_dir():
-        raise ValueError("Esa ruta es una carpeta. Elige el .exe del juego.")
+        exe = _resolve_exe(file)
+        if exe is None:
+            raise ValueError("Esa carpeta no tiene un .exe jugable. Elige el ejecutable o otra carpeta del juego.")
+        file = exe
     cwd = str(file.parent)
     try:
         os.startfile(str(file))  # type: ignore[attr-defined]

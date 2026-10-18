@@ -89,6 +89,137 @@ class _Host:
             return str(picked[0] or "")
         return str(picked)
 
+    def pick_folder(self) -> str:
+        window = self.holder.get("window")
+        # 1) Diálogo nativo de pywebview
+        if window is not None:
+            try:
+                import webview
+                dialog = getattr(webview, "FileDialog", None)
+                kind = getattr(dialog, "FOLDER", None) if dialog is not None else None
+                if kind is None:
+                    kind = getattr(webview, "FOLDER_DIALOG", 20)
+                picked = window.create_file_dialog(kind, allow_multiple=False)
+                if picked:
+                    if isinstance(picked, (list, tuple)):
+                        return str(picked[0] or "")
+                    return str(picked)
+            except Exception:
+                pass
+        # 2) Fallback Windows: selector de carpetas del sistema
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            chosen = filedialog.askdirectory(title="Carpeta del juego", mustexist=True)
+            root.destroy()
+            return str(chosen or "")
+        except Exception:
+            return ""
+
+    def packs_dir(self) -> str:
+        """Carpeta por defecto de export/import (la crea si falta)."""
+        if _app is not None:
+            try:
+                _app.packs.mkdir(parents=True, exist_ok=True)
+                return str(_app.packs)
+            except OSError:
+                pass
+        from pathlib import Path
+        from wi_mod.server import packs_dir
+
+        folder = packs_dir(ROOT / "data")
+        return str(folder)
+
+    def pick_save(self, filename: str = "wi-mod.zip") -> str:
+        """Diálogo Guardar como; arranca en Documents\\wi-mod\\packs."""
+        name = str(filename or "wi-mod.zip").strip() or "wi-mod.zip"
+        if not name.lower().endswith(".zip"):
+            name = f"{name}.zip"
+        start = self.packs_dir()
+        window = self.holder.get("window")
+        if window is not None:
+            try:
+                import webview
+                dialog = getattr(webview, "FileDialog", None)
+                kind = getattr(dialog, "SAVE", None) if dialog is not None else None
+                if kind is None:
+                    kind = getattr(webview, "SAVE_DIALOG", 30)
+                picked = window.create_file_dialog(
+                    kind,
+                    directory=start,
+                    allow_multiple=False,
+                    save_filename=name,
+                    file_types=("ZIP (*.zip)", "Todos (*.*)"),
+                )
+                if picked:
+                    if isinstance(picked, (list, tuple)):
+                        return str(picked[0] or "")
+                    return str(picked)
+            except Exception:
+                pass
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            chosen = filedialog.asksaveasfilename(
+                title="Guardar paquete",
+                defaultextension=".zip",
+                initialdir=start,
+                initialfile=name,
+                filetypes=[("ZIP", "*.zip"), ("Todos", "*.*")],
+            )
+            root.destroy()
+            return str(chosen or "")
+        except Exception:
+            return ""
+
+    def pick_zip(self) -> str:
+        """Abrir .zip; arranca en Documents\\wi-mod\\packs."""
+        start = self.packs_dir()
+        window = self.holder.get("window")
+        if window is not None:
+            try:
+                import webview
+                dialog = getattr(webview, "FileDialog", None)
+                kind = getattr(dialog, "OPEN", None) if dialog is not None else None
+                if kind is None:
+                    kind = getattr(webview, "OPEN_DIALOG", 10)
+                picked = window.create_file_dialog(
+                    kind,
+                    directory=start,
+                    allow_multiple=False,
+                    file_types=("ZIP (*.zip)", "Todos (*.*)"),
+                )
+                if picked:
+                    if isinstance(picked, (list, tuple)):
+                        return str(picked[0] or "")
+                    return str(picked)
+            except Exception:
+                pass
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            chosen = filedialog.askopenfilename(
+                title="Importar paquete",
+                initialdir=start,
+                filetypes=[("ZIP", "*.zip"), ("Todos", "*.*")],
+            )
+            root.destroy()
+            return str(chosen or "")
+        except Exception:
+            return ""
+
 
 def _open(url: str, app: App) -> None:
     global _app, _url

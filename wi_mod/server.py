@@ -19,6 +19,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from wi_mod import __version__
+from wi_mod.archive import export_label, export_library, import_library, peek_library
 from wi_mod.curseforge import CurseForgeError, fetch_project as fetch_curseforge, project_ref, search_mods as search_curseforge, validate_key as validate_curseforge_key
 from wi_mod.images import download_picture
 from wi_mod.modrinth import ModrinthError, fetch_project, project_slug, search_projects
@@ -334,6 +335,18 @@ def _load_bootstrap_keys(root: Path) -> dict[str, str]:
     return keys
 
 
+def packs_dir(root: Path) -> Path:
+    """Carpeta de paquetes export/import (Documents\\wi-mod\\packs, o data/packs)."""
+    preferred = Path.home() / "Documents" / "wi-mod" / "packs"
+    try:
+        preferred.mkdir(parents=True, exist_ok=True)
+        return preferred
+    except OSError:
+        fallback = root / "packs"
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback
+
+
 class App:
     def __init__(self, root: Path):
         self.root = root
@@ -344,6 +357,7 @@ class App:
         self.cache = Cache(root / "cache" / "games.json", root / "cache" / "categories.json")
         self.tmp = root / "tmp"
         self.tmp.mkdir(parents=True, exist_ok=True)
+        self.packs = packs_dir(root)
         _fill_default_games(self)
 
 
@@ -472,6 +486,7 @@ def make_handler(app: App):
                         "theme": _theme(app),
                         "sources": sources_payload(),
                         "keys": _key_flags(app),
+                        "packsDir": str(app.packs),
                     },
                 )
                 return
@@ -766,9 +781,35 @@ def make_handler(app: App):
                 self._export(_pack_filter(body))
                 return
             if path == "/api/import/preview":
+                ctype = (self.headers.get("Content-Type") or "").lower()
+                if "application/json" in ctype:
+                    body = self._json_body()
+                    archive = Path(str(body.get("path") or "")).expanduser()
+                    if not archive.is_file():
+                        raise ValueError("Elige un paquete .zip de wi-mod.")
+                    self._json(200, {"preview": peek_library(archive)})
+                    return
                 self._json(200, {"preview": _import_preview(app, self)})
                 return
             if path == "/api/import":
+                ctype = (self.headers.get("Content-Type") or "").lower()
+                if "application/json" in ctype:
+                    body = self._json_body()
+                    archive = Path(str(body.get("path") or "")).expanduser()
+                    if not archive.is_file():
+                        raise ValueError("Elige un paquete .zip de wi-mod.")
+                    filt = _pack_filter(body)
+                    self._json(200, {
+                        "result": import_library(
+                            app.library,
+                            archive,
+                            scope=filt["scope"],
+                            platform=filt.get("platform"),
+                            game=filt.get("game"),
+                            modpack=filt.get("modpack"),
+                        ),
+                    })
+                    return
                 self._json(200, {"result": _import(app, self)})
                 return
             if path == "/api/localize":
@@ -931,6 +972,25 @@ def make_handler(app: App):
                 game=filt.get("game"),
                 modpack=str(pack_name) if pack_name else None,
             )
+            download_name = f"{label}-{stamp}.zip"
+            dest_raw = str(filt.get("dest") or "").strip()
+            # Guardar en ruta elegida por el usuario (diálogo Guardar como)
+            if dest_raw:
+                dest = Path(dest_raw).expanduser()
+                if dest.suffix.lower() != ".zip":
+                    dest = dest.with_suffix(".zip")
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                export_library(
+                    app.library,
+                    dest,
+                    ids,
+                    scope=filt["scope"],
+                    platform=filt.get("platform"),
+                    game=filt.get("game"),
+                    modpack=filt.get("modpack"),
+                )
+                self._json(200, {"ok": True, "path": str(dest), "name": dest.name})
+                return
             dest = app.tmp / f"{label}-{stamp}-{uuid.uuid4().hex[:6]}.zip"
             try:
                 export_library(
@@ -942,7 +1002,7 @@ def make_handler(app: App):
                     game=filt.get("game"),
                     modpack=filt.get("modpack"),
                 )
-                self._file(dest, "application/zip", f"{label}-{stamp}.zip")
+                self._file(dest, "application/zip", download_name)
             finally:
                 dest.unlink(missing_ok=True)
 
@@ -1042,7 +1102,12 @@ def make_handler(app: App):
             if isinstance(exc, ValueError):
                 self._json(400, {"error": str(exc)})
                 return
-            self._json(500, {"error": "Error interno de wi-mod."})
+            if isinstance(exc, OSError):
+                self._json(400, {"error": f"No se pudo escribir el archivo: {exc}"})
+                return
+            # Mensaje útil en vez de caja negra (NameError, etc.)
+            detail = str(exc).strip() or type(exc).__name__
+            self._json(500, {"error": f"Error interno de wi-mod: {detail}"})
 
     return Handler
 
@@ -1866,6 +1931,7 @@ def _pack_filter(body: dict) -> dict:
         "game": str(body.get("game") or body.get("gameDomain") or "").strip() or None,
         "modpack": str(body.get("modpack") or "").strip() or None,
         "ids": ids,
+        "dest": str(body.get("dest") or "").strip() or None,
     }
 
 
