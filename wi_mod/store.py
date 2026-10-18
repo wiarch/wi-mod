@@ -138,11 +138,16 @@ class Library:
             mod = self._find(data["mods"], mod_id)
             if not mod:
                 return None
+            packs = data.get("modpacks") or []
+            before_key = self._mod_location_key(mod, packs)
             before_in = "in" in str(mod.get("status") or "").split("+")
-            self._apply_user(mod, fields, data.get("modpacks") or [])
+            self._apply_user(mod, fields, packs)
             self._stamp_pack_order(mod, data["mods"])
             after_in = "in" in str(mod.get("status") or "").split("+")
-            if "status" in fields and before_in != after_in:
+            after_key = self._mod_location_key(mod, packs)
+            if before_key != after_key:
+                self._relocate_mod_files(mod, packs)
+            elif "status" in fields and before_in != after_in:
                 self._sync_mod_files_enabled(mod, after_in)
             self._write(data)
             return mod
@@ -169,15 +174,23 @@ class Library:
                 mod = self._find(data["mods"], mod_id)
                 if not mod:
                     raise ValueError("Hay un mod marcado que ya no existe.")
+                before_key = self._mod_location_key(mod, packs)
                 before_in = "in" in str(mod.get("status") or "").split("+")
                 self._apply_user(mod, fields, packs)
                 self._stamp_pack_order(mod, data["mods"])
                 after_in = "in" in str(mod.get("status") or "").split("+")
-                if "status" in fields and before_in != after_in:
+                after_key = self._mod_location_key(mod, packs)
+                if before_key != after_key:
+                    self._relocate_mod_files(mod, packs)
+                elif "status" in fields and before_in != after_in:
                     self._sync_mod_files_enabled(mod, after_in)
                 updated.append(mod)
             self._write(data)
             return updated
+
+    def _mod_downloaded(self, mod: dict[str, Any]) -> bool:
+        files = mod.get("files") or []
+        return any(isinstance(item, dict) and str(item.get("storedAs") or "").strip() for item in files)
 
     def set_mods_active(self, ids: list[Any], active: bool) -> list[dict[str, Any]]:
         clean: list[str] = []
@@ -196,10 +209,14 @@ class Library:
             data = self._read()
             self._migrate(data)
             updated: list[dict[str, Any]] = []
+            skipped = 0
             for mod_id in clean:
                 mod = self._find(data["mods"], mod_id)
                 if not mod:
                     raise ValueError("Hay un mod marcado que ya no existe.")
+                if not self._mod_downloaded(mod):
+                    skipped += 1
+                    continue
                 flags = {
                     part
                     for part in str(mod.get("status") or "").split("+")
@@ -212,6 +229,8 @@ class Library:
                 mod["status"] = "+".join(flag for flag in ("got", "in") if flag in flags)
                 self._sync_mod_files_enabled(mod, active)
                 updated.append(mod)
+            if not updated:
+                raise ValueError("Solo se pueden activar o desactivar mods descargados.")
             self._write(data)
             return updated
 
@@ -371,6 +390,8 @@ class Library:
             parts = [part for part in status.replace(",", "+").split("+") if part]
             if any(part not in {"got", "in"} for part in parts):
                 raise ValueError("Estado no válido.")
+            if "in" in parts and not self._mod_downloaded(mod):
+                raise ValueError("Solo se pueden activar o desactivar mods descargados.")
             mod["status"] = "+".join(flag for flag in ("got", "in") if flag in parts)
         if "packOrder" in fields:
             try:
@@ -482,7 +503,7 @@ class Library:
         return True
 
     def _mod_files_dir(self, mod: dict[str, Any], packs: list[dict[str, Any]]) -> Path:
-        """mods/{juego}/{modpack|categoría}[/categoría del pack] en la raíz del programa."""
+        """mods/{juego}/{categoría|modpack}[/cat del pack]/{mod}/ en la raíz del programa."""
         game = folder_name(mod.get("gameName") or mod.get("gameDomain") or "sin-juego")
         base = self.program_root / "mods" / game
         pack_id = str(mod.get("modpackId") or "").strip()
@@ -501,9 +522,62 @@ class Library:
                     None,
                 )
                 if cat and cat.get("name"):
-                    return base / folder_name(cat.get("name"))
-            return base
-        return base / folder_name(mod.get("category") or "General")
+                    base = base / folder_name(cat.get("name"))
+        else:
+            base = base / folder_name(mod.get("category") or "General")
+        return base / folder_name(mod.get("name") or mod.get("id") or "mod")
+
+    def _mod_location_key(self, mod: dict[str, Any], packs: list[dict[str, Any]]) -> str:
+        return self._mod_files_dir(mod, packs).as_posix().lower()
+
+    def _relocate_mod_files(self, mod: dict[str, Any], packs: list[dict[str, Any]]) -> None:
+        """Mueve descargas a la carpeta que toca según juego / categoría / modpack."""
+        files = [item for item in (mod.get("files") or []) if isinstance(item, dict)]
+        if not files:
+            return
+        target = self._mod_files_dir(mod, packs)
+        target.mkdir(parents=True, exist_ok=True)
+        active = "in" in {part for part in str(mod.get("status") or "").split("+") if part}
+        for item in files:
+            relative = str(item.get("storedAs") or "").strip()
+            if not relative:
+                continue
+            try:
+                path = self.absolute(relative)
+            except ValueError:
+                continue
+            if not path.exists():
+                if path.name.endswith(DISABLED_SUFFIX):
+                    alt = path.with_name(path.name[: -len(DISABLED_SUFFIX)])
+                else:
+                    alt = path.with_name(path.name + DISABLED_SUFFIX)
+                if alt.exists():
+                    path = alt
+                else:
+                    continue
+            display = str(item.get("name") or path.name)
+            if display.endswith(DISABLED_SUFFIX):
+                display = display[: -len(DISABLED_SUFFIX)]
+            dest_name = display if active else f"{display}{DISABLED_SUFFIX}"
+            dest = target / dest_name
+            if dest.resolve() == path.resolve():
+                item["storedAs"] = self._stored_relative(dest)
+                item["name"] = display
+                continue
+            if dest.exists():
+                dest = target / f"{str(item.get('id') or uuid.uuid4().hex)[:8]}-{dest_name}"
+            old_parent = path.parent
+            try:
+                shutil.move(str(path), dest)
+            except OSError:
+                continue
+            item["storedAs"] = self._stored_relative(dest)
+            item["name"] = display
+            try:
+                item["size"] = dest.stat().st_size
+            except OSError:
+                pass
+            self._prune_empty_mods_dirs(old_parent)
 
     def add_file(self, mod_id: str, name: str, source: Path) -> dict[str, Any] | None:
         safe = safe_name(name)

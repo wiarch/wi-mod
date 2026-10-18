@@ -19,11 +19,15 @@ const state = {
     return 0.5;
   })(),
   query: "",
+  listQuery: "",
+  sideQuery: "",
+  sideOpen: {},
   sideNav: {
-    platforms: { q: "", page: 1 },
-    modpacks: { q: "", page: 1 },
-    categories: { q: "", page: 1 },
-    packcats: { q: "", page: 1 },
+    platforms: { page: 1 },
+    modpacks: { page: 1 },
+    categories: { page: 1 },
+    packcats: { page: 1 },
+    mods: { page: 1 },
   },
   sidePageSize: Number(localStorage.getItem("wi-mod-side-page") || 8) || 8,
   onlyUpdates: false,
@@ -140,6 +144,8 @@ const UI = {
     bulkEnable: "Activar", bulkDisable: "Desactivar",
     packEnable: "Activar pack", packDisable: "Desactivar pack",
     activeOk: "{n} activos.", inactiveOk: "{n} inactivos (.disabled).",
+    needDownload: "Solo mods descargados se pueden activar o desactivar.",
+    activeNeedFiles: "Descarga el mod antes de activarlo.",
     addGameTitle: "Añadir juego (RAWG)", searchGame: "Buscar juego", launchGame: "Lanzar juego",
     launchTitle: "Lanzador",
     launchMissing: "Este juego no tiene lanzador vinculado. ¿Quieres que wi-mod lo busque solo o lo eliges a mano?",
@@ -152,7 +158,7 @@ const UI = {
     launchNeedGame: "Elige un juego arriba.",
     launchUnlinked: "Sin lanzador. Clic o Ctrl+Enter para vincular.",
     launchLinked: "Lanzar juego (Ctrl+Enter). Mayús+clic para cambiar",
-    searchMods: "Buscar mods", searchIn: "Buscar en {name}", menu: "Menú",
+    searchMods: "Buscar mods", searchIn: "Buscar en {name}", listSearch: "Filtrar lista", menu: "Menú",
     platform: "Plataforma", modpack: "Modpack", category: "Categoría",
     createPack: "Crear modpack", addCategory: "Añadir categoría",
     hideNames: "Ocultar nombres", showNames: "Mostrar nombres", hide: "Ocultar", show: "Mostrar",
@@ -161,7 +167,9 @@ const UI = {
     sizeDown: "Achicar. Bajo 0.5× pasa a lista",
     sizeReset: "Tamaño base 0.5×. Clic para volver", sizeUp: "Agrandar, máximo 1.5×",
     sort: "Orden", sortAdded: "Recién guardados", sortDownloaded: "Recién descargados", sortUpdated: "Última actualización", sortName: "Nombre",
-    sideFilter: "Escribe para filtrar…", sidePage: "Página", sidePrev: "Anterior", sideNext: "Siguiente", sidePageSize: "Por página",
+    mods: "Mods",
+    sideSearch: "Buscar en filtros y mods", sidePage: "Página", sidePrev: "Anterior", sideNext: "Siguiente", sidePageSize: "Por página",
+    sideNoMods: "Sin mods aquí",
     assign: "Asignar", insidePack: "Dentro del pack", move: "Mover", refresh: "Actualizar",
     delete: "Eliminar", log: "Log", errors: "Errores", alerts: "Alertas", requests: "Peticiones",
     clear: "Limpiar", addMod: "Añadir mod", link: "Enlace",
@@ -262,6 +270,8 @@ const UI = {
     bulkEnable: "Enable", bulkDisable: "Disable",
     packEnable: "Enable pack", packDisable: "Disable pack",
     activeOk: "{n} enabled.", inactiveOk: "{n} disabled (.disabled).",
+    needDownload: "Only downloaded mods can be enabled or disabled.",
+    activeNeedFiles: "Download the mod before enabling it.",
     addGameTitle: "Add game (RAWG)", searchGame: "Search games", launchGame: "Launch game",
     launchTitle: "Launcher",
     launchMissing: "This game has no launcher linked. Should wi-mod find it, or pick it yourself?",
@@ -274,7 +284,7 @@ const UI = {
     launchNeedGame: "Pick a game above.",
     launchUnlinked: "No launcher. Click or Ctrl+Enter to link.",
     launchLinked: "Launch game (Ctrl+Enter). Shift+click to change",
-    searchMods: "Search mods", searchIn: "Search {name}", menu: "Menu",
+    searchMods: "Search mods", searchIn: "Search {name}", listSearch: "Filter list", menu: "Menu",
     platform: "Platform", modpack: "Modpack", category: "Category",
     createPack: "Create modpack", addCategory: "Add category",
     hideNames: "Hide names", showNames: "Show names", hide: "Hide", show: "Show",
@@ -283,7 +293,9 @@ const UI = {
     sizeDown: "Smaller. Below 0.5× switches to list",
     sizeReset: "Base size 0.5×. Click to reset", sizeUp: "Larger, max 1.5×",
     sort: "Sort", sortAdded: "Recently saved", sortDownloaded: "Recently downloaded", sortUpdated: "Last update", sortName: "Name",
-    sideFilter: "Type to filter these…", sidePage: "Page", sidePrev: "Previous", sideNext: "Next", sidePageSize: "Per page",
+    mods: "Mods",
+    sideSearch: "Search filters and mods", sidePage: "Page", sidePrev: "Previous", sideNext: "Next", sidePageSize: "Per page",
+    sideNoMods: "No mods here",
     assign: "Assign", insidePack: "Inside the pack", move: "Move", refresh: "Refresh",
     delete: "Delete", log: "Log", errors: "Errors", alerts: "Alerts", requests: "Requests",
     clear: "Clear", addMod: "Add mod", link: "Link",
@@ -1484,10 +1496,17 @@ async function setPackActive(active) {
   }
 }
 
+function modDownloaded(mod) {
+  return (mod?.files || []).some((file) => file && String(file.storedAs || "").trim());
+}
+
 async function setMarkedActive(active) {
-  const ids = [...state.selected];
+  const ids = [...state.selected].filter((id) => {
+    const mod = state.mods.find((item) => item.id === id);
+    return mod && modDownloaded(mod);
+  });
   if (!ids.length) {
-    toast(t("pickFirst"), "warn");
+    toast(t("needDownload"), "warn");
     return;
   }
   const button = active ? $("bulk-enable") : $("bulk-disable");
@@ -1542,6 +1561,7 @@ function packLabel(mod) {
 
 function visible() {
   const q = state.query.trim().toLowerCase();
+  const listQ = String(state.listQuery || "").trim().toLowerCase();
   let mods = scopedMods().filter((mod) => {
     if (state.platform && String(mod.platform || "Nexus") !== state.platform) return false;
     if (state.modpack && String(mod.modpackId || "") !== state.modpack) return false;
@@ -1551,9 +1571,11 @@ function visible() {
     if (state.files === "with" && !hasFiles) return false;
     if (state.files === "without" && hasFiles) return false;
     if (state.onlyUpdates && !mod.updateAvailable) return false;
-    if (!q) return true;
+    if (!q && !listQ) return true;
     const blob = `${mod.name} ${mod.author} ${mod.gameName} ${mod.category} ${mod.categoryEs || ""} ${mod.platform} ${packLabel(mod)} ${mod.summary} ${mod.summaryEs || ""} ${mod.techNotes || ""} ${mod.compatNotes || ""} ${mod.notes || ""}`.toLowerCase();
-    return blob.includes(q);
+    if (q && !blob.includes(q)) return false;
+    if (listQ && !blob.includes(listQ)) return false;
+    return true;
   });
   const lastDownload = (mod) => {
     const stamps = (mod.files || []).map((file) => String(file.addedAt || "")).filter(Boolean);
@@ -1580,8 +1602,12 @@ function clearFilters() {
   state.category = "";
   state.files = "all";
   state.query = "";
-  Object.keys(state.sideNav).forEach((key) => { state.sideNav[key] = { q: "", page: 1 }; });
+  state.listQuery = "";
+  state.sideQuery = "";
+  Object.keys(state.sideNav).forEach((key) => { state.sideNav[key] = { page: 1 }; });
   if ($("search")) $("search").value = "";
+  if ($("list-search")) $("list-search").value = "";
+  if ($("side-search")) $("side-search").value = "";
 }
 
 function askInput({ title, hint = "", placeholder = "", value = "", okLabel = "Añadir", mode = "text", options = [] }) {
@@ -1680,27 +1706,51 @@ function sidePageSize() {
   return SIDE_PAGE_SIZES.includes(n) ? n : 8;
 }
 
-function sidePaged(key, items, labelOf) {
-  if (!state.sideNav[key]) state.sideNav[key] = { q: "", page: 1 };
+function modsForSide(kind, value) {
+  const id = String(value || "");
+  if (!id) return [];
+  return scopedMods().filter((mod) => {
+    if (kind === "platform") return String(mod.platform || "Nexus") === id;
+    if (kind === "modpack") return String(mod.modpackId || "") === id;
+    if (kind === "packCat") return String(mod.modpackId || "") === String(state.modpack || "") && String(mod.modpackCategoryId || "") === id;
+    if (kind === "category") return String(mod.category || "General") === id;
+    return false;
+  }).sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
+}
+
+function sideOpenKey(kind, value) {
+  return `${kind}:${value}`;
+}
+
+function sideGroupOpen(kind, value, _current) {
+  const key = sideOpenKey(kind, value);
+  if (state.sideOpen[key] === false) return false;
+  return true;
+}
+
+function sidePaged(key, items, labelOf, modsOf) {
+  if (!state.sideNav[key]) state.sideNav[key] = { page: 1 };
   const nav = state.sideNav[key];
-  const q = String(nav.q || "").trim().toLowerCase();
-  const filtered = !q ? items.slice() : items.filter((item) => String(labelOf(item) || "").toLowerCase().includes(q));
+  const q = String(state.sideQuery || "").trim().toLowerCase();
+  const filtered = !q ? items.slice() : items.filter((item) => {
+    if (String(labelOf(item) || "").toLowerCase().includes(q)) return true;
+    const mods = typeof modsOf === "function" ? modsOf(item) : [];
+    return mods.some((mod) => String(mod.name || "").toLowerCase().includes(q));
+  });
   const size = sidePageSize();
   const pages = Math.max(1, Math.ceil(filtered.length / size) || 1);
   nav.page = Math.min(Math.max(1, Number(nav.page) || 1), pages);
   const start = (nav.page - 1) * size;
   const shown = filtered.slice(start, start + size);
-  const need = items.length > size;
+  const need = filtered.length > size;
   if (!need) {
-    nav.q = "";
     nav.page = 1;
-    return { shown: items, navHtml: "" };
+    return { shown: filtered, navHtml: "" };
   }
   const sizes = SIDE_PAGE_SIZES.map((n) => (
     `<option value="${n}"${n === size ? " selected" : ""}>${n}</option>`
   )).join("");
   const navHtml = `<div class="side-nav" data-side="${esc(key)}">
-    <input type="search" class="side-nav-q" data-side="${esc(key)}" placeholder="${esc(t("sideFilter"))}" value="${esc(nav.q || "")}" autocomplete="off" spellcheck="false" aria-label="${esc(t("sideFilter"))}">
     <div class="side-nav-pager">
       <label class="side-nav-size-wrap" title="${esc(t("sidePageSize"))}">
         <select class="side-nav-size" data-side="${esc(key)}" aria-label="${esc(t("sidePageSize"))}">${sizes}</select>
@@ -1715,27 +1765,10 @@ function sidePaged(key, items, labelOf) {
 }
 
 function bindSideNavControls() {
-  const refocus = (side, cls, caret) => {
-    const again = document.querySelector(`.${cls}[data-side="${side}"]`);
-    if (!again) return;
-    again.focus();
-    if (typeof caret === "number" && again.setSelectionRange) again.setSelectionRange(caret, caret);
-  };
-  document.querySelectorAll(".side-nav-q").forEach((input) => {
-    input.oninput = () => {
-      const side = input.dataset.side;
-      state.sideNav[side] = state.sideNav[side] || { q: "", page: 1 };
-      state.sideNav[side].q = input.value;
-      state.sideNav[side].page = 1;
-      const caret = input.selectionStart;
-      renderFilters();
-      refocus(side, "side-nav-q", caret);
-    };
-  });
   document.querySelectorAll(".side-nav-page").forEach((input) => {
     input.onchange = () => {
       const side = input.dataset.side;
-      state.sideNav[side] = state.sideNav[side] || { q: "", page: 1 };
+      state.sideNav[side] = state.sideNav[side] || { page: 1 };
       state.sideNav[side].page = Math.max(1, Number(input.value) || 1);
       renderFilters();
     };
@@ -1753,7 +1786,7 @@ function bindSideNavControls() {
       event.preventDefault();
       event.stopPropagation();
       const side = button.dataset.side;
-      state.sideNav[side] = state.sideNav[side] || { q: "", page: 1 };
+      state.sideNav[side] = state.sideNav[side] || { page: 1 };
       state.sideNav[side].page = Math.max(1, (state.sideNav[side].page || 1) - 1);
       renderFilters();
     };
@@ -1763,10 +1796,55 @@ function bindSideNavControls() {
       event.preventDefault();
       event.stopPropagation();
       const side = button.dataset.side;
-      state.sideNav[side] = state.sideNav[side] || { q: "", page: 1 };
+      state.sideNav[side] = state.sideNav[side] || { page: 1 };
       state.sideNav[side].page = (state.sideNav[side].page || 1) + 1;
       renderFilters();
     };
+  });
+  document.querySelectorAll("[data-side-twist]").forEach((button) => {
+    button.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const key = button.dataset.sideTwist;
+      const parts = key.split(":");
+      const kind = parts[0];
+      const value = parts.slice(1).join(":");
+      const current = kind === "platform" ? state.platform
+        : kind === "modpack" ? state.modpack
+          : kind === "packCat" ? state.packCat
+            : state.category;
+      state.sideOpen[key] = !sideGroupOpen(kind, value, current);
+      renderFilters();
+    };
+  });
+  document.querySelectorAll("[data-mod-jump]").forEach((button) => {
+    button.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const id = button.dataset.modJump;
+      if (!id) return;
+      sfx.click();
+      openDetail(id);
+    };
+  });
+  bindSideSearch();
+}
+
+function bindSideSearch() {
+  const input = $("side-search");
+  if (!input || input.dataset.bound) return;
+  input.dataset.bound = "1";
+  input.value = state.sideQuery || "";
+  input.addEventListener("input", () => {
+    state.sideQuery = input.value;
+    Object.keys(state.sideNav).forEach((key) => { state.sideNav[key].page = 1; });
+    renderFilters();
+    const again = $("side-search");
+    if (again) {
+      again.focus();
+      const caret = again.value.length;
+      if (again.setSelectionRange) again.setSelectionRange(caret, caret);
+    }
   });
 }
 
@@ -1792,46 +1870,84 @@ function renderFilters() {
     label: name,
     count: scopedMods().filter((mod) => (mod.platform || "Nexus") === name).length,
   }));
-  const platformPage = sidePaged("platforms", platformMap, (row) => row.label);
-  $("platforms").innerHTML = platformPage.navHtml + chip(t("allF"), "", state.platform, "platform") + platformPage.shown.map((row) => (
-    chip(`${row.label} (${row.count})`, row.id, state.platform, "platform")
-  )).join("");
+  const platformPage = sidePaged(
+    "platforms",
+    platformMap,
+    (row) => row.label,
+    (row) => modsForSide("platform", row.id),
+  );
+  $("platforms").innerHTML = platformPage.navHtml
+    + sideEntry(t("allF"), "", state.platform, "platform")
+    + platformPage.shown.map((row) => (
+      sideEntry(`${row.label} (${row.count})`, row.id, state.platform, "platform", modsForSide("platform", row.id))
+    )).join("");
 
   const gamePacks = packsForGame();
-  const packPage = sidePaged("modpacks", gamePacks, (pack) => pack.name);
+  const packPage = sidePaged(
+    "modpacks",
+    gamePacks,
+    (pack) => pack.name,
+    (pack) => modsForSide("modpack", pack.id),
+  );
   const packChips = packPage.shown.map((pack) => {
     const n = scopedMods().filter((mod) => mod.modpackId === pack.id).length;
-    return chip(`${pack.name} (${n})`, pack.id, state.modpack, "modpack");
+    return sideEntry(`${pack.name} (${n})`, pack.id, state.modpack, "modpack", modsForSide("modpack", pack.id));
   });
   let inside = "";
   if (state.modpack) {
     const pack = packById(state.modpack);
     const packCats = pack ? (pack.categories || []) : [];
-    const catPage = sidePaged("packcats", packCats, (cat) => cat.name);
+    const catPage = sidePaged(
+      "packcats",
+      packCats,
+      (cat) => cat.name,
+      (cat) => modsForSide("packCat", cat.id),
+    );
     const rows = catPage.shown.map((cat) => {
       const n = scopedMods().filter((mod) => mod.modpackId === pack.id && mod.modpackCategoryId === cat.id).length;
-      const icon = markIcon("packcat", cat.id, { emoji: cat.emoji, imageUrl: cat.imageUrl });
-      return `<button type="button" class="pack-cat-chip ${cat.id === state.packCat ? "on" : ""}" data-kind="packCat" data-value="${encodeURIComponent(cat.id)}" title="${esc(cat.name)}">${icon}<span class="side-initial">${esc(sideInitial(cat.name))}</span><span>${esc(cat.name)} (${n})</span></button>`;
+      return sideEntry(`${cat.name} (${n})`, cat.id, state.packCat, "packCat", modsForSide("packCat", cat.id), {
+        emoji: cat.emoji,
+        imageUrl: cat.imageUrl,
+      });
     }).join("");
     inside = `<div class="pack-cats">
       <div class="side-head">
         <p class="side-label">Dentro del pack</p>
         <button type="button" class="side-add" data-add="packcat" title="Añadir categoría">+</button>
       </div>
-      ${catPage.navHtml}${chip(t("allF"), "", state.packCat, "packCat")}${rows}
+      ${catPage.navHtml}${sideEntry(t("allF"), "", state.packCat, "packCat")}${rows}
     </div>`;
   }
-  $("modpacks").innerHTML = packPage.navHtml + chip(t("allM"), "", state.modpack, "modpack") + packChips.join("") + inside;
+  $("modpacks").innerHTML = packPage.navHtml + sideEntry(t("allM"), "", state.modpack, "modpack") + packChips.join("") + inside;
 
   const cats = counts((mod) => mod.category || "General");
   (state.catalog.categories || []).forEach((name) => {
     if (!cats.some((row) => row.id === name)) cats.push({ id: name, label: name, count: 0 });
   });
   cats.sort((a, b) => a.label.localeCompare(b.label, "es"));
-  const catsPage = sidePaged("categories", cats, (row) => `${categoryLabel(row.id)} ${row.label}`);
-  $("categories").innerHTML = catsPage.navHtml + chip(t("allF"), "", state.category, "category") + catsPage.shown.map((row) => (
-    chip(`${categoryLabel(row.id)} (${row.count})`, row.id, state.category, "category")
-  )).join("");
+  const catsPage = sidePaged(
+    "categories",
+    cats,
+    (row) => `${categoryLabel(row.id)} ${row.label}`,
+    (row) => modsForSide("category", row.id),
+  );
+  $("categories").innerHTML = catsPage.navHtml
+    + sideEntry(t("allF"), "", state.category, "category")
+    + catsPage.shown.map((row) => (
+      sideEntry(`${categoryLabel(row.id)} (${row.count})`, row.id, state.category, "category", modsForSide("category", row.id))
+    )).join("");
+
+  const sideMods = visible().slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
+  const modsPage = sidePaged("mods", sideMods, (mod) => mod.name);
+  const modsBox = $("side-mods-list");
+  if (modsBox) {
+    modsBox.innerHTML = modsPage.navHtml + (modsPage.shown.length
+      ? `<div class="side-mods side-mods-root">${modsPage.shown.map((mod) => (
+        `<button type="button" class="side-mod" data-mod-jump="${esc(mod.id)}" title="${esc(mod.name)}"><span>${esc(mod.name)}</span></button>`
+      )).join("")}</div>`
+      : `<div class="side-mods side-mods-root"><p class="side-mods-empty">${esc(t("sideNoMods"))}</p></div>`);
+  }
+
   const foldCount = (id, n) => {
     const text = String(n);
     const node = $(id);
@@ -1842,6 +1958,7 @@ function renderFilters() {
   foldCount("fold-platforms", platformMap.length);
   foldCount("fold-modpacks", gamePacks.length);
   foldCount("fold-categories", cats.length);
+  foldCount("fold-mods", sideMods.length);
 
   fillCategorySelect($("add-category"), $("add-category").value || "");
   fillModpackSelects($("add-modpack"), $("add-pack-cat"), $("add-modpack")?.value || "", $("add-pack-cat")?.value || "", state.game);
@@ -2040,12 +2157,51 @@ function sideInitial(label) {
 }
 
 function chip(label, value, current, kind) {
+  return sideEntry(label, value, current, kind);
+}
+
+function sideModsVisible(mods, groupLabel) {
+  const q = String(state.sideQuery || "").trim().toLowerCase();
+  if (!q) return mods.slice();
+  if (String(groupLabel || "").toLowerCase().includes(q)) return mods.slice();
+  return mods.filter((mod) => String(mod.name || "").toLowerCase().includes(q));
+}
+
+function sideModsHtml(mods) {
+  if (!mods.length) {
+    return `<div class="side-mods"><p class="side-mods-empty">${esc(t("sideNoMods"))}</p></div>`;
+  }
+  return `<div class="side-mods">${mods.map((mod) => (
+    `<button type="button" class="side-mod" data-mod-jump="${esc(mod.id)}" title="${esc(mod.name)}"><span>${esc(mod.name)}</span></button>`
+  )).join("")}</div>`;
+}
+
+function sideEntry(label, value, current, kind, mods, markFallback) {
   const on = String(value) === String(current) ? "on" : "";
-  const icon = value ? markIcon(kind, value) : "";
+  const markKind = kind === "packCat" ? "packcat" : kind;
+  const icon = value ? markIcon(markKind, value, markFallback) : "";
   const pencil = (kind === "modpack" || kind === "category") && on && value
     ? `<span class="chip-edit" data-edit="${esc(value)}" title="${kind === "category" ? "Editar categoría" : "Editar modpack"}">✎</span>`
     : "";
-  return `<button type="button" class="${on}" data-kind="${kind}" data-value="${encodeURIComponent(value)}" title="${esc(label)}">${icon}<span class="side-initial">${esc(sideInitial(label))}</span><span>${esc(label)}</span>${pencil}</button>`;
+  const chipClass = kind === "packCat" ? `pack-cat-chip ${on}` : on;
+  const chip = `<button type="button" class="${chipClass}" data-kind="${kind}" data-value="${encodeURIComponent(value)}" title="${esc(label)}">${icon}<span class="side-initial">${esc(sideInitial(label))}</span><span>${esc(label)}</span>${pencil}</button>`;
+  if (!value) {
+    return `<div class="side-entry"><div class="side-entry-row"><span class="side-twist-spacer" aria-hidden="true"></span>${chip}</div></div>`;
+  }
+  const list = Array.isArray(mods) ? mods : modsForSide(kind, value);
+  const visible = sideModsVisible(list, label);
+  const q = String(state.sideQuery || "").trim().toLowerCase();
+  const matchQ = !!q && (
+    String(label || "").toLowerCase().includes(q)
+    || list.some((mod) => String(mod.name || "").toLowerCase().includes(q))
+  );
+  const open = matchQ || sideGroupOpen(kind, value, current);
+  const key = sideOpenKey(kind, value);
+  const twist = `<button type="button" class="side-twist${open ? " open" : ""}" data-side-twist="${esc(key)}" aria-expanded="${open ? "true" : "false"}" title="▸">▸</button>`;
+  return `<div class="side-entry${on ? " is-on" : ""}${open ? " is-open" : ""}">
+    <div class="side-entry-row">${twist}${chip}</div>
+    ${open ? sideModsHtml(visible) : ""}
+  </div>`;
 }
 
 const BASE_CATEGORIES = [
@@ -2906,6 +3062,16 @@ function paintBulk() {
     $("bulk-pack-cat").value || "",
     state.game
   );
+  const canToggle = [...state.selected].some((id) => {
+    const mod = state.mods.find((item) => item.id === id);
+    return mod && modDownloaded(mod);
+  });
+  ["bulk-enable", "bulk-disable"].forEach((id) => {
+    const button = $(id);
+    if (!button) return;
+    button.disabled = !canToggle;
+    button.title = canToggle ? "" : t("needDownload");
+  });
 }
 
 const MOD_STATUS = [
@@ -2918,11 +3084,15 @@ function statusOn(mod, id) {
 }
 
 function statusPicks(mod) {
+  const hasFiles = modDownloaded(mod);
   return `<span class="status-picks">${MOD_STATUS.map(([id]) => {
     const on = statusOn(mod, id);
     const label = id === "in" ? (on ? t("activeOn") : t("activeOff")) : (on ? t("gotOn") : t("gotOff"));
-    const tip = id === "in" ? (on ? t("activeTipOn") : t("activeTipOff")) : label;
-    return `<button type="button" class="status-pick ${on ? "on" : ""}" data-status="${id}" title="${esc(tip)}">${esc(label)}</button>`;
+    const tip = id === "in"
+      ? (!hasFiles ? t("activeNeedFiles") : (on ? t("activeTipOn") : t("activeTipOff")))
+      : label;
+    const locked = id === "in" && !hasFiles;
+    return `<button type="button" class="status-pick ${on ? "on" : ""}${locked ? " locked" : ""}" data-status="${id}" ${locked ? "disabled" : ""} title="${esc(tip)}">${esc(label)}</button>`;
   }).join("")}</span>`;
 }
 
@@ -2949,6 +3119,10 @@ function paintUpdateBanner() {
 async function setModStatus(id, status) {
   const mod = state.mods.find((item) => item.id === id);
   if (!mod) return;
+  if (status === "in" && !modDownloaded(mod)) {
+    toast(t("activeNeedFiles"), "warn");
+    return;
+  }
   const flags = new Set(String(mod.status || "").split("+").filter((part) => part === "got" || part === "in"));
   if (flags.has(status)) flags.delete(status);
   else flags.add(status);
@@ -2956,7 +3130,7 @@ async function setModStatus(id, status) {
   const prev = mod.status;
   mod.status = next;
   paintSelection();
-  document.querySelector(`.card[data-id="${id}"]`)?.classList.toggle("inactive", !statusOn(mod, "in") && (mod.files || []).length > 0);
+  document.querySelector(`.card[data-id="${id}"]`)?.classList.toggle("inactive", !statusOn(mod, "in") && modDownloaded(mod));
   try {
     const data = await api(`/api/mods/${id}`, {
       method: "PATCH",
@@ -4833,6 +5007,12 @@ $("search").oninput = (event) => {
   render();
   scheduleRemoteSearch();
 };
+if ($("list-search")) {
+  $("list-search").oninput = (event) => {
+    state.listQuery = event.target.value;
+    render();
+  };
+}
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") hideRemoteSearch();
 });
@@ -6177,6 +6357,7 @@ function bindSideFolds() {
   });
 }
 bindSideFolds();
+bindSideSearch();
 
 function bindSideSize() {
   const layout = document.querySelector(".layout");

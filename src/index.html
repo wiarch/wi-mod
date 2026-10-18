@@ -74,8 +74,9 @@
     <aside class="side">
       <div class="brand-row">
         <div class="brand">wi-mod</div>
-        <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.15.0</a>
+        <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.16.0</a>
       </div>
+      <input id="side-search" class="side-search" type="search" placeholder="Buscar en filtros y mods" data-i18n-placeholder="sideSearch" autocomplete="off" spellcheck="false" aria-label="Buscar">
       <div class="side-block" data-fold="platforms">
         <div class="side-head">
           <button type="button" class="side-fold" aria-expanded="true">
@@ -110,6 +111,17 @@
           <button type="button" class="side-add" data-add="category" title="Añadir categoría" data-i18n-title="addCategory">+</button>
         </div>
         <div id="categories"></div>
+      </div>
+      <div class="side-block" data-fold="mods">
+        <div class="side-head">
+          <button type="button" class="side-fold" aria-expanded="true">
+            <span class="side-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5zM5 10h14v4H5zM5 16h14v4H5z"/></svg><span class="side-badge" id="fold-mods-badge"></span></span>
+            <span class="side-label" data-i18n="mods">Mods</span>
+            <span class="side-count" id="fold-mods"></span>
+            <span class="side-caret" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div id="side-mods-list"></div>
       </div>
       <button type="button" id="side-rail" class="side-rail" title="Ocultar nombres" aria-pressed="false" data-i18n-title="hideNames"><span data-i18n="hide">Ocultar</span></button>
     </aside>
