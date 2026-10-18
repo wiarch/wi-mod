@@ -12,13 +12,20 @@ const state = {
   view: localStorage.getItem("wi-mod-view") === "list" ? "list" : "grid",
   cardScale: (() => {
     const saved = Number(localStorage.getItem("wi-mod-scale"));
-    if (Number.isFinite(saved)) return Math.min(1.5, Math.max(0.5, Math.round(saved * 10) / 10));
+    if (Number.isFinite(saved)) return Math.min(1.5, Math.max(0.1, Math.round(saved * 10) / 10));
     const old = localStorage.getItem("wi-mod-size");
     if (old === "sm") return 0.5;
     if (old === "lg") return 1.5;
-    return 1;
+    return 0.5;
   })(),
   query: "",
+  sideNav: {
+    platforms: { q: "", page: 1 },
+    modpacks: { q: "", page: 1 },
+    categories: { q: "", page: 1 },
+    packcats: { q: "", page: 1 },
+  },
+  sidePageSize: Number(localStorage.getItem("wi-mod-side-page") || 8) || 8,
   onlyUpdates: false,
   selected: new Set(),
   lastCheck: "",
@@ -121,15 +128,40 @@ const UI = {
     loginHint: "Escribe tu usuario.", loginUser: "Usuario", loginPass: "Clave",
     loginKeep: "Guardar sesión 60 días", loginForgot: "Olvidé la clave", loginGo: "Entrar",
     bootLine: "olfateando la guarida…", pickGame: "Elegir juego", addGame: "Añadir juego",
+    download: "Descargar", downloadWait: "Pediendo descarga a Nexus…",
+    downloadOk: "Archivo guardado en mods/ del programa.",
+    downloadManual: "Abre Files en Nexus y descarga a mano.",
+    downloadNone: "Sin archivo local. Descarga para guardarlo en mods/{juego}/…",
+    downloadOne: "Local: {path}", downloadMany: "{n} archivos · {path}",
+    activeOn: "Activo", activeOff: "Inactivo",
+    activeTipOn: "Activo en el juego. Clic → .disabled",
+    activeTipOff: "Inactivo. Clic para activar",
+    gotOn: "Descargado", gotOff: "Sin descargar",
+    bulkEnable: "Activar", bulkDisable: "Desactivar",
+    packEnable: "Activar pack", packDisable: "Desactivar pack",
+    activeOk: "{n} activos.", inactiveOk: "{n} inactivos (.disabled).",
     addGameTitle: "Añadir juego (RAWG)", searchGame: "Buscar juego", launchGame: "Lanzar juego",
+    launchTitle: "Lanzador",
+    launchMissing: "Este juego no tiene lanzador vinculado. ¿Quieres que wi-mod lo busque solo o lo eliges a mano?",
+    launchAuto: "Detectar automáticamente", launchManual: "Elegir manualmente",
+    launchSearching: "Buscando en discos y carpetas (sin tocar carpetas del sistema)…",
+    launchNone: "No encontré nada parecido. Elige el .exe a mano.",
+    launchPick: "Encontré esto. Elige el correcto:",
+    launchSaved: "Lanzador guardado.", launchOk: "Abriendo el juego…",
+    launchPathPh: "Ruta del .exe o pegar steam://run/…",
+    launchNeedGame: "Elige un juego arriba.",
+    launchUnlinked: "Sin lanzador. Clic o Ctrl+Enter para vincular.",
+    launchLinked: "Lanzar juego (Ctrl+Enter). Mayús+clic para cambiar",
     searchMods: "Buscar mods", searchIn: "Buscar en {name}", menu: "Menú",
     platform: "Plataforma", modpack: "Modpack", category: "Categoría",
     createPack: "Crear modpack", addCategory: "Añadir categoría",
     hideNames: "Ocultar nombres", showNames: "Mostrar nombres", hide: "Ocultar", show: "Mostrar",
     dragWidth: "Arrastra el ancho", newVersion: "Versión nueva", selectAll: "Seleccionar todo",
-    layout: "Diseño", grid: "Cuadrícula", listView: "Listado", size: "Tamaño", sizeDown: "Achicar",
-    sizeReset: "Tamaño normal. Clic para volver a 1×", sizeUp: "Agrandar, máximo 1.5×",
-    sort: "Orden", sortAdded: "Recién guardados", sortUpdated: "Última actualización", sortName: "Nombre",
+    layout: "Diseño", grid: "Cuadrícula", listView: "Listado", size: "Tamaño",
+    sizeDown: "Achicar. Bajo 0.5× pasa a lista",
+    sizeReset: "Tamaño base 0.5×. Clic para volver", sizeUp: "Agrandar, máximo 1.5×",
+    sort: "Orden", sortAdded: "Recién guardados", sortDownloaded: "Recién descargados", sortUpdated: "Última actualización", sortName: "Nombre",
+    sideFilter: "Escribe para filtrar…", sidePage: "Página", sidePrev: "Anterior", sideNext: "Siguiente", sidePageSize: "Por página",
     assign: "Asignar", insidePack: "Dentro del pack", move: "Mover", refresh: "Actualizar",
     delete: "Eliminar", log: "Log", errors: "Errores", alerts: "Alertas", requests: "Peticiones",
     clear: "Limpiar", addMod: "Añadir mod", link: "Enlace",
@@ -163,8 +195,11 @@ const UI = {
     edit: "Editar", select: "Seleccionar", moveToPack: "Mover a modpack", quit: "Salir",
     quitAsk: "¿Cerrar wi-mod del todo o dejarlo en la bandeja?", remember: "Recordar opción",
     tray: "Bandeja", quitClose: "Cerrar", changeName: "Cambiar nombre", tutorial: "Tutorial",
-    keys: "Claves", sound: "Sonido", theme: "Tema", compress: "Comprimir", restore: "Restaurar",
-    key: "Clave", pasteKey: "Pega la clave", docs: "Documentación", tourExit: "Salir del tutorial",
+    settings: "Ajustes", keys: "Claves", sound: "Sonido", theme: "Tema", compress: "Comprimir", restore: "Restaurar",
+    key: "Clave", pasteKey: "Pega la clave", docs: "Documentación",
+    keyNeeded: "No tienes la clave de {name} instalada. Pégala aquí o sigue la guía.",
+    keyNeededShort: "Falta la clave de {name}.",
+    tourExit: "Salir del tutorial",
     next: "Siguiente", done: "Listo", allF: "Todas", allM: "Todos", noPack: "Sin modpack",
     noCats: "Sin categorías (usa +)", noDesc: "Sin descripción", hideCard: "Ocultar",
     showCard: "Mostrar", addDesc: "Añadir descripción",
@@ -174,8 +209,12 @@ const UI = {
     favOff: "Abrir siempre este juego", keyOn: "activa", keyOff: "falta",
     keysReady: "Todos los servicios activos", keysSome: "{ready} de {total} servicios activos",
     unmute: "Activar sonido", muteOn: "Silenciar", switchEn: "Cambiar a inglés", switchEs: "Cambiar a español",
-    online: "Online", offline: "Local", diskFree: "{n} libres", ramUse: "RAM {n}",
-    netDownTip: "Bajada", netUpTip: "Subida", diskTip: "Espacio libre en disco", ramTip: "Memoria RAM de wi-mod",
+    online: "Online", offline: "Local", diskFree: "{n} libres",
+    diskUsedFree: "{used} · {free} libres",
+    dockMods: "Mods {n}", dockFree: "Libre {n}", ramUse: "RAM {n}",
+    dockGameTip: "Juego activo",
+    diskModsTip: "Tamaño de los archivos de mods de este juego",
+    diskTip: "Espacio libre en el disco", ramTip: "Memoria RAM de wi-mod",
     qRawg: "🔄 Sincronizando RAWG…",
     qExtract: "📦 Extrayendo archivo…", qDown: "⬇️ Descargando mods…", qSync: "🔄 Sincronizando…",
     hideDock: "Ocultar barra", showDock: "Mostrar barra",
@@ -211,15 +250,40 @@ const UI = {
     loginHint: "Enter your username.", loginUser: "User", loginPass: "Password",
     loginKeep: "Stay signed in 60 days", loginForgot: "Forgot password", loginGo: "Sign in",
     bootLine: "sniffing the den…", pickGame: "Choose game", addGame: "Add game",
+    download: "Download", downloadWait: "Asking Nexus for the download…",
+    downloadOk: "File saved under the app mods/ folder.",
+    downloadManual: "Open Files on Nexus and download manually.",
+    downloadNone: "No local file. Download to save under mods/{game}/…",
+    downloadOne: "Local: {path}", downloadMany: "{n} files · {path}",
+    activeOn: "Active", activeOff: "Inactive",
+    activeTipOn: "Active in-game. Click → .disabled",
+    activeTipOff: "Inactive. Click to enable",
+    gotOn: "Downloaded", gotOff: "Not downloaded",
+    bulkEnable: "Enable", bulkDisable: "Disable",
+    packEnable: "Enable pack", packDisable: "Disable pack",
+    activeOk: "{n} enabled.", inactiveOk: "{n} disabled (.disabled).",
     addGameTitle: "Add game (RAWG)", searchGame: "Search games", launchGame: "Launch game",
+    launchTitle: "Launcher",
+    launchMissing: "This game has no launcher linked. Should wi-mod find it, or pick it yourself?",
+    launchAuto: "Detect automatically", launchManual: "Choose manually",
+    launchSearching: "Searching disks and folders (skipping OS system folders)…",
+    launchNone: "Nothing similar found. Pick the .exe yourself.",
+    launchPick: "Found these. Pick the right one:",
+    launchSaved: "Launcher saved.", launchOk: "Opening the game…",
+    launchPathPh: "Path to .exe or paste steam://run/…",
+    launchNeedGame: "Pick a game above.",
+    launchUnlinked: "No launcher. Click or Ctrl+Enter to link.",
+    launchLinked: "Launch game (Ctrl+Enter). Shift+click to change",
     searchMods: "Search mods", searchIn: "Search {name}", menu: "Menu",
     platform: "Platform", modpack: "Modpack", category: "Category",
     createPack: "Create modpack", addCategory: "Add category",
     hideNames: "Hide names", showNames: "Show names", hide: "Hide", show: "Show",
     dragWidth: "Drag to resize", newVersion: "New version", selectAll: "Select all",
-    layout: "Layout", grid: "Grid", listView: "List", size: "Size", sizeDown: "Smaller",
-    sizeReset: "Normal size. Click to reset to 1×", sizeUp: "Larger, max 1.5×",
-    sort: "Sort", sortAdded: "Recently saved", sortUpdated: "Last update", sortName: "Name",
+    layout: "Layout", grid: "Grid", listView: "List", size: "Size",
+    sizeDown: "Smaller. Below 0.5× switches to list",
+    sizeReset: "Base size 0.5×. Click to reset", sizeUp: "Larger, max 1.5×",
+    sort: "Sort", sortAdded: "Recently saved", sortDownloaded: "Recently downloaded", sortUpdated: "Last update", sortName: "Name",
+    sideFilter: "Type to filter these…", sidePage: "Page", sidePrev: "Previous", sideNext: "Next", sidePageSize: "Per page",
     assign: "Assign", insidePack: "Inside the pack", move: "Move", refresh: "Refresh",
     delete: "Delete", log: "Log", errors: "Errors", alerts: "Alerts", requests: "Requests",
     clear: "Clear", addMod: "Add mod", link: "Link",
@@ -253,8 +317,11 @@ const UI = {
     edit: "Edit", select: "Select", moveToPack: "Move to modpack", quit: "Quit",
     quitAsk: "Close wi-mod fully or leave it in the tray?", remember: "Remember choice",
     tray: "Tray", quitClose: "Close", changeName: "Change name", tutorial: "Tutorial",
-    keys: "Keys", sound: "Sound", theme: "Theme", compress: "Compress", restore: "Restore",
-    key: "Key", pasteKey: "Paste the key", docs: "Docs", tourExit: "Exit tutorial",
+    settings: "Settings", keys: "Keys", sound: "Sound", theme: "Theme", compress: "Compress", restore: "Restore",
+    key: "Key", pasteKey: "Paste the key", docs: "Docs",
+    keyNeeded: "You do not have the {name} key installed. Paste it here or open the guide.",
+    keyNeededShort: "Missing {name} key.",
+    tourExit: "Exit tutorial",
     next: "Next", done: "Done", allF: "All", allM: "All", noPack: "No modpack",
     noCats: "No categories (use +)", noDesc: "No description", hideCard: "Hide",
     showCard: "Show", addDesc: "Add description",
@@ -264,8 +331,12 @@ const UI = {
     favOff: "Always open this game", keyOn: "on", keyOff: "off",
     keysReady: "All services active", keysSome: "{ready} of {total} services active",
     unmute: "Unmute", muteOn: "Mute", switchEn: "Switch to English", switchEs: "Switch to Spanish",
-    online: "Online", offline: "Local", diskFree: "{n} free", ramUse: "RAM {n}",
-    netDownTip: "Download", netUpTip: "Upload", diskTip: "Free disk space", ramTip: "wi-mod RAM usage",
+    online: "Online", offline: "Local", diskFree: "{n} free",
+    diskUsedFree: "{used} · {free} free",
+    dockMods: "Mods {n}", dockFree: "Free {n}", ramUse: "RAM {n}",
+    dockGameTip: "Active game",
+    diskModsTip: "Size of this game's mod files",
+    diskTip: "Free disk space", ramTip: "wi-mod RAM usage",
     qRawg: "🔄 Syncing RAWG…",
     qExtract: "📦 Extracting archive…", qDown: "⬇️ Downloading mods…", qSync: "🔄 Syncing…",
     hideDock: "Hide bar", showDock: "Show bar",
@@ -339,6 +410,7 @@ function paintChrome() {
   }
   const gameSearch = document.querySelector(".game-menu-search");
   if (gameSearch) gameSearch.placeholder = t("searchGame");
+  paintGamePlay();
 }
 
 
@@ -764,42 +836,42 @@ function fmtDisk(bytes) {
   return `${Math.max(0, Math.round(bytes / (1024 ** 2)))} MB`;
 }
 
-function fmtRate(bps) {
-  const n = Number(bps) || 0;
-  if (n < 1024) return `${Math.round(n)} B/s`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB/s`;
-  return `${(n / 1024 / 1024).toFixed(1)} MB/s`;
+function gameModsBytes() {
+  return scopedMods().reduce((sum, mod) => {
+    for (const file of mod.files || []) sum += Number(file.size) || 0;
+    return sum;
+  }, 0);
 }
 
 function paintDockStats(data) {
   if (data) lastStatus = data;
   const info = lastStatus || {};
-  const net = $("dock-net");
-  const down = $("dock-down");
-  const up = $("dock-up");
-  if (net) {
-    const on = info.online !== false && (info.online === true || navigator.onLine);
-    net.classList.toggle("on", on);
-    net.classList.toggle("off", !on);
-    if (down) down.dataset.tip = t("netDownTip");
-    if (up) up.dataset.tip = t("netUpTip");
-    if (!on) {
-      if (down) down.textContent = t("offline");
-      if (up) up.textContent = "";
-    } else {
-      if (down) down.textContent = `↓ ${fmtRate(info.downBps)}`;
-      if (up) up.textContent = `↑ ${fmtRate(info.upBps)}`;
-    }
+  const game = $("dock-game");
+  if (game) {
+    const name = state.game ? gameLabel(state.game) : "—";
+    game.textContent = name;
+    game.dataset.tip = t("dockGameTip");
+    game.title = name;
+  }
+  const mods = $("dock-mods");
+  if (mods) {
+    mods.dataset.tip = t("diskModsTip");
+    mods.textContent = t("dockMods", { n: fmtDisk(gameModsBytes()) });
   }
   const disk = $("dock-disk");
   if (disk) {
     disk.dataset.tip = t("diskTip");
-    if (Number(info.diskFreeBytes) > 0) {
-      const free = Number(info.diskFreeBytes);
+    const free = Number(info.diskFreeBytes) || 0;
+    if (free > 0) {
       const gb = free / (1024 ** 3);
-      disk.textContent = t("diskFree", { n: fmtDisk(free) });
+      disk.textContent = t("dockFree", { n: fmtDisk(free) });
+      disk.hidden = false;
       disk.classList.toggle("warn", gb < 5 && gb >= 2);
       disk.classList.toggle("bad", gb < 2);
+    } else {
+      disk.textContent = "—";
+      disk.hidden = true;
+      disk.classList.remove("warn", "bad");
     }
   }
   const ram = $("dock-ram");
@@ -820,9 +892,6 @@ async function pollDock() {
     paintDockStats(await res.json());
   } catch {
     paintDockStats({
-      online: navigator.onLine,
-      downBps: lastStatus?.downBps || 0,
-      upBps: lastStatus?.upBps || 0,
       diskFreeBytes: lastStatus?.diskFreeBytes || 0,
       ramBytes: lastStatus?.ramBytes || 0,
     });
@@ -1227,6 +1296,22 @@ function renderGameScope() {
     }
   }
   paintGameMenu();
+  paintGamePlay();
+}
+
+function gameHasLauncher(game) {
+  const row = game || catalogGame(state.game) || {};
+  return Boolean(String(row.launchPath || "").trim() || Number(row.steamAppId) > 0);
+}
+
+function paintGamePlay() {
+  const btn = $("game-play");
+  if (!btn) return;
+  const linked = gameHasLauncher();
+  btn.classList.toggle("need", !linked);
+  const tip = linked ? t("launchLinked") : t("launchUnlinked");
+  btn.title = tip;
+  btn.setAttribute("aria-label", tip);
 }
 
 function selectGame(domain) {
@@ -1359,7 +1444,12 @@ function packHeroStrip() {
   const text = desc
     ? `<p class="pack-hero-desc">${esc(desc)}</p>`
     : `<button type="button" class="pack-hero-desc pack-hero-add" id="pack-desc-add">${esc(t("addDesc"))}</button>`;
-  return `<div class="pack-hero">${icon}<div><p class="pack-hero-kicker">Modpack</p><p class="pack-hero-name">${esc(pack.name || "")}</p>${text}</div></div>`;
+  return `<div class="pack-hero">${icon}<div><p class="pack-hero-kicker">Modpack</p><p class="pack-hero-name">${esc(pack.name || "")}</p>${text}
+    <div class="pack-hero-actions">
+      <button type="button" class="ghost" id="pack-enable">${esc(t("packEnable"))}</button>
+      <button type="button" class="ghost" id="pack-disable">${esc(t("packDisable"))}</button>
+    </div>
+  </div></div>`;
 }
 
 function bindPackDesc() {
@@ -1371,6 +1461,52 @@ function bindPackDesc() {
     editModpack(state.modpack);
     $("mp-notes")?.focus();
   };
+  const enable = $("pack-enable");
+  const disable = $("pack-disable");
+  if (enable) enable.onclick = () => setPackActive(true);
+  if (disable) disable.onclick = () => setPackActive(false);
+}
+
+async function setPackActive(active) {
+  if (!state.modpack) return;
+  try {
+    const data = await api("/api/mods/active", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ modpackId: state.modpack, active: Boolean(active) }),
+    });
+    toast(active ? t("activeOk", { n: data.count || 0 }) : t("inactiveOk", { n: data.count || 0 }));
+    sfx.ok();
+    await load();
+  } catch (error) {
+    toast(error.message, "bad");
+    sfx.err();
+  }
+}
+
+async function setMarkedActive(active) {
+  const ids = [...state.selected];
+  if (!ids.length) {
+    toast(t("pickFirst"), "warn");
+    return;
+  }
+  const button = active ? $("bulk-enable") : $("bulk-disable");
+  setLoading(button, true, "…");
+  try {
+    const data = await api("/api/mods/active", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids, active: Boolean(active) }),
+    });
+    toast(active ? t("activeOk", { n: data.count || 0 }) : t("inactiveOk", { n: data.count || 0 }));
+    sfx.ok();
+    await load();
+  } catch (error) {
+    toast(error.message, "bad");
+    sfx.err();
+  } finally {
+    setLoading(button, false);
+  }
 }
 
 function scopedMods() {
@@ -1419,8 +1555,13 @@ function visible() {
     const blob = `${mod.name} ${mod.author} ${mod.gameName} ${mod.category} ${mod.categoryEs || ""} ${mod.platform} ${packLabel(mod)} ${mod.summary} ${mod.summaryEs || ""} ${mod.techNotes || ""} ${mod.compatNotes || ""} ${mod.notes || ""}`.toLowerCase();
     return blob.includes(q);
   });
+  const lastDownload = (mod) => {
+    const stamps = (mod.files || []).map((file) => String(file.addedAt || "")).filter(Boolean);
+    return stamps.length ? stamps.sort().at(-1) : "";
+  };
   const by = {
     added: (a, b) => String(b.addedAt).localeCompare(String(a.addedAt)),
+    downloaded: (a, b) => lastDownload(b).localeCompare(lastDownload(a)) || String(b.addedAt).localeCompare(String(a.addedAt)),
     updated: (a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")),
     name: (a, b) => String(a.name).localeCompare(String(b.name), "es"),
   };
@@ -1439,6 +1580,7 @@ function clearFilters() {
   state.category = "";
   state.files = "all";
   state.query = "";
+  Object.keys(state.sideNav).forEach((key) => { state.sideNav[key] = { q: "", page: 1 }; });
   if ($("search")) $("search").value = "";
 }
 
@@ -1531,6 +1673,103 @@ function gameKey(mod) {
   return mod.gameDomain || "";
 }
 
+const SIDE_PAGE_SIZES = [5, 8, 15, 30];
+
+function sidePageSize() {
+  const n = Number(state.sidePageSize) || 8;
+  return SIDE_PAGE_SIZES.includes(n) ? n : 8;
+}
+
+function sidePaged(key, items, labelOf) {
+  if (!state.sideNav[key]) state.sideNav[key] = { q: "", page: 1 };
+  const nav = state.sideNav[key];
+  const q = String(nav.q || "").trim().toLowerCase();
+  const filtered = !q ? items.slice() : items.filter((item) => String(labelOf(item) || "").toLowerCase().includes(q));
+  const size = sidePageSize();
+  const pages = Math.max(1, Math.ceil(filtered.length / size) || 1);
+  nav.page = Math.min(Math.max(1, Number(nav.page) || 1), pages);
+  const start = (nav.page - 1) * size;
+  const shown = filtered.slice(start, start + size);
+  const need = items.length > size;
+  if (!need) {
+    nav.q = "";
+    nav.page = 1;
+    return { shown: items, navHtml: "" };
+  }
+  const sizes = SIDE_PAGE_SIZES.map((n) => (
+    `<option value="${n}"${n === size ? " selected" : ""}>${n}</option>`
+  )).join("");
+  const navHtml = `<div class="side-nav" data-side="${esc(key)}">
+    <input type="search" class="side-nav-q" data-side="${esc(key)}" placeholder="${esc(t("sideFilter"))}" value="${esc(nav.q || "")}" autocomplete="off" spellcheck="false" aria-label="${esc(t("sideFilter"))}">
+    <div class="side-nav-pager">
+      <label class="side-nav-size-wrap" title="${esc(t("sidePageSize"))}">
+        <select class="side-nav-size" data-side="${esc(key)}" aria-label="${esc(t("sidePageSize"))}">${sizes}</select>
+      </label>
+      <input type="number" class="side-nav-page" data-side="${esc(key)}" min="1" max="${pages}" value="${nav.page}" aria-label="${esc(t("sidePage"))}">
+      <span class="side-nav-of">/ ${pages}</span>
+      <button type="button" class="side-nav-prev" data-side="${esc(key)}" ${nav.page <= 1 ? "disabled" : ""} title="${esc(t("sidePrev"))}">«</button>
+      <button type="button" class="side-nav-next" data-side="${esc(key)}" ${nav.page >= pages ? "disabled" : ""} title="${esc(t("sideNext"))}">»</button>
+    </div>
+  </div>`;
+  return { shown, navHtml };
+}
+
+function bindSideNavControls() {
+  const refocus = (side, cls, caret) => {
+    const again = document.querySelector(`.${cls}[data-side="${side}"]`);
+    if (!again) return;
+    again.focus();
+    if (typeof caret === "number" && again.setSelectionRange) again.setSelectionRange(caret, caret);
+  };
+  document.querySelectorAll(".side-nav-q").forEach((input) => {
+    input.oninput = () => {
+      const side = input.dataset.side;
+      state.sideNav[side] = state.sideNav[side] || { q: "", page: 1 };
+      state.sideNav[side].q = input.value;
+      state.sideNav[side].page = 1;
+      const caret = input.selectionStart;
+      renderFilters();
+      refocus(side, "side-nav-q", caret);
+    };
+  });
+  document.querySelectorAll(".side-nav-page").forEach((input) => {
+    input.onchange = () => {
+      const side = input.dataset.side;
+      state.sideNav[side] = state.sideNav[side] || { q: "", page: 1 };
+      state.sideNav[side].page = Math.max(1, Number(input.value) || 1);
+      renderFilters();
+    };
+  });
+  document.querySelectorAll(".side-nav-size").forEach((select) => {
+    select.onchange = () => {
+      state.sidePageSize = Number(select.value) || 8;
+      localStorage.setItem("wi-mod-side-page", String(state.sidePageSize));
+      Object.keys(state.sideNav).forEach((key) => { state.sideNav[key].page = 1; });
+      renderFilters();
+    };
+  });
+  document.querySelectorAll(".side-nav-prev").forEach((button) => {
+    button.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const side = button.dataset.side;
+      state.sideNav[side] = state.sideNav[side] || { q: "", page: 1 };
+      state.sideNav[side].page = Math.max(1, (state.sideNav[side].page || 1) - 1);
+      renderFilters();
+    };
+  });
+  document.querySelectorAll(".side-nav-next").forEach((button) => {
+    button.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const side = button.dataset.side;
+      state.sideNav[side] = state.sideNav[side] || { q: "", page: 1 };
+      state.sideNav[side].page = (state.sideNav[side].page || 1) + 1;
+      renderFilters();
+    };
+  });
+}
+
 function renderFilters() {
   renderGameScope();
   if (state.modpack) {
@@ -1553,20 +1792,23 @@ function renderFilters() {
     label: name,
     count: scopedMods().filter((mod) => (mod.platform || "Nexus") === name).length,
   }));
-  $("platforms").innerHTML = chip(t("allF"), "", state.platform, "platform") + platformMap.map((row) => (
+  const platformPage = sidePaged("platforms", platformMap, (row) => row.label);
+  $("platforms").innerHTML = platformPage.navHtml + chip(t("allF"), "", state.platform, "platform") + platformPage.shown.map((row) => (
     chip(`${row.label} (${row.count})`, row.id, state.platform, "platform")
   )).join("");
 
   const gamePacks = packsForGame();
-  const packChips = gamePacks.map((pack) => {
+  const packPage = sidePaged("modpacks", gamePacks, (pack) => pack.name);
+  const packChips = packPage.shown.map((pack) => {
     const n = scopedMods().filter((mod) => mod.modpackId === pack.id).length;
     return chip(`${pack.name} (${n})`, pack.id, state.modpack, "modpack");
   });
   let inside = "";
   if (state.modpack) {
     const pack = packById(state.modpack);
-    const cats = pack ? (pack.categories || []) : [];
-    const rows = cats.map((cat) => {
+    const packCats = pack ? (pack.categories || []) : [];
+    const catPage = sidePaged("packcats", packCats, (cat) => cat.name);
+    const rows = catPage.shown.map((cat) => {
       const n = scopedMods().filter((mod) => mod.modpackId === pack.id && mod.modpackCategoryId === cat.id).length;
       const icon = markIcon("packcat", cat.id, { emoji: cat.emoji, imageUrl: cat.imageUrl });
       return `<button type="button" class="pack-cat-chip ${cat.id === state.packCat ? "on" : ""}" data-kind="packCat" data-value="${encodeURIComponent(cat.id)}" title="${esc(cat.name)}">${icon}<span class="side-initial">${esc(sideInitial(cat.name))}</span><span>${esc(cat.name)} (${n})</span></button>`;
@@ -1576,17 +1818,18 @@ function renderFilters() {
         <p class="side-label">Dentro del pack</p>
         <button type="button" class="side-add" data-add="packcat" title="Añadir categoría">+</button>
       </div>
-      ${chip(t("allF"), "", state.packCat, "packCat")}${rows}
+      ${catPage.navHtml}${chip(t("allF"), "", state.packCat, "packCat")}${rows}
     </div>`;
   }
-  $("modpacks").innerHTML = chip(t("allM"), "", state.modpack, "modpack") + packChips.join("") + inside;
+  $("modpacks").innerHTML = packPage.navHtml + chip(t("allM"), "", state.modpack, "modpack") + packChips.join("") + inside;
 
   const cats = counts((mod) => mod.category || "General");
   (state.catalog.categories || []).forEach((name) => {
     if (!cats.some((row) => row.id === name)) cats.push({ id: name, label: name, count: 0 });
   });
   cats.sort((a, b) => a.label.localeCompare(b.label, "es"));
-  $("categories").innerHTML = chip(t("allF"), "", state.category, "category") + cats.map((row) => (
+  const catsPage = sidePaged("categories", cats, (row) => `${categoryLabel(row.id)} ${row.label}`);
+  $("categories").innerHTML = catsPage.navHtml + chip(t("allF"), "", state.category, "category") + catsPage.shown.map((row) => (
     chip(`${categoryLabel(row.id)} (${row.count})`, row.id, state.category, "category")
   )).join("");
   const foldCount = (id, n) => {
@@ -1686,6 +1929,7 @@ function renderFilters() {
       sideAdd(button.dataset.add);
     };
   });
+  bindSideNavControls();
 }
 
 async function sideAdd(kind) {
@@ -2168,14 +2412,25 @@ function shot(mod) {
   return "";
 }
 
+const SCALE_MIN = 0.1;
+const SCALE_MAX = 1.5;
+const SCALE_DEFAULT = 0.5;
+
 function cardScale() {
   const n = Number(state.cardScale);
-  if (!Number.isFinite(n)) return 1;
-  return Math.min(1.5, Math.max(0.5, Math.round(n * 10) / 10));
+  if (!Number.isFinite(n)) return SCALE_DEFAULT;
+  return Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round(n * 10) / 10));
+}
+
+function scaleMode(scale = cardScale()) {
+  if (scale <= 0.2) return "dense";
+  if (scale <= 0.4) return "list";
+  return "grid";
 }
 
 function visualScale(scale) {
-  const n = Math.min(1.5, Math.max(0.5, scale));
+  const n = Math.min(SCALE_MAX, Math.max(SCALE_MIN, scale));
+  if (n <= 0.4) return 0.32 + ((n - SCALE_MIN) / 0.3) * 0.5;
   if (n <= 1) return 0.78 + (n - 0.5) * 0.2;
   return 0.88 + (n - 1) * 0.34;
 }
@@ -2183,8 +2438,11 @@ function visualScale(scale) {
 function syncViewToggle() {
   const grid = $("grid");
   const scale = cardScale();
+  const mode = scaleMode(scale);
+  state.view = mode === "grid" ? "grid" : "list";
   if (grid) {
-    grid.classList.toggle("list", state.view === "list");
+    grid.classList.toggle("list", mode !== "grid");
+    grid.classList.toggle("dense", mode === "dense");
     grid.classList.remove("size-sm", "size-md", "size-lg");
     grid.style.setProperty("--card-scale", String(visualScale(scale)));
     grid.classList.toggle("picking", state.picking);
@@ -2196,19 +2454,33 @@ function syncViewToggle() {
   if (label) {
     const text = `${scale}×`;
     label.textContent = text;
-    label.classList.toggle("on", scale === 1);
-    label.title = scale === 1 ? "Tamaño normal" : `${text}. Clic para volver a 1×`;
+    label.classList.toggle("on", scale === SCALE_DEFAULT);
+    label.title = scale === SCALE_DEFAULT ? t("sizeReset") : `${text}. ${t("sizeReset")}`;
   }
   const down = $("size-down");
   const up = $("size-up");
-  if (down) down.disabled = scale <= 0.5;
-  if (up) up.disabled = scale >= 1.5;
+  if (down) {
+    down.disabled = scale <= SCALE_MIN;
+    down.title = t("sizeDown");
+  }
+  if (up) {
+    up.disabled = scale >= SCALE_MAX;
+    up.title = t("sizeUp");
+  }
 }
 
 function setView(view) {
+  sfx.click();
+  if (view === "list" && scaleMode() === "grid") {
+    setCardScale(0.4, true);
+    return;
+  }
+  if (view === "grid" && scaleMode() !== "grid") {
+    setCardScale(SCALE_DEFAULT, true);
+    return;
+  }
   state.view = view === "list" ? "list" : "grid";
   localStorage.setItem("wi-mod-view", state.view);
-  sfx.click();
   syncViewToggle();
 }
 
@@ -2234,9 +2506,6 @@ function paintSelection() {
     const on = state.selected.has(card.dataset.id);
     card.classList.toggle("on", on);
     card.draggable = on;
-  });
-  document.querySelectorAll("#grid [data-check]").forEach((box) => {
-    box.checked = state.selected.has(box.dataset.check);
   });
   paintPickAll();
   paintBulk();
@@ -2333,6 +2602,11 @@ function installLibraryKeys() {
       pasteMarked().catch((error) => toast(error.message, "bad"));
       return;
     }
+    if (ctrl && key === "enter") {
+      event.preventDefault();
+      playActiveGame(event);
+      return;
+    }
     if (event.key === "Delete" && state.selected.size) {
       event.preventDefault();
       deleteMarked();
@@ -2412,6 +2686,23 @@ function dragIdsFor(id) {
 
 let dragGhost = null;
 
+const MOD_BOX_ICO = `<svg class="shot-box-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z"/><path d="M12 12v8M4 8l8 4 8-4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M4 8l8 4 8-4" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>`;
+
+function paintMultiShot(shotEl, domain) {
+  if (!shotEl) return;
+  const cover = gameCover(domain);
+  const label = shotEl.querySelector("span");
+  if (label) label.textContent = gameLabel(domain) || t("gameWord");
+  shotEl.querySelector(".shot-box-ico")?.remove();
+  shotEl.classList.toggle("shot-box", !cover);
+  if (cover) {
+    shotEl.style.backgroundImage = `url(${JSON.stringify(cover)})`;
+  } else {
+    shotEl.style.backgroundImage = "";
+    shotEl.insertAdjacentHTML("afterbegin", MOD_BOX_ICO);
+  }
+}
+
 function showDragGhost(card, count, x, y) {
   hideDragGhost(true);
   const rect = card.getBoundingClientRect();
@@ -2424,6 +2715,10 @@ function showDragGhost(card, count, x, y) {
   copy.style.height = "100%";
   copy.style.minHeight = "0";
   copy.style.margin = "0";
+  if (count > 1) {
+    const mod = state.mods.find((item) => item.id === card.dataset.id);
+    paintMultiShot(copy.querySelector(".shot"), mod?.gameDomain || state.game);
+  }
   const wrap = document.createElement("div");
   wrap.id = "drag-ghost";
   wrap.style.left = `${rect.left}px`;
@@ -2433,7 +2728,7 @@ function showDragGhost(card, count, x, y) {
   wrap.style.transform = "translate(0px, 0px) scale(1)";
   const chip = document.createElement("span");
   chip.className = "drag-count";
-  chip.textContent = count === 1 ? "1 mod" : `${count} mods`;
+  chip.textContent = count === 1 ? "1 mod" : t("modsN", { n: count });
   wrap.append(copy, chip);
   document.body.appendChild(wrap);
   const pointerX = x || rect.left + rect.width / 2;
@@ -2586,10 +2881,13 @@ async function dropMarked(kind, value, ids) {
 }
 
 function setCardScale(next, quiet) {
-  const value = Math.min(1.5, Math.max(0.5, Math.round(Number(next) * 10) / 10));
+  const value = Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round(Number(next) * 10) / 10));
   if (value === cardScale()) return;
   state.cardScale = value;
+  const mode = scaleMode(value);
+  state.view = mode === "grid" ? "grid" : "list";
   localStorage.setItem("wi-mod-scale", String(value));
+  localStorage.setItem("wi-mod-view", state.view);
   if (!quiet) sfx.click();
   syncViewToggle();
 }
@@ -2612,7 +2910,7 @@ function paintBulk() {
 
 const MOD_STATUS = [
   ["got", "Descargado", "Sin descargar"],
-  ["in", "Instalado", "No instalado"],
+  ["in", "Activo", "Inactivo"],
 ];
 
 function statusOn(mod, id) {
@@ -2620,10 +2918,11 @@ function statusOn(mod, id) {
 }
 
 function statusPicks(mod) {
-  return `<span class="status-picks">${MOD_STATUS.map(([id, onLabel, offLabel]) => {
+  return `<span class="status-picks">${MOD_STATUS.map(([id]) => {
     const on = statusOn(mod, id);
-    const label = on ? onLabel : offLabel;
-    return `<button type="button" class="status-pick ${on ? "on" : ""}" data-status="${id}" title="${label}">${label}</button>`;
+    const label = id === "in" ? (on ? t("activeOn") : t("activeOff")) : (on ? t("gotOn") : t("gotOff"));
+    const tip = id === "in" ? (on ? t("activeTipOn") : t("activeTipOff")) : label;
+    return `<button type="button" class="status-pick ${on ? "on" : ""}" data-status="${id}" title="${esc(tip)}">${esc(label)}</button>`;
   }).join("")}</span>`;
 }
 
@@ -2654,8 +2953,10 @@ async function setModStatus(id, status) {
   if (flags.has(status)) flags.delete(status);
   else flags.add(status);
   const next = ["got", "in"].filter((part) => flags.has(part)).join("+");
+  const prev = mod.status;
   mod.status = next;
-  render();
+  paintSelection();
+  document.querySelector(`.card[data-id="${id}"]`)?.classList.toggle("inactive", !statusOn(mod, "in") && (mod.files || []).length > 0);
   try {
     const data = await api(`/api/mods/${id}`, {
       method: "PATCH",
@@ -2663,8 +2964,14 @@ async function setModStatus(id, status) {
       body: JSON.stringify({ status: next }),
     });
     if (data.mod) Object.assign(mod, data.mod);
+    if (status === "in") {
+      toast(statusOn(mod, "in") ? t("activeOk", { n: 1 }) : t("inactiveOk", { n: 1 }));
+    }
+    render();
   } catch (error) {
+    mod.status = prev;
     toast(error.message, "bad");
+    render();
   }
 }
 
@@ -2701,6 +3008,7 @@ function render() {
   paintBulk();
   paintSearchPlatform();
   paintUpdateBanner();
+  paintDockStats();
   const mods = visible();
   $("count").textContent = "";
   if (!mods.length) {
@@ -2717,7 +3025,7 @@ function render() {
     return;
   }
   $("grid").innerHTML = mods.map((mod, index) => `
-    <article class="card ${state.selected.has(mod.id) ? "on" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 35}ms">
+    <article class="card ${state.selected.has(mod.id) ? "on" : ""} ${!statusOn(mod, "in") && (mod.files || []).length ? "inactive" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 35}ms">
       <div class="shot" ${shot(mod)}><span>${esc(mod.gameName || mod.gameDomain || "Juego")}</span></div>
       <div class="card-body">
         <h3>${esc(mod.name)}${mod.updateAvailable ? `<span class="ver-new">${esc(t("newTag"))}</span>` : ""}</h3>
@@ -2727,7 +3035,6 @@ function render() {
       <footer>
         ${statusPicks(mod)}
         ${packMoves()}
-        <label class="check"><input type="checkbox" data-check="${mod.id}" ${state.selected.has(mod.id) ? "checked" : ""}> marcar</label>
         <span class="meta">${esc(fmtDate(mod.updatedAt))}</span>
       </footer>
     </article>
@@ -2795,12 +3102,6 @@ function render() {
       openModMenu(card.dataset.id, event.clientX, event.clientY);
     };
   });
-  document.querySelectorAll("[data-check]").forEach((box) => {
-    box.onclick = (event) => {
-      event.stopPropagation();
-      pickClick(box.dataset.check, { ctrlKey: true, shiftKey: event.shiftKey, metaKey: event.metaKey });
-    };
-  });
 }
 
 async function ensurePastedGame(domain, name) {
@@ -2858,6 +3159,17 @@ async function detect() {
   const status = $("add-status");
   status.className = "status";
   const page = $("add-url").value;
+  const needKey = (() => {
+    const id = keyIdForUrl(page);
+    return id === "nexus" || id === "curseforge" ? id : "";
+  })();
+  if (needKey && !ensureServiceKey(needKey)) {
+    status.className = "status bad";
+    status.textContent = t("keyNeededShort", {
+      name: (KEY_POPS[needKey]?.label || needKey).replace(/^Clave\s+/i, ""),
+    });
+    return;
+  }
   status.textContent = isNexusUrl(page)
     ? "Olfateando Nexus…"
     : (/modrinth\.com/i.test(page) ? "Olfateando Modrinth…"
@@ -2892,6 +3204,7 @@ async function detect() {
     $("manual").hidden = false;
     status.className = "status bad";
     status.textContent = error.message;
+    maybePromptKeyError(error);
     sfx.err();
   } finally {
     setLoading(button, false);
@@ -3069,10 +3382,12 @@ function openDetail(id) {
     <label>Nota
       <textarea id="detail-note" rows="3" placeholder="Nota de este mod">${esc(mod.notes || "")}</textarea>
     </label>
+    <p class="hint" id="detail-files">${esc(filesHint(mod))}</p>
     <footer>
       <button class="danger" type="button" id="detail-delete">Eliminar</button>
       <span class="row">
         <span id="detail-refresh-slot">${refreshButton(mod)}</span>
+        <button class="ghost" type="button" id="detail-download" data-i18n="download">Descargar</button>
         <button class="solid" type="button" id="detail-save">Guardar</button>
       </span>
     </footer>`;
@@ -3096,32 +3411,43 @@ function openDetail(id) {
   $("detail-save").onclick = () => saveDetail(mod.id);
   const refresh = $("detail-refresh");
   if (refresh) refresh.onclick = () => refreshOne(mod.id);
+  $("detail-download").onclick = () => downloadMod(mod.id);
   $("detail-delete").onclick = () => removeMod(mod.id);
   $("detail").dataset.id = mod.id;
   probeUpdate(mod.id);
+}
+
+function filesHint(mod) {
+  const files = mod.files || [];
+  if (!files.length) return t("downloadNone");
+  const first = files[0]?.storedAs || files[0]?.name || "";
+  if (files.length === 1) return t("downloadOne", { path: first });
+  return t("downloadMany", { n: files.length, path: first });
 }
 
 async function downloadMod(id) {
   const button = $("detail-download");
   setLoading(button, true, "Descargando");
   sfx.sniff();
-  toast("Pediendo descarga a Nexus…", "warn");
+  toast(t("downloadWait"), "warn");
   try {
     const data = await api(`/api/mods/${id}/download`, { method: "POST" });
     if (data.ok) {
-      toast("Archivo guardado en la biblioteca.");
+      toast(t("downloadOk"));
+      sfx.ok();
       await load();
       openDetail(id);
       return;
     }
     if (data.filesUrl) window.open(data.filesUrl, "_blank", "noreferrer");
-    toast(data.error || "Abre Files en Nexus y adjunta el archivo.", "warn");
+    toast(data.error || t("downloadManual"), "warn");
     if (data.mod) {
       await load();
       openDetail(id);
     }
   } catch (error) {
     toast(error.message, "bad");
+    sfx.err();
   } finally {
     setLoading(button, false);
   }
@@ -3404,6 +3730,10 @@ async function searchRawgGames(query) {
     box.innerHTML = `<p class="hint">${esc(t("type2"))}</p>`;
     return;
   }
+  if (!ensureServiceKey("rawg")) {
+    box.innerHTML = `<p class="hint">${esc(t("keyNeededShort", { name: "RAWG" }))}</p>`;
+    return;
+  }
   box.innerHTML = `<p class="hint">${esc(t("searching"))}</p>`;
   try {
     const data = await api(`/api/rawg/search?q=${encodeURIComponent(q)}`);
@@ -3426,12 +3756,14 @@ async function searchRawgGames(query) {
       button.onclick = () => addRawgGame(button.dataset.rawgAdd, button);
     });
   } catch (error) {
+    maybePromptKeyError(error);
     box.innerHTML = `<p class="hint">${esc(error.message)}</p>`;
   }
 }
 
 async function addRawgGame(rawgId, button) {
   if (!rawgId) return;
+  if (!ensureServiceKey("rawg")) return;
   setLoading(button, true, "…");
   try {
     const data = await api("/api/rawg/add", {
@@ -3451,7 +3783,7 @@ async function addRawgGame(rawgId, button) {
     await load();
     $("game-dialog").close();
   } catch (error) {
-    toast(error.message, "bad");
+    if (!maybePromptKeyError(error)) toast(error.message, "bad");
   } finally {
     setLoading(button, false);
   }
@@ -3537,6 +3869,24 @@ function placePop(pop, anchor) {
   pop.style.left = `${left}px`;
   pop.style.top = `${top}px`;
 }
+function setSettingsOpen(on) {
+  const wrap = $("more-settings");
+  const panel = $("settings-panel");
+  const toggle = $("settings-toggle");
+  if (!wrap || !panel || !toggle) return;
+  wrap.classList.toggle("open", on);
+  panel.hidden = !on;
+  toggle.setAttribute("aria-expanded", on ? "true" : "false");
+}
+if ($("settings-toggle")) {
+  $("settings-toggle").onclick = (event) => {
+    event.stopPropagation();
+    const open = $("settings-panel")?.hidden !== false;
+    setSettingsOpen(open);
+    if (open) sfx.click();
+    else sfx.soft();
+  };
+}
 $("more-open").onclick = (event) => {
   event.stopPropagation();
   rollAvatar();
@@ -3545,7 +3895,10 @@ $("more-open").onclick = (event) => {
   pop.hidden = !open;
   $("tape-pop").hidden = true;
   event.currentTarget.setAttribute("aria-expanded", open ? "true" : "false");
-  if (!open) return;
+  if (!open) {
+    setSettingsOpen(false);
+    return;
+  }
   sfx.open();
   placePop(pop, event.currentTarget);
 };
@@ -3554,6 +3907,7 @@ $("tape-open").onclick = (event) => {
   $("more-pop").hidden = true;
   $("tape-pop").hidden = true;
   $("more-open").setAttribute("aria-expanded", "false");
+  setSettingsOpen(false);
   openPackDialog();
 };
 document.addEventListener("pointerdown", (event) => {
@@ -3564,6 +3918,7 @@ document.addEventListener("pointerdown", (event) => {
   if (more && !more.hidden && !inMore && !inTape) {
     more.hidden = true;
     $("more-open").setAttribute("aria-expanded", "false");
+    setSettingsOpen(false);
   }
   if (tape && !tape.hidden && !inTape) tape.hidden = true;
 });
@@ -3773,6 +4128,8 @@ $("move-form").onsubmit = async (event) => {
 
 $("bulk-cat").onclick = () => assignMarked("category");
 $("bulk-move").onclick = () => assignMarked("pack");
+$("bulk-enable").onclick = () => setMarkedActive(true);
+$("bulk-disable").onclick = () => setMarkedActive(false);
 $("bulk-refresh").onclick = () => refreshMarked();
 $("bulk-delete").onclick = () => deleteMarked();
 $("add-url").oninput = () => syncAddSource();
@@ -3843,21 +4200,79 @@ function closeKeyPop() {
   if (!pop) return;
   pop.hidden = true;
   pop.dataset.key = "";
+  pop.classList.remove("need");
 }
 
-function openKeyPop(pill) {
-  const id = pill.dataset.key;
+function hasServiceKey(id) {
+  if (id === "modrinth") return true;
+  return Boolean(state.keys?.[id]);
+}
+
+function keyIdFromPlatform(platform) {
+  const name = String(platform || "").toLowerCase();
+  if (name.includes("curse")) return "curseforge";
+  if (name.includes("steam")) return "steam";
+  if (name.includes("rawg")) return "rawg";
+  if (name.includes("modrinth")) return "modrinth";
+  if (name.includes("nexus")) return "nexus";
+  return "";
+}
+
+function keyIdFromError(error) {
+  const msg = String(error?.message || error || "").toLowerCase();
+  if (/curseforge/.test(msg)) return "curseforge";
+  if (/steam/.test(msg)) return "steam";
+  if (/rawg/.test(msg)) return "rawg";
+  if (/nexus/.test(msg)) return "nexus";
+  if (/clave|api key|apikey/.test(msg)) return "nexus";
+  return "";
+}
+
+function keyIdForUrl(url) {
+  return keyIdFromPlatform(platformFromUrl(url));
+}
+
+function promptMissingKey(id, reason) {
+  const spec = KEY_POPS[id];
+  if (!spec?.field) return false;
+  const name = spec.label.replace(/^Clave\s+/i, "") || id;
+  const note = reason || t("keyNeeded", { name });
+  toast(t("keyNeededShort", { name }), "bad");
+  openKeyPop(id, { note, center: true });
+  return false;
+}
+
+function ensureServiceKey(id) {
+  if (hasServiceKey(id)) return true;
+  return promptMissingKey(id);
+}
+
+function maybePromptKeyError(error) {
+  const msg = String(error?.message || error || "");
+  const low = msg.toLowerCase();
+  const looksMissing = error?.status === 401 || /clave|api key|apikey|ajustes/.test(low);
+  if (!looksMissing) return false;
+  const id = keyIdFromError(error);
+  if (!id || !KEY_POPS[id]?.field) return false;
+  promptMissingKey(id, msg || undefined);
+  return true;
+}
+
+function openKeyPop(pillOrId, options = {}) {
+  const id = typeof pillOrId === "string" ? pillOrId : pillOrId?.dataset?.key;
+  const pill = typeof pillOrId === "string" ? null : pillOrId;
   const spec = KEY_POPS[id];
   const pop = $("key-pop");
   if (!spec || !pop) return;
-  if (!pop.hidden && pop.dataset.key === id) {
+  if (!options.center && !options.note && pill && !pop.hidden && pop.dataset.key === id) {
     closeKeyPop();
     return;
   }
   pop.dataset.key = id;
   const needsKey = !!spec.field;
-  $("key-pop-note").hidden = !spec.note;
-  $("key-pop-note").textContent = spec.note || "";
+  const note = options.note || spec.note || "";
+  $("key-pop-note").hidden = !note;
+  $("key-pop-note").textContent = note;
   $("key-pop-field").hidden = !needsKey;
   $("key-pop-label").textContent = needsKey ? spec.label : "";
   $("key-pop-input").value = "";
@@ -3867,17 +4282,25 @@ function openKeyPop(pill) {
   $("key-pop-doc").textContent = spec.docLabel;
   $("key-pop-status").textContent = "";
   $("key-pop-status").className = "status";
+  pop.classList.toggle("need", Boolean(options.note || options.center));
   pop.hidden = false;
-  const rect = pill.getBoundingClientRect();
   const box = pop.getBoundingClientRect();
-  const dock = document.querySelector(".dock");
-  const limit = dock ? dock.getBoundingClientRect().top - 8 : window.innerHeight - 8;
-  const flip = $("more-pop")?.classList.contains("flip");
-  const left = Math.max(8, Math.min(flip ? rect.left - box.width - 8 : rect.right + 8, window.innerWidth - box.width - 8));
-  let top = rect.top;
-  if (top + box.height > limit) top = Math.max(8, limit - box.height);
-  pop.style.left = `${left}px`;
-  pop.style.top = `${top}px`;
+  if (options.center || !pill) {
+    const left = Math.max(8, Math.round((window.innerWidth - box.width) / 2));
+    const top = Math.max(8, Math.round((window.innerHeight - box.height) / 3));
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
+  } else {
+    const rect = pill.getBoundingClientRect();
+    const dock = document.querySelector(".dock");
+    const limit = dock ? dock.getBoundingClientRect().top - 8 : window.innerHeight - 8;
+    const flip = $("more-pop")?.classList.contains("flip");
+    const left = Math.max(8, Math.min(flip ? rect.left - box.width - 8 : rect.right + 8, window.innerWidth - box.width - 8));
+    let top = rect.top;
+    if (top + box.height > limit) top = Math.max(8, limit - box.height);
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
+  }
   if (needsKey) $("key-pop-input").focus();
 }
 
@@ -4008,6 +4431,235 @@ $("clear-key").onclick = async () => {
   fillSecret($("api-key"), "");
   toast("Clave Nexus quitada.", "warn");
 };
+let launchSetupBound = null;
+
+async function pickExePath() {
+  const host = window.pywebview && window.pywebview.api;
+  if (host && typeof host.pick_exe === "function") {
+    try {
+      const picked = await host.pick_exe();
+      if (picked) return String(picked);
+    } catch (_) { /* fallback */ }
+  }
+  return askInput({
+    title: t("launchManual"),
+    hint: t("launchMissing"),
+    placeholder: t("launchPathPh"),
+    value: "",
+    okLabel: t("save"),
+  });
+}
+
+function closeLaunchDialog() {
+  if (launchSetupBound) {
+    launchSetupBound.cleanup();
+    launchSetupBound = null;
+  }
+  const dialog = $("launch-dialog");
+  if (dialog?.open) dialog.close();
+}
+
+function resetLaunchDialog(gameName) {
+  const msg = $("launch-msg");
+  const status = $("launch-status");
+  const hits = $("launch-hits");
+  if (msg) {
+    msg.hidden = false;
+    msg.textContent = t("launchMissing");
+  }
+  if (status) {
+    status.hidden = true;
+    status.textContent = "";
+  }
+  if (hits) {
+    hits.hidden = true;
+    hits.innerHTML = "";
+  }
+  const title = $("launch-dialog")?.querySelector("h2");
+  if (title) title.textContent = gameName ? `${t("launchTitle")} · ${gameName}` : t("launchTitle");
+  ["launch-auto", "launch-manual"].forEach((id) => {
+    const btn = $(id);
+    if (btn) btn.hidden = false;
+  });
+}
+
+async function saveLaunchPath(domain, path) {
+  const data = await api("/api/game/launch-path", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: domain, path }),
+  });
+  if (data.catalog) state.catalog = data.catalog;
+  paintGamePlay();
+  return data.game || catalogGame(domain);
+}
+
+async function runLaunch(domain, path) {
+  const data = await api("/api/game/launch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: domain, path: path || undefined }),
+  });
+  if (data.catalog) state.catalog = data.catalog;
+  toast(t("launchOk"));
+  sfx.ok();
+  return data;
+}
+
+function paintLaunchHits(domain, candidates) {
+  const box = $("launch-hits");
+  const status = $("launch-status");
+  if (!box) return;
+  box.hidden = false;
+  box.innerHTML = candidates.map((hit, index) => `
+    <button type="button" class="launch-hit" data-launch-hit="${index}">
+      <b>${esc(hit.name || hit.path)}</b>
+      <span class="meta">${esc(hit.path)}</span>
+    </button>
+  `).join("");
+  if (status) {
+    status.hidden = false;
+    status.textContent = t("launchPick");
+  }
+  box.querySelectorAll("[data-launch-hit]").forEach((button) => {
+    button.onclick = async () => {
+      const hit = candidates[Number(button.dataset.launchHit)];
+      if (!hit?.path) return;
+      let path = hit.path;
+      if (hit.isFile === false) {
+        toast(t("launchNone"), "bad");
+        path = await pickExePath();
+        if (!path) return;
+      }
+      setLoading(button, true, "…");
+      try {
+        await saveLaunchPath(domain, path);
+        closeLaunchDialog();
+        toast(t("launchSaved"));
+        await runLaunch(domain, path);
+      } catch (error) {
+        toast(error.message, "bad");
+        sfx.err();
+      } finally {
+        setLoading(button, false);
+      }
+    };
+  });
+}
+
+async function launchAutoDetect(domain) {
+  const status = $("launch-status");
+  const autoBtn = $("launch-auto");
+  if (status) {
+    status.hidden = false;
+    status.textContent = t("launchSearching");
+  }
+  setLoading(autoBtn, true, "…");
+  try {
+    const data = await api("/api/game/detect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: domain }),
+    });
+    const hits = (data.candidates || []).filter((row) => row?.path);
+    if (!hits.length) {
+      if (status) status.textContent = t("launchNone");
+      toast(t("launchNone"), "bad");
+      await launchManualPick(domain);
+      return;
+    }
+    if (hits.length === 1 && hits[0].isFile !== false) {
+      await saveLaunchPath(domain, hits[0].path);
+      closeLaunchDialog();
+      toast(t("launchSaved"));
+      await runLaunch(domain, hits[0].path);
+      return;
+    }
+    paintLaunchHits(domain, hits);
+  } catch (error) {
+    if (status) status.textContent = error.message;
+    toast(error.message, "bad");
+    sfx.err();
+    await launchManualPick(domain);
+  } finally {
+    setLoading(autoBtn, false);
+  }
+}
+
+async function launchManualPick(domain) {
+  const path = await pickExePath();
+  if (!path) return;
+  try {
+    await saveLaunchPath(domain, path);
+    closeLaunchDialog();
+    toast(t("launchSaved"));
+    await runLaunch(domain, path);
+  } catch (error) {
+    toast(error.message, "bad");
+    sfx.err();
+  }
+}
+
+function openLaunchSetup(game) {
+  const dialog = $("launch-dialog");
+  if (!dialog) return;
+  const domain = String(game?.gameDomain || state.game || "");
+  if (launchSetupBound) {
+    launchSetupBound.cleanup();
+    launchSetupBound = null;
+  }
+  resetLaunchDialog(game?.gameName || gameLabel(domain));
+  const finish = () => {
+    closeLaunchDialog();
+  };
+  const onAuto = async (event) => {
+    event.preventDefault();
+    await launchAutoDetect(domain);
+  };
+  const onManual = async (event) => {
+    event.preventDefault();
+    await launchManualPick(domain);
+  };
+  const cleanup = () => {
+    $("launch-auto")?.removeEventListener("click", onAuto);
+    $("launch-manual")?.removeEventListener("click", onManual);
+    $("launch-cancel")?.removeEventListener("click", finish);
+    $("launch-x")?.removeEventListener("click", finish);
+    launchSetupBound = null;
+  };
+  launchSetupBound = { cleanup, domain };
+  $("launch-auto")?.addEventListener("click", onAuto);
+  $("launch-manual")?.addEventListener("click", onManual);
+  $("launch-cancel")?.addEventListener("click", finish);
+  $("launch-x")?.addEventListener("click", finish);
+  sfx.warn();
+  dialog.showModal();
+}
+
+async function playActiveGame(event) {
+  event?.preventDefault?.();
+  const domain = state.game;
+  if (!domain) {
+    toast(t("launchNeedGame"), "bad");
+    return;
+  }
+  const game = catalogGame(domain) || { gameDomain: domain, gameName: gameLabel(domain) };
+  const forceSetup = event?.shiftKey || event?.altKey;
+  if (!forceSetup && gameHasLauncher(game)) {
+    try {
+      await runLaunch(domain);
+      return;
+    } catch (error) {
+      if (error?.payload?.error !== "missing_launch" && error?.status !== 409) {
+        toast(error.message, "bad");
+        sfx.err();
+        if (!(await askConfirm(`${error.message}\n¿Vincular otro lanzador?`))) return;
+      }
+    }
+  }
+  openLaunchSetup(game);
+}
+
 function bindGameAdd() {
   const button = $("game-add");
   if (!button || button.dataset.bound) return;
@@ -4020,6 +4672,8 @@ function bindGameAdd() {
   };
 }
 bindGameAdd();
+if ($("game-play")) $("game-play").onclick = playActiveGame;
+if ($("launch-form")) $("launch-form").onsubmit = (event) => event.preventDefault();
 $("game-picker").onclick = (event) => {
   event.preventDefault();
   event.stopPropagation();
@@ -4080,6 +4734,13 @@ async function runRemoteSearch() {
     box.innerHTML = `<p class="hint">Elige un juego arriba.</p>`;
     return;
   }
+  const needKey = target === "CurseForge" ? "curseforge" : (target === "Nexus" ? "nexus" : "");
+  if (needKey && !ensureServiceKey(needKey)) {
+    box.innerHTML = `<p class="hint">${esc(t("keyNeededShort", {
+      name: (KEY_POPS[needKey]?.label || needKey).replace(/^Clave\s+/i, ""),
+    }))}</p>`;
+    return;
+  }
   const token = ++remoteToken;
   box.innerHTML = `<p class="hint">Buscando en ${esc(target)}…</p>`;
   const game = target === "Modrinth" ? "" : `&game=${encodeURIComponent(state.game)}`;
@@ -4092,6 +4753,7 @@ async function runRemoteSearch() {
     paintRemote(data.results || [], target);
   } catch (error) {
     if (token !== remoteToken) return;
+    maybePromptKeyError(error);
     box.innerHTML = `<p class="hint">${esc(error.message)}</p>`;
   }
 }
@@ -4162,7 +4824,7 @@ async function addRemoteMod(hit, button) {
   } catch (error) {
     button.disabled = false;
     button.textContent = "Añadir";
-    toast(error.message, "bad");
+    if (!maybePromptKeyError(error)) toast(error.message, "bad");
   }
 }
 
@@ -4179,9 +4841,9 @@ $("pick-all").onclick = () => selectAllVisible();
 document.querySelectorAll(".view-toggle [data-view]").forEach((button) => {
   button.onclick = () => setView(button.dataset.view);
 });
-$("size-down").onclick = () => setCardScale(cardScale() - 0.5);
-$("size-reset").onclick = () => setCardScale(1);
-$("size-up").onclick = () => setCardScale(cardScale() + 0.5);
+$("size-down").onclick = () => setCardScale(cardScale() - 0.1);
+$("size-reset").onclick = () => setCardScale(SCALE_DEFAULT);
+$("size-up").onclick = () => setCardScale(cardScale() + 0.1);
 window.addEventListener("wheel", (event) => {
   if (!event.ctrlKey && !event.metaKey) return;
   if (typingField(event)) return;

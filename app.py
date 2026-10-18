@@ -63,6 +63,32 @@ class _Host:
     def site(self) -> None:
         webbrowser.open("https://wiarch.github.io/wi-mod/")
 
+    def pick_exe(self) -> str:
+        window = self.holder.get("window")
+        if window is None:
+            return ""
+        try:
+            import webview
+        except ImportError:
+            return ""
+        dialog = getattr(webview, "FileDialog", None)
+        kind = getattr(dialog, "OPEN", None) if dialog is not None else None
+        if kind is None:
+            kind = getattr(webview, "OPEN_DIALOG", 10)
+        try:
+            picked = window.create_file_dialog(
+                kind,
+                allow_multiple=False,
+                file_types=("Ejecutable (*.exe;*.bat;*.cmd)", "Todos (*.*)"),
+            )
+        except Exception:
+            return ""
+        if not picked:
+            return ""
+        if isinstance(picked, (list, tuple)):
+            return str(picked[0] or "")
+        return str(picked)
+
 
 def _open(url: str, app: App) -> None:
     global _app, _url

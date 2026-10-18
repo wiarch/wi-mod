@@ -41,6 +41,7 @@ from wi_mod.rawg import (
     search_games,
     validate_key as validate_rawg_key,
 )
+from wi_mod.launch import detect_game, launch_path, steam_run_url
 from wi_mod.sources import GAME_SOURCES, platforms_for, sources_payload
 from wi_mod.steam import SteamError, validate_key as validate_steam_key
 from wi_mod.store import Library, now, safe_name
@@ -336,7 +337,7 @@ def _load_bootstrap_keys(root: Path) -> dict[str, str]:
 class App:
     def __init__(self, root: Path):
         self.root = root
-        self.library = Library(root)
+        self.library = Library(root, program_root=root.parent)
         self.library.ensure_default_keys(_load_bootstrap_keys(root))
         self.library.ensure_platforms()
         self.library.ensure_default_games()
@@ -624,6 +625,22 @@ def make_handler(app: App):
                 updated = app.library.update_many(ids, fields)
                 self._json(200, {"mods": [_public_mod(mod) for mod in updated], "count": len(updated)})
                 return
+            if path == "/api/mods/active":
+                body = self._json_body()
+                active = bool(body.get("active"))
+                pack_id = str(body.get("modpackId") or "").strip()
+                if pack_id:
+                    updated = app.library.set_modpack_active(pack_id, active)
+                else:
+                    ids = body.get("ids")
+                    if not isinstance(ids, list) or not ids:
+                        raise ValueError("Marca al menos un mod.")
+                    for item in ids:
+                        if not isinstance(item, str) or not _ID.match(item):
+                            raise ValueError("Hay un mod marcado que no existe.")
+                    updated = app.library.set_mods_active(ids, active)
+                self._json(200, {"mods": [_public_mod(mod) for mod in updated], "count": len(updated), "active": active})
+                return
             if path == "/api/mods/clone":
                 body = self._json_body()
                 ids = body.get("ids")
@@ -679,6 +696,54 @@ def make_handler(app: App):
                 )
                 self._json(200, {"catalog": catalog})
                 return
+            if path == "/api/game/detect":
+                body = self._json_body()
+                domain = str(body.get("id") or body.get("gameDomain") or "").strip().lower()
+                game = _catalog_game(app, domain)
+                if not game:
+                    self._json(404, {"error": "Elige un juego arriba."})
+                    return
+                name = str(game.get("gameName") or domain)
+                hits = detect_game(name, domain)
+                self._json(200, {"candidates": hits, "game": game})
+                return
+            if path == "/api/game/launch-path":
+                body = self._json_body()
+                domain = str(body.get("id") or body.get("gameDomain") or "").strip().lower()
+                path_value = str(body.get("path") or body.get("launchPath") or "").strip()
+                catalog = app.library.set_game_launch(domain, path_value)
+                game = next(
+                    (
+                        item for item in (catalog.get("games") or [])
+                        if isinstance(item, dict) and str(item.get("gameDomain") or "").lower() == domain
+                    ),
+                    None,
+                )
+                self._json(200, {"catalog": catalog, "game": game})
+                return
+            if path == "/api/game/launch":
+                body = self._json_body()
+                domain = str(body.get("id") or body.get("gameDomain") or "").strip().lower()
+                game = _catalog_game(app, domain)
+                if not game:
+                    self._json(404, {"error": "Elige un juego arriba."})
+                    return
+                path_value = str(body.get("path") or game.get("launchPath") or "").strip()
+                if not path_value:
+                    steam = steam_run_url(game.get("steamAppId"))
+                    if steam:
+                        path_value = steam
+                if not path_value:
+                    self._json(409, {"error": "missing_launch", "game": game})
+                    return
+                launch_path(path_value)
+                if path_value != str(game.get("launchPath") or "") and not path_value.lower().startswith("steam://"):
+                    catalog = app.library.set_game_launch(domain, path_value)
+                    game = _catalog_game(app, domain) or game
+                else:
+                    catalog = app.library.catalog()
+                self._json(200, {"ok": True, "path": path_value, "catalog": catalog, "game": game})
+                return
             if path == "/api/rawg/add":
                 body = self._json_body()
                 game = _add_game_from_rawg(app, body)
@@ -727,8 +792,12 @@ def make_handler(app: App):
                 body = self._json_body() if length else {}
                 self._json(200, _refresh_one(app, mod_id, apply=bool(body.get("apply"))))
                 return
-            if mod_id and action in {"files", "download"}:
-                self._json(400, {"error": "Solo informativo. No se guardan archivos del mod."})
+            if mod_id and action == "download":
+                self._json(200, _download_mod(app, mod_id))
+                return
+            if mod_id and action == "files":
+                mod = _upload(app, self, mod_id)
+                self._json(201, {"mod": _public_mod(mod)})
                 return
             if mod_id and action == "translate":
                 self._json(200, _translate_mod(app, mod_id))
@@ -1021,6 +1090,16 @@ def _key_flags(app: App) -> dict:
         "steam": bool(str(settings.get("steamApiKey") or "").strip()),
         "rawg": bool(str(settings.get("rawgApiKey") or "").strip()),
     }
+
+
+def _catalog_game(app: App, domain: str) -> dict | None:
+    domain = str(domain or "").strip().lower()
+    if not domain:
+        return None
+    for item in app.library.catalog().get("games") or []:
+        if isinstance(item, dict) and str(item.get("gameDomain") or "").lower() == domain:
+            return item
+    return None
 
 
 def _theme_name(value: object) -> str:

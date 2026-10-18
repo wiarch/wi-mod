@@ -745,7 +745,7 @@
         windowsUser: "WYDEX",
         pcName: "PC",
         quitMode: "",
-        appVersion: "0.14.0",
+        appVersion: "0.15.0",
       });
     }
     if (path === "/api/logout" && method === "POST") return reply(200, { ok: true });
@@ -1000,6 +1000,27 @@
       save(data);
       return reply(200, { mods: data.mods.filter((mod) => ids.includes(mod.id)), count: ids.length });
     }
+    if (path === "/api/mods/active" && method === "POST") {
+      const body = await readJson(init);
+      const active = Boolean(body.active);
+      let ids = body.ids || [];
+      if (body.modpackId) {
+        ids = data.mods.filter((mod) => mod.modpackId === body.modpackId).map((mod) => mod.id);
+      }
+      const updated = [];
+      ids.forEach((modId) => {
+        const mod = findMod(data, modId);
+        if (!mod) return;
+        const parts = String(mod.status || "").split("+").filter((part) => part === "got" || part === "in");
+        const flags = new Set(parts);
+        if (active) flags.add("in");
+        else flags.delete("in");
+        mod.status = ["got", "in"].filter((part) => flags.has(part)).join("+");
+        updated.push(mod);
+      });
+      save(data);
+      return reply(200, { mods: updated, count: updated.length, active });
+    }
 
     const modMatch = path.match(/^\/api\/mods\/([^/]+)$/);
     if (modMatch && method === "PATCH") {
@@ -1151,6 +1172,37 @@
       }
       save(data);
       return reply(200, { catalog: library(data).catalog });
+    }
+    if (path === "/api/game/detect" && method === "POST") {
+      return reply(200, {
+        candidates: [],
+        note: "La detección de discos solo corre en el escritorio.",
+      });
+    }
+    if (path === "/api/game/launch-path" && method === "POST") {
+      const body = await readJson(init);
+      const id = String(body.id || body.gameDomain || "").trim().toLowerCase();
+      const games = Array.isArray(data.games) ? data.games : [];
+      const game = games.find((item) => String(item.gameDomain || "").toLowerCase() === id);
+      if (!game) return reply(404, { error: "Elige un juego arriba." });
+      const pathValue = String(body.path || body.launchPath || "").trim();
+      if (pathValue) game.launchPath = pathValue.slice(0, 1000);
+      else delete game.launchPath;
+      save(data);
+      return reply(200, { catalog: library(data).catalog, game });
+    }
+    if (path === "/api/game/launch" && method === "POST") {
+      const body = await readJson(init);
+      const id = String(body.id || body.gameDomain || "").trim().toLowerCase();
+      const games = Array.isArray(data.games) ? data.games : [];
+      const game = games.find((item) => String(item.gameDomain || "").toLowerCase() === id);
+      if (!game) return reply(404, { error: "Elige un juego arriba." });
+      const pathValue = String(body.path || game.launchPath || "").trim();
+      if (!pathValue) return reply(409, { error: "missing_launch", game });
+      if (String(pathValue).toLowerCase().startsWith("steam://") && typeof window !== "undefined") {
+        window.open(pathValue, "_blank", "noopener");
+      }
+      return reply(200, { ok: true, path: pathValue, catalog: library(data).catalog, game });
     }
     if (path === "/api/catalog" && method === "POST") {
       const body = await readJson(init);
