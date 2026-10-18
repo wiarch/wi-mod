@@ -9,7 +9,11 @@ const state = {
   category: "",
   files: "all",
   sort: "added",
-  view: localStorage.getItem("wi-mod-view") === "list" ? "list" : "grid",
+  view: (() => {
+    const scale = Number(localStorage.getItem("wi-mod-scale"));
+    if (Number.isFinite(scale) && scale <= 0.1) return "list";
+    return "table";
+  })(),
   cardScale: (() => {
     const saved = Number(localStorage.getItem("wi-mod-scale"));
     if (Number.isFinite(saved)) return Math.min(1.5, Math.max(0.1, Math.round(saved * 10) / 10));
@@ -172,10 +176,17 @@ const UI = {
     createPack: "Crear modpack", addCategory: "Añadir categoría",
     hideNames: "Ocultar nombres", showNames: "Mostrar nombres", hide: "Ocultar", show: "Mostrar",
     dragWidth: "Arrastra el ancho", newVersion: "Versión nueva", selectAll: "Seleccionar todo",
-    layout: "Diseño", grid: "Cuadrícula", listView: "Listado", size: "Tamaño",
+    layout: "Diseño", grid: "Cuadrícula", listView: "Listado", tableView: "Tabla", size: "Tamaño",
+    flags: "Flags",
     sizeDown: "Achicar. Bajo 0.5× pasa a lista",
     sizeReset: "Tamaño base 0.5×. Clic para volver", sizeUp: "Agrandar, máximo 1.5×",
-    sort: "Orden", sortAdded: "Recién guardados", sortDownloaded: "Recién descargados", sortUpdated: "Última actualización", sortName: "Nombre",
+    sort: "Orden", sortAdded: "Recién guardados", sortDownloaded: "Recién descargados", sortUpdated: "Última actualización", sortName: "Nombre", sortPriority: "Prioridad",
+    priority: "Prioridad",
+    priorityTip: "Orden de carga. El número mayor se carga al final y pisa archivos de los anteriores.",
+    conflicts: "Conflictos",
+    conflictNone: "Sin archivos en común con otros mods activos.",
+    conflictWins: "Pisa a: {names}",
+    conflictLoses: "Lo pisan: {names}",
     mods: "Mods",
     sideRefresh: "Actualizar mods",
     sideFoldsToggle: "Plegar o expandir secciones",
@@ -311,10 +322,17 @@ const UI = {
     createPack: "Create modpack", addCategory: "Add category",
     hideNames: "Hide names", showNames: "Show names", hide: "Hide", show: "Show",
     dragWidth: "Drag to resize", newVersion: "New version", selectAll: "Select all",
-    layout: "Layout", grid: "Grid", listView: "List", size: "Size",
+    layout: "Layout", grid: "Grid", listView: "List", tableView: "Table", size: "Size",
+    flags: "Flags",
     sizeDown: "Smaller. Below 0.5× switches to list",
     sizeReset: "Base size 0.5×. Click to reset", sizeUp: "Larger, max 1.5×",
-    sort: "Sort", sortAdded: "Recently saved", sortDownloaded: "Recently downloaded", sortUpdated: "Last update", sortName: "Name",
+    sort: "Sort", sortAdded: "Recently saved", sortDownloaded: "Recently downloaded", sortUpdated: "Last update", sortName: "Name", sortPriority: "Priority",
+    priority: "Priority",
+    priorityTip: "Load order. A higher number loads last and overwrites files from lower ones.",
+    conflicts: "Conflicts",
+    conflictNone: "No shared files with other active mods.",
+    conflictWins: "Overwrites: {names}",
+    conflictLoses: "Overwritten by: {names}",
     mods: "Mods",
     sideRefresh: "Refresh mods",
     sideFoldsToggle: "Collapse or expand sections",
@@ -1639,6 +1657,7 @@ function visible() {
     downloaded: (a, b) => lastDownload(b).localeCompare(lastDownload(a)) || String(b.addedAt).localeCompare(String(a.addedAt)),
     updated: (a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")),
     name: (a, b) => String(a.name).localeCompare(String(b.name), "es"),
+    priority: (a, b) => (Number(a.priority) || 0) - (Number(b.priority) || 0) || String(a.name).localeCompare(String(b.name), "es"),
   };
   if (state.modpack) {
     mods.sort((a, b) => (Number(a.packOrder) || 0) - (Number(b.packOrder) || 0) || String(a.name).localeCompare(String(b.name), "es"));
@@ -1801,7 +1820,9 @@ function sideOpenKey(kind, value) {
 
 function sideGroupOpen(kind, value, _current) {
   const key = sideOpenKey(kind, value);
+  if (state.sideOpen[key] === true) return true;
   if (state.sideOpen[key] === false) return false;
+  if (kind === "category") return false;
   return true;
 }
 
@@ -2680,10 +2701,12 @@ function syncViewToggle() {
   const grid = $("grid");
   const scale = cardScale();
   const mode = scaleMode(scale);
-  state.view = mode === "grid" ? "grid" : "list";
+  const table = state.view === "table";
+  if (!table) state.view = mode === "grid" ? "grid" : "list";
   if (grid) {
-    grid.classList.toggle("list", mode !== "grid");
-    grid.classList.toggle("dense", mode === "dense");
+    grid.classList.toggle("table", table);
+    grid.classList.toggle("list", !table && mode !== "grid");
+    grid.classList.toggle("dense", !table && mode === "dense");
     grid.classList.remove("size-sm", "size-md", "size-lg");
     grid.style.setProperty("--card-scale", String(visualScale(scale)));
     grid.classList.toggle("picking", state.picking);
@@ -2712,12 +2735,25 @@ function syncViewToggle() {
 
 function setView(view) {
   sfx.click();
-  if (view === "list" && scaleMode() === "grid") {
-    setCardScale(0.4, true);
+  if (view === "table") {
+    state.view = "table";
+    localStorage.setItem("wi-mod-view", "table");
+    render();
     return;
   }
-  if (view === "grid" && scaleMode() !== "grid") {
-    setCardScale(SCALE_DEFAULT, true);
+  const wasTable = state.view === "table";
+  if (view === "list" && (wasTable || scaleMode() === "grid")) {
+    state.view = "list";
+    localStorage.setItem("wi-mod-view", "list");
+    setCardScale(0.4, true, true);
+    if (wasTable) render();
+    return;
+  }
+  if (view === "grid" && (wasTable || scaleMode() !== "grid")) {
+    state.view = "grid";
+    localStorage.setItem("wi-mod-view", "grid");
+    setCardScale(SCALE_DEFAULT, true, true);
+    if (wasTable) render();
     return;
   }
   state.view = view === "list" ? "list" : "grid";
@@ -2746,7 +2782,7 @@ function paintSelection() {
   document.querySelectorAll("#grid .card").forEach((card) => {
     const on = state.selected.has(card.dataset.id);
     card.classList.toggle("on", on);
-    card.draggable = on;
+    card.draggable = true;
   });
   paintPickAll();
   paintBulk();
@@ -3121,16 +3157,21 @@ async function dropMarked(kind, value, ids) {
   await load();
 }
 
-function setCardScale(next, quiet) {
+function setCardScale(next, quiet, keepView) {
   const value = Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round(Number(next) * 10) / 10));
   if (value === cardScale()) return;
+  const prevView = state.view;
+  const prevScale = cardScale();
   state.cardScale = value;
-  const mode = scaleMode(value);
-  state.view = mode === "grid" ? "grid" : "list";
+  if (!keepView) {
+    if (value <= SCALE_MIN) state.view = "list";
+    else if (prevScale <= SCALE_MIN) state.view = "table";
+    localStorage.setItem("wi-mod-view", state.view);
+  }
   localStorage.setItem("wi-mod-scale", String(value));
-  localStorage.setItem("wi-mod-view", state.view);
   if (!quiet) sfx.click();
-  syncViewToggle();
+  if (state.view !== prevView) render();
+  else syncViewToggle();
 }
 
 function paintBulk() {
@@ -3181,6 +3222,81 @@ function statusPicks(mod) {
   }).join("")}</span>`;
 }
 
+function conflictCell(mod) {
+  const row = mod.conflict || {};
+  const wins = Number(row.wins) || 0;
+  const loses = Number(row.loses) || 0;
+  const over = (row.overwrites || []).join(", ");
+  const under = (row.overwrittenBy || []).join(", ");
+  const bits = [];
+  if (wins) bits.push(t("conflictWins", { names: over || String(wins) }));
+  if (loses) bits.push(t("conflictLoses", { names: under || String(loses) }));
+  const title = bits.length ? bits.join(" · ") : t("conflictNone");
+  const mark = wins && loses ? "±" : wins ? "↑" : loses ? "↓" : "·";
+  const kind = wins && loses ? "both" : wins ? "win" : loses ? "lose" : "none";
+  const count = wins || loses ? `${loses ? loses : ""}${wins && loses ? "/" : ""}${wins ? wins : ""}` : "";
+  return `<span class="conflict ${kind}" title="${esc(title)}"><span>${esc(t("conflicts"))}</span><b>${mark}${count ? ` ${count}` : ""}</b></span>`;
+}
+
+function priorityCell(mod) {
+  const n = Number(mod.priority) || 0;
+  return `<label class="prio" title="${esc(t("priorityTip"))}"><span>${esc(t("priority"))}</span><input type="number" min="1" step="1" data-priority value="${n}" aria-label="${esc(t("priority"))}"></label>`;
+}
+
+async function placePriority(ids, targetId, after) {
+  const movingIds = ids.filter((id) => id && id !== targetId);
+  if (!movingIds.length) return;
+  const first = state.mods.find((mod) => mod.id === movingIds[0]);
+  if (!first) return;
+  const game = String(first.gameDomain || "").toLowerCase();
+  const peers = state.mods
+    .filter((mod) => String(mod.gameDomain || "").toLowerCase() === game)
+    .sort((a, b) => (Number(a.priority) || 0) - (Number(b.priority) || 0) || String(a.name).localeCompare(String(b.name), "es"));
+  const moving = new Set(movingIds);
+  const block = peers.filter((mod) => moving.has(mod.id));
+  const rest = peers.filter((mod) => !moving.has(mod.id));
+  let at = rest.findIndex((mod) => mod.id === targetId);
+  if (at < 0) at = rest.length;
+  else if (after) at += 1;
+  let slot = at + 1;
+  state.sort = "priority";
+  const sort = $("sort");
+  if (sort) sort.value = "priority";
+  try {
+    for (const mod of block) {
+      const data = await api(`/api/mods/${mod.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priority: slot }),
+      });
+      if (data.mod) Object.assign(mod, data.mod);
+      slot += 1;
+    }
+    await load();
+  } catch (error) {
+    toast(error.message, "bad");
+    render();
+  }
+}
+
+async function setPriority(id, value) {
+  const mod = state.mods.find((item) => item.id === id);
+  if (!mod) return;
+  const n = Math.max(1, Math.round(Number(value) || 1));
+  try {
+    const data = await api(`/api/mods/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ priority: n }),
+    });
+    if (data.mod) Object.assign(mod, data.mod);
+    await load();
+  } catch (error) {
+    toast(error.message, "bad");
+    render();
+  }
+}
+
 function packMoves() {
   if (!state.modpack) return "";
   return `<span class="pack-moves"><button type="button" data-pack-move="-1" title="Subir en el pack">↑</button><button type="button" data-pack-move="1" title="Bajar en el pack">↓</button></span>`;
@@ -3204,7 +3320,7 @@ function paintUpdateBanner() {
 async function setModStatus(id, status) {
   const mod = state.mods.find((item) => item.id === id);
   if (!mod) return;
-  if (status === "in" && !modDownloaded(mod)) {
+  if (status === "in" && !modDownloaded(mod) && !statusOn(mod, "in")) {
     toast(t("activeNeedFiles"), "warn");
     return;
   }
@@ -3226,6 +3342,7 @@ async function setModStatus(id, status) {
     if (status === "in") {
       toast(statusOn(mod, "in") ? t("activeOk", { n: 1 }) : t("inactiveOk", { n: 1 }));
     }
+    paintDetailActive(mod);
     render();
   } catch (error) {
     mod.status = prev;
@@ -3283,7 +3400,24 @@ function render() {
     }
     return;
   }
-  $("grid").innerHTML = mods.map((mod, index) => `
+  if (state.view === "table") {
+    $("grid").innerHTML = `<table class="mod-table"><thead><tr>
+      <th>${esc(t("priority"))}</th>
+      <th>${esc(t("conflicts"))}</th>
+      <th>${esc(t("flags"))}</th>
+      <th>${esc(t("name"))}</th>
+      <th>${esc(t("category"))}</th>
+      <th>${esc(t("version"))}</th>
+    </tr></thead><tbody>${mods.map((mod) => `
+      <tr class="card ${state.selected.has(mod.id) ? "on" : ""} ${!statusOn(mod, "in") && (mod.files || []).length ? "inactive" : ""}" data-id="${mod.id}">
+        <td>${priorityCell(mod)}</td>
+        <td>${conflictCell(mod)}</td>
+        <td class="flags">${statusPicks(mod)}</td>
+        <td class="mod-name">${esc(mod.name)}${mod.updateAvailable ? `<span class="ver-new">${esc(t("newTag"))}</span>` : ""}</td>
+        <td>${esc(categoryLabel(mod.category, mod))}</td>
+        <td>${esc(mod.version || "?")}</td>
+      </tr>`).join("")}</tbody></table>`;
+  } else $("grid").innerHTML = mods.map((mod, index) => `
     <article class="card ${state.selected.has(mod.id) ? "on" : ""} ${!statusOn(mod, "in") && (mod.files || []).length ? "inactive" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 35}ms">
       <div class="shot" ${shot(mod)}><span>${esc(mod.gameName || mod.gameDomain || "Juego")}</span></div>
       <div class="card-body">
@@ -3292,6 +3426,8 @@ function render() {
         <p class="sub">${esc(displaySummary(mod))}${mod.summaryEs ? ` <span class="meta">${state.showEs ? "ES" : "EN"}</span>` : ""}</p>
       </div>
       <footer>
+        ${conflictCell(mod)}
+        ${priorityCell(mod)}
         ${statusPicks(mod)}
         ${packMoves()}
         <span class="meta">${esc(fmtDate(mod.updatedAt))}</span>
@@ -3317,19 +3453,53 @@ function render() {
       hideDragGhost();
       setTimeout(() => { state.dragged = false; }, 0);
     };
-    card.draggable = state.selected.has(card.dataset.id);
+    card.draggable = true;
+    card.ondragover = (event) => {
+      if (!state.dragged) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const rect = card.getBoundingClientRect();
+      const after = event.clientY > rect.top + rect.height / 2;
+      card.classList.toggle("drop-after", after);
+      card.classList.toggle("drop-before", !after);
+      event.dataTransfer.dropEffect = "move";
+    };
+    card.ondragleave = () => card.classList.remove("drop-before", "drop-after");
+    card.ondrop = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const after = card.classList.contains("drop-after");
+      card.classList.remove("drop-before", "drop-after");
+      let ids = [];
+      try {
+        ids = JSON.parse(event.dataTransfer.getData("application/x-wimod") || "[]");
+      } catch (_) {
+        ids = [];
+      }
+      if (!Array.isArray(ids) || !ids.length) return;
+      placePriority(ids, card.dataset.id, after);
+    };
     card.onmousedown = (event) => {
-      if (event.shiftKey || event.ctrlKey || event.metaKey) {
-        event.preventDefault();
+      if (event.target.closest("input, label, button, a")) {
+        card.draggable = false;
         return;
       }
-      if (event.button !== 0) return;
-      if (event.target.closest("input, label, button, a")) return;
-      if (state.selected.has(card.dataset.id)) return;
-      beginMarquee(event, true);
+      card.draggable = true;
+      if (event.shiftKey || event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+      }
     };
+    const prio = card.querySelector("[data-priority]");
+    if (prio) {
+      prio.onclick = (event) => event.stopPropagation();
+      prio.onchange = (event) => {
+        event.stopPropagation();
+        setPriority(card.dataset.id, event.target.value);
+      };
+    }
     card.onclick = (event) => {
       if (state.dragged) return;
+      if (event.target.closest("input, button, a, .prio")) return;
       const status = event.target.closest("[data-status]");
       if (status) {
         event.preventDefault();
@@ -3646,7 +3816,9 @@ function openDetail(id) {
       <button class="danger" type="button" id="detail-delete">Eliminar</button>
       <span class="row">
         <span id="detail-refresh-slot">${refreshButton(mod)}</span>
+        <button class="ghost" type="button" id="detail-active"></button>
         <button class="ghost" type="button" id="detail-download" data-i18n="download">Descargar</button>
+        <button class="ghost" type="button" id="detail-install">Instalar</button>
         <button class="solid" type="button" id="detail-save">Guardar</button>
       </span>
     </footer>`;
@@ -3671,9 +3843,23 @@ function openDetail(id) {
   const refresh = $("detail-refresh");
   if (refresh) refresh.onclick = () => refreshOne(mod.id);
   $("detail-download").onclick = () => downloadMod(mod.id);
+  $("detail-install").onclick = () => installMod(mod);
+  $("detail-active").onclick = () => setModStatus(mod.id, "in");
   $("detail-delete").onclick = () => removeMod(mod.id);
   $("detail").dataset.id = mod.id;
+  paintDetailActive(mod);
   probeUpdate(mod.id);
+}
+
+function paintDetailActive(mod) {
+  const button = $("detail-active");
+  if (!button || $("detail")?.dataset.id !== mod.id) return;
+  const hasFiles = modDownloaded(mod);
+  const on = statusOn(mod, "in");
+  button.disabled = !hasFiles && !on;
+  button.textContent = on ? t("bulkDisable") : t("bulkEnable");
+  button.classList.toggle("on", on && hasFiles);
+  button.title = !hasFiles ? t("activeNeedFiles") : (on ? t("activeTipOn") : t("activeTipOff"));
 }
 
 function filesHint(mod) {
@@ -3682,6 +3868,67 @@ function filesHint(mod) {
   const first = files[0]?.storedAs || files[0]?.name || "";
   if (files.length === 1) return t("downloadOne", { path: first });
   return t("downloadMany", { n: files.length, path: first });
+}
+
+function fomodPlugins(plan) {
+  const rows = [];
+  for (const step of plan?.installSteps || []) {
+    for (const group of step.groups || []) {
+      for (const plugin of group.plugins || []) {
+        if (plugin.type === "Required") continue;
+        rows.push(plugin);
+      }
+    }
+  }
+  return rows;
+}
+
+function askFomod(plan) {
+  const plugins = fomodPlugins(plan);
+  if (!plugins.length) return Promise.resolve([]);
+  return new Promise((resolve) => {
+    const host = $("detail");
+    const box = document.createElement("div");
+    box.className = "fomod-steps";
+    box.innerHTML = `<p class="hint">${esc(plan.moduleName || "FOMOD")}</p>${plugins.map((plugin, index) => `
+      <label class="fomod-opt"><input type="checkbox" data-fomod="${index}" ${plugin.type === "Recommended" ? "checked" : ""}> <span><b>${esc(plugin.name)}</b>${plugin.description ? `<small>${esc(plugin.description)}</small>` : ""}</span></label>`).join("")}
+      <span class="row"><button type="button" class="ghost" id="fomod-cancel">Cancelar</button><button type="button" class="solid" id="fomod-go">Desplegar</button></span>`;
+    host.append(box);
+    box.querySelector("#fomod-cancel").onclick = () => { box.remove(); resolve(null); };
+    box.querySelector("#fomod-go").onclick = () => {
+      const names = [...box.querySelectorAll("input:checked")].map((input) => plugins[Number(input.dataset.fomod)].name);
+      box.remove();
+      resolve(names);
+    };
+  });
+}
+
+async function installMod(mod) {
+  const button = $("detail-install");
+  setLoading(button, true, "…");
+  try {
+    const data = await api(`/api/mods/${mod.id}/install`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    if (data.kind === "FOMOD" && data.plan && !data.deployed) {
+      const picks = await askFomod(data.plan);
+      if (!picks) return;
+      const done = await api(`/api/mods/${mod.id}/install`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plugins: picks }),
+      });
+      toast(`Enlazados ${done.linked || 0} en Data. Saltados ${done.skipped || 0}.`);
+      return;
+    }
+    toast(`Enlazados ${data.linked || 0} en Data. Saltados ${data.skipped || 0}.`);
+  } catch (error) {
+    toast(error.message, "bad");
+  } finally {
+    setLoading(button, false);
+  }
 }
 
 async function downloadMod(id) {
@@ -4217,12 +4464,72 @@ function hideModMenu() {
   if (menu) menu.hidden = true;
 }
 
+function parkAppSettings() {
+  const panel = $("settings-panel");
+  const home = $("more-settings");
+  const slot = $("app-settings");
+  const menu = $("app-menu");
+  if (panel && home && panel.parentElement !== home) home.append(panel);
+  if (slot) slot.hidden = true;
+  if (menu) menu.classList.remove("open");
+  const toggle = menu?.querySelector('[data-act="settings"]');
+  if (toggle) toggle.setAttribute("aria-expanded", "false");
+  setSettingsOpen(false);
+}
+
+function hideAppMenu() {
+  parkAppSettings();
+  const menu = $("app-menu");
+  if (menu) menu.hidden = true;
+}
+
+function toggleAppSettings() {
+  const menu = $("app-menu");
+  const panel = $("settings-panel");
+  const slot = $("app-settings");
+  const toggle = menu?.querySelector('[data-act="settings"]');
+  if (!menu || !panel || !slot) return;
+  if (!slot.hidden) {
+    parkAppSettings();
+    return;
+  }
+  slot.append(panel);
+  setSettingsOpen(false);
+  panel.hidden = false;
+  slot.hidden = false;
+  menu.classList.add("open");
+  if (toggle) toggle.setAttribute("aria-expanded", "true");
+  const pad = 8;
+  const left = parseFloat(menu.style.left) || 0;
+  const top = parseFloat(menu.style.top) || 0;
+  menu.style.left = `${Math.max(pad, Math.min(left, window.innerWidth - menu.offsetWidth - pad))}px`;
+  menu.style.top = `${Math.max(pad, Math.min(top, window.innerHeight - menu.offsetHeight - pad))}px`;
+}
+
+function plainSurface(target) {
+  if (!target || !target.closest) return false;
+  return !target.closest(".card, button, a, input, textarea, select, label, dialog, #mod-menu, #app-menu, .mark-pop, #more-pop, #tape-pop, [data-kind], .side-mod, .side-twist, .side-fold, .side-add, .prio, summary");
+}
+
+function openAppMenu(x, y) {
+  const menu = $("app-menu");
+  if (!menu) return;
+  hideModMenu();
+  menu.classList.toggle("flip", x > window.innerWidth * 0.62);
+  menu.hidden = false;
+  const pad = 8;
+  const width = menu.offsetWidth;
+  const height = menu.offsetHeight;
+  menu.style.left = `${Math.max(pad, Math.min(x, window.innerWidth - width - pad))}px`;
+  menu.style.top = `${Math.max(pad, Math.min(y, window.innerHeight - height - pad))}px`;
+}
+
 function openModMenu(id, x, y) {
   const menu = $("mod-menu");
   if (!menu || !id) return;
   menuModId = id;
-  const pick = menu.querySelector('[data-act="pick"]');
-  if (pick) pick.textContent = state.selected.has(id) ? "Quitar selección" : "Seleccionar";
+  const pick = menu.querySelector('[data-act="pick"] span');
+  if (pick) pick.textContent = state.selected.has(id) ? "Quitar selección" : t("select");
   menu.hidden = false;
   const pad = 8;
   const width = menu.offsetWidth;
@@ -4298,16 +4605,63 @@ $("mod-menu").onclick = (event) => {
     render();
   }
 };
+let plainClick = { t: 0, x: 0, y: 0, el: null };
 document.addEventListener("click", (event) => {
   if (!event.target.closest("#mod-menu")) hideModMenu();
+  if (!event.target.closest("#app-menu")) hideAppMenu();
+  if (!plainSurface(event.target)) {
+    plainClick = { t: 0, x: 0, y: 0, el: null };
+    return;
+  }
+  const now = Date.now();
+  const again = plainClick.el === event.target
+    && now - plainClick.t < 700
+    && Math.abs(event.clientX - plainClick.x) < 12
+    && Math.abs(event.clientY - plainClick.y) < 12;
+  if (again) {
+    openAppMenu(event.clientX, event.clientY);
+    plainClick = { t: 0, x: 0, y: 0, el: null };
+    return;
+  }
+  plainClick = { t: now, x: event.clientX, y: event.clientY, el: event.target };
 });
 document.addEventListener("contextmenu", (event) => {
-  if (!event.target.closest(".card")) hideModMenu();
+  if (event.target.closest(".card")) {
+    hideAppMenu();
+    return;
+  }
+  hideModMenu();
+  if (!plainSurface(event.target)) return;
+  event.preventDefault();
+  openAppMenu(event.clientX, event.clientY);
 });
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") hideModMenu();
+  if (event.key === "Escape") {
+    hideModMenu();
+    hideAppMenu();
+  }
 });
-window.addEventListener("scroll", hideModMenu, true);
+window.addEventListener("scroll", () => {
+  hideModMenu();
+  hideAppMenu();
+}, true);
+if ($("app-menu")) {
+  $("app-menu").querySelectorAll("button").forEach((button) => {
+    button.onclick = (event) => {
+      const act = button.dataset.act;
+      if (act === "settings") {
+        event.stopPropagation();
+        toggleAppSettings();
+        return;
+      }
+      hideAppMenu();
+      if (act === "refresh") refreshAllMods($("refresh-all") || button);
+      else if (act === "detect") startGameDetect();
+      else if (act === "tour") startTour();
+      else if (act === "quit") askQuit(false);
+    };
+  });
+}
 
 $("edit-x").onclick = () => $("edit-dialog").close();
 $("edit-cancel").onclick = () => $("edit-dialog").close();

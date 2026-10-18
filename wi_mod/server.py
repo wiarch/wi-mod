@@ -20,6 +20,8 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from wi_mod import __version__
 from wi_mod.archive import export_label, export_library, import_library, peek_library
+from wi_mod.conflicts import annotate as annotate_conflicts
+from wi_mod.deploy import deploy_mod, inspect_mod, purge as purge_deploy
 from wi_mod.curseforge import CurseForgeError, fetch_project as fetch_curseforge, project_ref, search_mods as search_curseforge, validate_key as validate_curseforge_key
 from wi_mod.images import download_picture
 from wi_mod.modrinth import ModrinthError, fetch_project, project_slug, search_projects
@@ -361,9 +363,18 @@ class App:
         _fill_default_games(self)
 
 
+class QuietServer(ThreadingHTTPServer):
+    def handle_error(self, request, client_address) -> None:
+        # El visor cierra el socket a medias. No es un fallo del programa.
+        exc = sys.exception()
+        if isinstance(exc, (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, TimeoutError)):
+            return
+        super().handle_error(request, client_address)
+
+
 def make_server(app: App, port: int = 0) -> ThreadingHTTPServer:
     handler = make_handler(app)
-    server = ThreadingHTTPServer(("127.0.0.1", port), handler)
+    server = QuietServer(("127.0.0.1", port), handler)
     server.daemon_threads = True
     return server
 
@@ -474,12 +485,13 @@ def make_handler(app: App):
                 self._file(WEB / "styles.css", "text/css; charset=utf-8")
                 return
             if path == "/api/library":
-                mods = app.library.list_mods()
+                mods = [_public_mod(mod) for mod in app.library.list_mods()]
+                annotate_conflicts(app.library, mods)
                 packs = app.library.list_modpacks()
                 self._json(
                     200,
                     {
-                        "mods": [_public_mod(mod) for mod in mods],
+                        "mods": mods,
                         "modpacks": [_public_pack(pack) for pack in packs],
                         "catalog": app.library.catalog(),
                         "language": _lang(app),
@@ -836,6 +848,17 @@ def make_handler(app: App):
             if mod_id and action == "download":
                 self._json(200, _download_mod(app, mod_id))
                 return
+            if mod_id and action == "install":
+                body = self._json_body() if int(self.headers.get("Content-Length") or 0) else {}
+                self._json(200, _install_mod(app, mod_id, body))
+                return
+            if path == "/api/game/purge":
+                body = self._json_body() if int(self.headers.get("Content-Length") or 0) else {}
+                domain = str(body.get("id") or body.get("gameDomain") or "").strip().lower()
+                game = _catalog_game(app, domain) if domain else None
+                launch = str((game or {}).get("launchPath") or "")
+                self._json(200, purge_deploy(app.library, launch))
+                return
             if mod_id and action == "files":
                 mod = _upload(app, self, mod_id)
                 self._json(201, {"mod": _public_mod(mod)})
@@ -1007,17 +1030,27 @@ def make_handler(app: App):
                 dest.unlink(missing_ok=True)
 
         def _media(self, relative: str) -> None:
-            if not relative.startswith("images/") or ".." in relative:
+            rel = str(relative or "").replace("\\", "/").lstrip("/")
+            if not rel or ".." in Path(rel).parts or rel.startswith("mods/"):
+                self._json(404, {"error": "No encontrado."})
+                return
+            types = {
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".png": "image/png",
+                ".webp": "image/webp",
+                ".gif": "image/gif",
+            }
+            kind = types.get(Path(rel).suffix.lower())
+            if not kind:
                 self._json(404, {"error": "No encontrado."})
                 return
             try:
-                path = app.library.absolute(relative)
+                path = app.library.absolute(rel)
             except ValueError:
                 self._json(404, {"error": "No encontrado."})
                 return
-            types = {".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".gif": "image/gif"}
-            kind = types.get(path.suffix.lower())
-            if not kind or not path.is_file():
+            if not path.is_file():
                 self._json(404, {"error": "No encontrado."})
                 return
             self._file(path, kind)
@@ -1113,7 +1146,7 @@ def make_handler(app: App):
 
 
 def _mod_action(path: str) -> tuple[str | None, str | None]:
-    match = re.fullmatch(r"/api/mods/([0-9a-f]{32})/(refresh|files|download|translate)", path)
+    match = re.fullmatch(r"/api/mods/([0-9a-f]{32})/(refresh|files|download|translate|install)", path)
     if not match:
         return None, None
     return match.group(1), match.group(2)
@@ -1165,6 +1198,22 @@ def _catalog_game(app: App, domain: str) -> dict | None:
         if isinstance(item, dict) and str(item.get("gameDomain") or "").lower() == domain:
             return item
     return None
+
+
+def _install_mod(app: App, mod_id: str, body: dict) -> dict:
+    mod = app.library.get(mod_id)
+    if not mod:
+        raise ValueError("Mod no encontrado.")
+    game = _catalog_game(app, str(mod.get("gameDomain") or ""))
+    launch = str((game or {}).get("launchPath") or "")
+    if not launch:
+        raise ValueError("Detecta o elige la carpeta del juego antes de instalar.")
+    if body.get("inspect"):
+        return inspect_mod(app.library, mod)
+    plugins = body.get("plugins") if "plugins" in body else None
+    if plugins is not None and not isinstance(plugins, list):
+        raise ValueError("Las opciones del FOMOD no son válidas.")
+    return deploy_mod(app.library, mod, launch, plugins)
 
 
 def _theme_name(value: object) -> str:

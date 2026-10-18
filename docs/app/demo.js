@@ -1039,6 +1039,13 @@
         mod.status = ["got", "in"].filter((part) => parts.includes(part)).join("+");
       }
       if ("packOrder" in body) mod.packOrder = Math.max(0, Number(body.packOrder) || 0);
+      if ("priority" in body) {
+        const peers = data.mods.filter((item) => item !== mod && String(item.gameDomain || "") === String(mod.gameDomain || ""));
+        peers.sort((a, b) => (Number(a.priority) || 0) - (Number(b.priority) || 0));
+        const slot = Math.max(1, Math.min(Number(body.priority) || 1, peers.length + 1));
+        peers.splice(slot - 1, 0, mod);
+        peers.forEach((item, index) => { item.priority = index + 1; });
+      }
       const pack = data.modpacks.find((item) => item.id === mod.modpackId);
       mod.modpack = pack ? pack.name : "";
       save(data);

@@ -123,6 +123,7 @@ class Library:
             mod["rule"] = str(fields.get("rule") or "").strip()[:80]
             self._assign_pack(mod, fields, data.get("modpacks") or [])
             self._stamp_pack_order(mod, data["mods"])
+            self._stamp_priority(mod, data["mods"])
             if "modpackNotes" in fields:
                 mod["modpackNotes"] = str(fields.get("modpackNotes") or "")[:4000]
             mod["addedAt"] = now()
@@ -143,6 +144,8 @@ class Library:
             before_in = "in" in str(mod.get("status") or "").split("+")
             self._apply_user(mod, fields, packs)
             self._stamp_pack_order(mod, data["mods"])
+            if "priority" in fields:
+                self._place_priority(mod, data["mods"], fields.get("priority"))
             after_in = "in" in str(mod.get("status") or "").split("+")
             after_key = self._mod_location_key(mod, packs)
             if before_key != after_key:
@@ -333,7 +336,9 @@ class Library:
                 clone["name"] = base if base.endswith(" copia") else f"{base} copia"
                 clone["files"] = []
                 clone["addedAt"] = now()
+                clone["priority"] = 0
                 clone["pictureFile"] = self._copy_picture(src.get("pictureFile"))
+                self._stamp_priority(clone, data["mods"])
                 data["mods"].insert(0, clone)
                 clones.append(clone)
             self._write(data)
@@ -870,6 +875,7 @@ class Library:
             "remoteVersion": "",
             "status": "",
             "packOrder": 0,
+            "priority": 0,
         }
 
     def _blank_pack(self) -> dict[str, Any]:
@@ -1249,6 +1255,32 @@ class Library:
         if "modpackNotes" in fields:
             mod["modpackNotes"] = str(fields.get("modpackNotes") or "")[:4000]
 
+    def _game_peers(self, mod: dict[str, Any], mods: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        game = str(mod.get("gameDomain") or "").strip().lower()
+        return [
+            item for item in mods
+            if item is not mod and str(item.get("gameDomain") or "").strip().lower() == game
+        ]
+
+    def _stamp_priority(self, mod: dict[str, Any], mods: list[dict[str, Any]]) -> None:
+        if int(mod.get("priority") or 0) > 0:
+            return
+        orders = [int(item.get("priority") or 0) for item in self._game_peers(mod, mods)]
+        mod["priority"] = (max(orders) if orders else 0) + 1
+
+    def _place_priority(self, mod: dict[str, Any], mods: list[dict[str, Any]], wanted: Any) -> None:
+        """Coloca el mod en esa prioridad del juego y renumera 1..N. Mayor = carga después."""
+        peers = self._game_peers(mod, mods)
+        peers.sort(key=lambda item: (int(item.get("priority") or 0), str(item.get("name") or "").lower()))
+        try:
+            slot = int(wanted or 1)
+        except (TypeError, ValueError):
+            slot = 1
+        slot = max(1, min(slot, len(peers) + 1))
+        peers.insert(slot - 1, mod)
+        for index, item in enumerate(peers, start=1):
+            item["priority"] = index
+
     def _stamp_pack_order(self, mod: dict[str, Any], mods: list[dict[str, Any]]) -> None:
         if not mod.get("modpackId"):
             mod["packOrder"] = 0
@@ -1292,6 +1324,22 @@ class Library:
         for mod in data.get("mods") or []:
             if str(mod.get("status") or "") == "want":
                 mod["status"] = ""
+                dirty = True
+        grouped: dict[str, list[dict[str, Any]]] = {}
+        for mod in data.get("mods") or []:
+            if not isinstance(mod, dict):
+                continue
+            grouped.setdefault(str(mod.get("gameDomain") or "").strip().lower(), []).append(mod)
+        for group in grouped.values():
+            missing = [item for item in group if int(item.get("priority") or 0) <= 0]
+            if not missing:
+                continue
+            known = [int(item.get("priority") or 0) for item in group if int(item.get("priority") or 0) > 0]
+            nxt = (max(known) if known else 0) + 1
+            missing.sort(key=lambda item: str(item.get("addedAt") or ""))
+            for item in missing:
+                item["priority"] = nxt
+                nxt += 1
                 dirty = True
         data.setdefault("modpacks", [])
         packs: list[dict[str, Any]] = data["modpacks"]

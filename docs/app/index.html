@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>wi-mod</title>
   <link rel="icon" href="brand/wi-mod.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=0.18.0">
+  <link rel="stylesheet" href="styles.css?v=0.19.0">
 </head>
 <body>
   <div id="login" class="login" hidden>
@@ -75,7 +75,7 @@
     <aside class="side">
       <div class="brand-row">
         <div class="brand">wi-mod</div>
-        <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.18.0</a>
+        <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.19.0</a>
       </div>
       <input id="side-search" class="side-search" type="search" placeholder="Buscar en filtros y mods" data-i18n-placeholder="sideSearch" autocomplete="off" spellcheck="false" aria-label="Buscar">
       <div class="side-block" data-fold="platforms">
@@ -140,6 +140,7 @@
           <div class="view-toggle" role="group" aria-label="Diseño" data-i18n-aria="layout">
             <button type="button" id="view-grid" data-view="grid" title="Cuadrícula" data-i18n-title="grid">▦</button>
             <button type="button" id="view-list" data-view="list" title="Listado" data-i18n-title="listView">☰</button>
+            <button type="button" id="view-table" data-view="table" title="Tabla" data-i18n-title="tableView">▤</button>
           </div>
           <div class="view-toggle" role="group" aria-label="Tamaño" data-i18n-aria="size">
             <button type="button" id="size-down" title="Achicar" data-i18n-title="sizeDown">−</button>
@@ -153,6 +154,7 @@
               <option value="downloaded" data-i18n="sortDownloaded">Recién descargados</option>
               <option value="updated" data-i18n="sortUpdated">Última actualización</option>
               <option value="name" data-i18n="sortName">Nombre</option>
+              <option value="priority" data-i18n="sortPriority">Prioridad</option>
             </select>
           </label>
           <input id="list-search" class="list-search" type="search" placeholder="Filtrar lista" data-i18n-placeholder="listSearch" autocomplete="off" spellcheck="false" aria-label="Filtrar lista">
@@ -608,11 +610,19 @@
   </div>
 
   <div id="mod-menu" class="mod-menu" hidden>
-    <button type="button" data-act="view" data-i18n="view">Ver</button>
-    <button type="button" data-act="edit" data-i18n="edit">Editar</button>
-    <button type="button" data-act="note" data-i18n="note">Nota</button>
-    <button type="button" data-act="pick" data-i18n="select">Seleccionar</button>
-    <button type="button" data-act="move" data-i18n="moveToPack">Mover a modpack</button>
+    <button type="button" data-act="view"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg><span data-i18n="view">Ver</span></button>
+    <button type="button" data-act="edit"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 20h4l10-10-4-4L4 16zM14 6l4 4"/></svg><span data-i18n="edit">Editar</span></button>
+    <button type="button" data-act="note"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 3h9l5 5v13H6zM14 3v6h6M8 13h8M8 17h6"/></svg><span data-i18n="note">Nota</span></button>
+    <button type="button" data-act="pick"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M8 12l3 3 5-6"/></svg><span data-i18n="select">Seleccionar</span></button>
+    <button type="button" data-act="move"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg><span data-i18n="moveToPack">Mover a modpack</span></button>
+  </div>
+  <div id="app-menu" class="mod-menu" hidden>
+    <button type="button" data-act="refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 12a8 8 0 1 1-2.2-5.5M20 4v5h-5"/></svg><span data-i18n="refresh">Actualizar</span></button>
+    <button type="button" data-act="detect"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="11" cy="11" r="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span data-i18n="detectGames">Detectar</span></button>
+    <button type="button" data-act="tour"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v6M12 7.5h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span data-i18n="tutorial">Tutorial</span></button>
+    <button type="button" data-act="settings" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span data-i18n="settings">Ajustes</span><span class="settings-caret" aria-hidden="true"></span></button>
+    <div id="app-settings" hidden></div>
+    <button type="button" data-act="quit"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2M4 12h11M12 9l3 3-3 3"/></svg><span data-i18n="quit">Salir</span></button>
   </div>
 
   <dialog id="edit-dialog">
@@ -837,8 +847,8 @@
     </div>
   </div>
 
-  <script src="demo-keys.js?v=0.18.0" onerror=""></script>
-  <script src="demo.js?v=0.18.0"></script>
-  <script src="app.js?v=0.18.0"></script>
+  <script src="demo-keys.js?v=0.19.0" onerror=""></script>
+  <script src="demo.js?v=0.19.0"></script>
+  <script src="app.js?v=0.19.0"></script>
 </body>
 </html>
