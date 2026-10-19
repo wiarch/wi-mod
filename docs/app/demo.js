@@ -1180,6 +1180,17 @@
       save(data);
       return reply(200, { catalog: library(data).catalog });
     }
+    if (path === "/api/minecraft/versions") {
+      return reply(200, { versions: ["1.21.1", "1.20.1"] });
+    }
+    if (path === "/api/minecraft/loaders") {
+      return reply(200, {
+        loaders: { forge: ["47.3.0"], fabric: ["0.16.9"], quilt: ["0.26.4"], neoforge: [] },
+      });
+    }
+    if (path.startsWith("/api/minecraft/profiles")) {
+      return reply(400, { error: "La instancia se crea en la app de escritorio." });
+    }
     if (path === "/api/game/detect" && method === "POST") {
       return reply(200, {
         candidates: [],

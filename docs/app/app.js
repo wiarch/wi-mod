@@ -256,6 +256,12 @@ const UI = {
     coverBgTitleUse: "Usar portada del juego", coverBgTitleOff: "Usar fondo predeterminado",
     noDate: "sin fecha", newTag: "nueva", emptyFiltered: "Hay {n} mod(s) ocultos por el filtro.",
     clearFilters: "Quitar filtros", emptyGame: "Sin mods en este juego.",
+    createInstance: "Instancia", instanceTitle: "Crear perfil", instanceName: "Nombre",
+    instanceNamePh: "Nombre del perfil", instanceMc: "Versión de Minecraft",
+    instanceLoader: "Modloader", instanceLoaderVer: "Versión del modloader",
+    instanceCreate: "Crear", instanceCreating: "Creando perfil…",
+    instanceDownloading: "Descargando librerías…", instanceReady: "Perfil listo.",
+    instanceLoaders: "Buscando loaders…",
     emptyAll: "Pega un enlace de Nexus con Añadir mod. La ficha trae imagen, resumen, categoría, versión y última actualización.",
     picked: "{n} marcados", pickFirst: "Marca mods primero.", noResults: "Sin resultados",
     type2: "Escribe al menos 2 letras.", searching: "Buscando…",
@@ -402,6 +408,12 @@ const UI = {
     coverBgTitleUse: "Use game cover as background", coverBgTitleOff: "Use default background",
     noDate: "no date", newTag: "new", emptyFiltered: "{n} mod(s) hidden by the filter.",
     clearFilters: "Clear filters", emptyGame: "No mods in this game.",
+    createInstance: "Instance", instanceTitle: "Create profile", instanceName: "Name",
+    instanceNamePh: "Profile name", instanceMc: "Minecraft version",
+    instanceLoader: "Modloader", instanceLoaderVer: "Modloader version",
+    instanceCreate: "Create", instanceCreating: "Creating profile…",
+    instanceDownloading: "Downloading libraries…", instanceReady: "Profile ready.",
+    instanceLoaders: "Looking up loaders…",
     emptyAll: "Paste a Nexus link with Add mod. The card brings image, summary, category, version, and last update.",
     picked: "{n} selected", pickFirst: "Select mods first.", noResults: "No results",
     type2: "Type at least 2 letters.", searching: "Searching…",
@@ -1395,6 +1407,8 @@ function paintGamePlay() {
   const tip = linked ? t("launchLinked") : t("launchUnlinked");
   btn.title = tip;
   btn.setAttribute("aria-label", tip);
+  const inst = $("instance-create");
+  if (inst) inst.hidden = !String(state.game || "").toLowerCase().startsWith("minecraft");
 }
 
 function selectGame(domain) {
@@ -5322,6 +5336,119 @@ function bindGameAdd() {
 }
 bindGameAdd();
 if ($("game-play")) $("game-play").onclick = playActiveGame;
+
+let instanceLoaders = {};
+
+function instanceLoaderPicked() {
+  return document.querySelector('input[name="instance-loader"]:checked')?.value || "";
+}
+
+function paintInstanceLoaders(found) {
+  for (const name of ["forge", "fabric", "quilt", "neoforge", "vanilla"]) {
+    const input = document.querySelector(`input[name="instance-loader"][value="${name}"]`);
+    if (!input) continue;
+    const enabled = name === "vanilla" || (found[name] || []).length > 0;
+    input.disabled = !enabled;
+    input.closest("label")?.classList.toggle("off", !enabled);
+    if (!enabled && input.checked) input.checked = false;
+  }
+  if (!instanceLoaderPicked()) {
+    const first = document.querySelector('input[name="instance-loader"]:not(:disabled)');
+    if (first) first.checked = true;
+  }
+}
+
+function fillInstanceLoaderVersions() {
+  const select = $("instance-loader-version");
+  if (!select) return;
+  const loader = instanceLoaderPicked();
+  const versions = loader && loader !== "vanilla" ? (instanceLoaders[loader] || []) : [];
+  select.disabled = !versions.length;
+  select.innerHTML = versions.map((version) => `<option value="${esc(version)}">${esc(version)}</option>`).join("");
+}
+
+function setInstanceProgress(percent, message, busy) {
+  const wrap = $("instance-progress");
+  const bar = $("instance-bar");
+  const status = $("instance-status");
+  if (wrap) wrap.hidden = false;
+  if (bar) {
+    bar.style.width = `${percent}%`;
+    bar.parentElement.classList.toggle("busy", Boolean(busy));
+  }
+  if (status) status.textContent = message || "";
+}
+
+async function refreshInstanceLoaders() {
+  const version = $("instance-mc")?.value || "";
+  if (!version) return;
+  setInstanceProgress(15, t("instanceLoaders"), true);
+  const data = await api(`/api/minecraft/loaders?version=${encodeURIComponent(version)}`);
+  instanceLoaders = data.loaders || {};
+  paintInstanceLoaders(instanceLoaders);
+  fillInstanceLoaderVersions();
+  $("instance-progress").hidden = true;
+}
+
+async function openInstanceDialog() {
+  const dialog = $("instance-dialog");
+  if (!dialog) return;
+  sfx.open();
+  $("instance-name").value = "";
+  $("instance-progress").hidden = true;
+  $("instance-go").disabled = false;
+  dialog.showModal();
+  const data = await api("/api/minecraft/versions");
+  const select = $("instance-mc");
+  select.innerHTML = (data.versions || []).map((version) => `<option value="${esc(version)}">${esc(version)}</option>`).join("");
+  await refreshInstanceLoaders();
+}
+
+async function submitInstance(event) {
+  event.preventDefault();
+  const button = $("instance-go");
+  const name = $("instance-name").value.trim();
+  const mc = $("instance-mc").value;
+  const loader = instanceLoaderPicked();
+  const build = loader === "vanilla" ? mc : ($("instance-loader-version").value || "");
+  if (!name || !mc || !loader || (loader !== "vanilla" && !build)) {
+    setInstanceProgress(0, t("instanceCreating"), false);
+    $("instance-status").textContent = t("pickFirst");
+    return;
+  }
+  button.disabled = true;
+  setInstanceProgress(12, t("instanceCreating"), true);
+  try {
+    await api("/api/minecraft/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, mc_version: mc, loader_type: loader, loader_version: build }),
+    });
+    if (loader !== "vanilla") {
+      setInstanceProgress(45, t("instanceDownloading"), true);
+      await api("/api/minecraft/profiles/install", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+    }
+    setInstanceProgress(100, t("instanceReady"), false);
+    toast(t("instanceReady"));
+    $("instance-dialog").close();
+  } catch (error) {
+    setInstanceProgress(0, error.message || String(error), false);
+    toast(error.message || String(error), "bad");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+if ($("instance-create")) $("instance-create").onclick = () => { openInstanceDialog().catch((error) => toast(error.message || String(error), "bad")); };
+if ($("instance-mc")) $("instance-mc").onchange = () => { refreshInstanceLoaders().catch((error) => toast(error.message || String(error), "bad")); };
+document.querySelectorAll('input[name="instance-loader"]').forEach((input) => {
+  input.onchange = () => fillInstanceLoaderVersions();
+});
+if ($("instance-form")) $("instance-form").onsubmit = submitInstance;
 if ($("launch-form")) $("launch-form").onsubmit = (event) => event.preventDefault();
 $("game-picker").onclick = (event) => {
   event.preventDefault();

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 from urllib.parse import quote
-
-import requests
 
 from wi_mod import __version__
 
@@ -21,11 +22,6 @@ class ModManagerError(Exception):
 class ModManager:
     def __init__(self, timeout: float = 30) -> None:
         self.timeout = timeout
-        self._session = requests.Session()
-        self._session.headers.update({
-            "Accept": "application/json",
-            "User-Agent": f"wi-mod/{__version__} (local library)",
-        })
 
     def search_mods(self, query: str, mc_version: str, loader: str) -> list:
         version = str(mc_version or "").strip()
@@ -148,34 +144,48 @@ class ModManager:
         dest = mods / filename
         if dest.is_file() and dest.stat().st_size > 0:
             return None
+        request = urllib.request.Request(url, headers=self._headers())
         try:
-            with self._session.get(url, timeout=self.timeout, stream=True) as response:
-                if response.status_code == 404:
-                    raise ModManagerError(f"No encuentro el archivo {filename}.")
-                if response.status_code >= 400:
-                    raise ModManagerError(f"Modrinth respondió {response.status_code} al bajar {filename}.")
-                with dest.open("wb") as handle:
-                    for chunk in response.iter_content(chunk_size=1024 * 64):
-                        if chunk:
-                            handle.write(chunk)
-        except requests.RequestException as exc:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response, dest.open("wb") as handle:
+                while True:
+                    chunk = response.read(1024 * 64)
+                    if not chunk:
+                        break
+                    handle.write(chunk)
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                raise ModManagerError(f"No encuentro el archivo {filename}.") from exc
+            raise ModManagerError(f"Modrinth respondió {exc.code} al bajar {filename}.") from exc
+        except urllib.error.URLError as exc:
             raise ModManagerError(f"No pude bajar {filename}.") from exc
         except OSError as exc:
             raise ModManagerError(f"No pude guardar {filename}.") from exc
         return dest
 
+    def _headers(self) -> dict[str, str]:
+        return {
+            "Accept": "application/json",
+            "User-Agent": f"wi-mod/{__version__} (local library)",
+        }
+
     def _get_json(self, path: str, params: dict | None = None) -> list | dict:
         url = f"{API}{path}"
+        if params:
+            url = f"{url}?{urllib.parse.urlencode(params)}"
+        request = urllib.request.Request(url, headers=self._headers())
         try:
-            response = self._session.get(url, params=params, timeout=self.timeout)
-        except requests.RequestException as exc:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                status, payload = response.status, response.read()
+        except urllib.error.HTTPError as exc:
+            status, payload = exc.code, exc.read()
+        except urllib.error.URLError as exc:
             raise ModManagerError("No hay conexión con Modrinth.") from exc
-        if response.status_code == 404:
+        if status == 404:
             raise ModManagerError("Ese proyecto no existe en Modrinth.")
-        if response.status_code >= 400:
-            raise ModManagerError(f"Modrinth respondió {response.status_code}.")
+        if status >= 400:
+            raise ModManagerError(f"Modrinth respondió {status}.")
         try:
-            return response.json()
+            return json.loads(payload.decode("utf-8"))
         except ValueError as exc:
             raise ModManagerError("Modrinth devolvió una respuesta que no es JSON.") from exc
 

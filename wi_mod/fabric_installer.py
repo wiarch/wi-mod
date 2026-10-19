@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 import platform
+import urllib.error
+import urllib.request
 from pathlib import Path
 from urllib.parse import quote
-
-import requests
 
 META = "https://meta.fabricmc.net/v2/versions/loader"
 DEFAULT_MAVEN = "https://maven.fabricmc.net/"
@@ -71,8 +71,6 @@ def _library_allowed(library: dict) -> bool:
 class FabricInstaller:
     def __init__(self, timeout: float = 30) -> None:
         self.timeout = timeout
-        self._session = requests.Session()
-        self._session.headers["User-Agent"] = "wi-mod"
 
     def stable_loaders(self, mc_version: str) -> list[dict]:
         version = str(mc_version or "").strip()
@@ -141,22 +139,25 @@ class FabricInstaller:
         raise FabricIncompatibleError(f"El loader {wanted} no está entre los estables.")
 
     def _get_json(self, url: str) -> list | dict:
-        response = self._get(url)
+        status, payload = self._read(url)
+        if status in {400, 404}:
+            raise FabricIncompatibleError("Esa versión de Minecraft no es compatible con Fabric.")
+        if status >= 400:
+            raise FabricConnectionError(f"Fabric respondió {status}.")
         try:
-            return response.json()
+            return json.loads(payload.decode("utf-8"))
         except ValueError as exc:
             raise FabricError("Fabric devolvió una respuesta que no es JSON.") from exc
 
-    def _get(self, url: str) -> requests.Response:
+    def _read(self, url: str) -> tuple[int, bytes]:
+        request = urllib.request.Request(url, headers={"User-Agent": "wi-mod"})
         try:
-            response = self._session.get(url, timeout=self.timeout)
-        except requests.RequestException as exc:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                return response.status, response.read()
+        except urllib.error.HTTPError as exc:
+            return exc.code, exc.read()
+        except urllib.error.URLError as exc:
             raise FabricConnectionError("No hay conexión con Fabric.") from exc
-        if response.status_code in {400, 404}:
-            raise FabricIncompatibleError("Esa versión de Minecraft no es compatible con Fabric.")
-        if response.status_code >= 400:
-            raise FabricConnectionError(f"Fabric respondió {response.status_code}.")
-        return response
 
     def _download_libraries(self, libraries_dir: Path, libraries: list[dict]) -> None:
         try:
@@ -177,16 +178,18 @@ class FabricInstaller:
             if not base.endswith("/"):
                 base = f"{base}/"
             url = f"{base}{relative}"
+            request = urllib.request.Request(url, headers={"User-Agent": "wi-mod"})
             try:
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                with self._session.get(url, timeout=self.timeout, stream=True) as response:
-                    if response.status_code >= 400:
-                        raise FabricConnectionError(f"No pude bajar {name}.")
-                    with dest.open("wb") as handle:
-                        for chunk in response.iter_content(chunk_size=1024 * 64):
-                            if chunk:
-                                handle.write(chunk)
-            except requests.RequestException as exc:
+                with urllib.request.urlopen(request, timeout=self.timeout) as response, dest.open("wb") as handle:
+                    while True:
+                        chunk = response.read(1024 * 64)
+                        if not chunk:
+                            break
+                        handle.write(chunk)
+            except urllib.error.HTTPError as exc:
+                raise FabricConnectionError(f"No pude bajar {name}.") from exc
+            except urllib.error.URLError as exc:
                 raise FabricConnectionError(f"No pude bajar {name}.") from exc
             except OSError as exc:
                 raise FabricError(f"No pude guardar {name}.") from exc

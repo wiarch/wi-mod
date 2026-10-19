@@ -24,7 +24,15 @@ from wi_mod.conflicts import annotate as annotate_conflicts
 from wi_mod.deploy import deploy_mod, inspect_mod, purge as purge_deploy
 from wi_mod.curseforge import CurseForgeError, fetch_project as fetch_curseforge, project_ref, search_mods as search_curseforge, validate_key as validate_curseforge_key
 from wi_mod.images import download_picture
+from wi_mod.loader_installer import LoaderInstallError, install_loader
 from wi_mod.modrinth import ModrinthError, fetch_project, project_slug, search_projects
+from wi_mod.profile_creator import (
+    ProfileError,
+    ProfileExistsError,
+    create_profile,
+    fetch_available_loaders,
+    list_game_versions,
+)
 from wi_mod.multipart import parse_multipart
 from wi_mod.nexus import (
     Cache,
@@ -473,6 +481,18 @@ def make_handler(app: App):
             if path == "/api/status":
                 self._json(200, _status_payload(app))
                 return
+            if path == "/api/minecraft/versions":
+                if not self._open():
+                    return
+                self._json(200, {"versions": list_game_versions()})
+                return
+            if path == "/api/minecraft/loaders":
+                if not self._open():
+                    return
+                query = parse_qs(urlparse(self.path).query)
+                version = (query.get("version") or [""])[0]
+                self._json(200, {"loaders": fetch_available_loaders(version)})
+                return
             if not self._open():
                 return
             if path in ("/", "/index.html"):
@@ -747,6 +767,33 @@ def make_handler(app: App):
                     None,
                 )
                 self._json(200, {"catalog": catalog, "game": game})
+                return
+            if path == "/api/minecraft/profiles":
+                body = self._json_body()
+                instance = create_profile(
+                    str(body.get("name") or ""),
+                    str(body.get("mc_version") or ""),
+                    str(body.get("loader_type") or ""),
+                    str(body.get("loader_version") or ""),
+                )
+                config = json.loads((instance / "profile.json").read_text(encoding="utf-8"))
+                self._json(201, {"profile": config, "name": instance.name})
+                return
+            if path == "/api/minecraft/profiles/install":
+                body = self._json_body()
+                instance = _minecraft_instance(str(body.get("name") or ""))
+                config = json.loads((instance / "profile.json").read_text(encoding="utf-8"))
+                loader = str(config.get("loader_type") or "")
+                if loader == "vanilla":
+                    self._json(200, {"ok": True, "name": instance.name, "version": ""})
+                    return
+                version_json = install_loader(
+                    instance,
+                    loader,
+                    str(config.get("loader_version") or ""),
+                    str(config.get("mc_version") or ""),
+                )
+                self._json(200, {"ok": True, "name": instance.name, "version": version_json.parent.name})
                 return
             if path == "/api/game/launch":
                 body = self._json_body()
@@ -1132,6 +1179,12 @@ def make_handler(app: App):
                     "existingName": mod.get("name") or "",
                 })
                 return
+            if isinstance(exc, ProfileExistsError):
+                self._json(409, {"error": str(exc)})
+                return
+            if isinstance(exc, (ProfileError, LoaderInstallError)):
+                self._json(400, {"error": str(exc)})
+                return
             if isinstance(exc, ValueError):
                 self._json(400, {"error": str(exc)})
                 return
@@ -1143,6 +1196,19 @@ def make_handler(app: App):
             self._json(500, {"error": f"Error interno de wi-mod: {detail}"})
 
     return Handler
+
+
+def _minecraft_instance(name: str) -> Path:
+    from wi_mod.profile_creator import _safe_name
+
+    folder = _safe_name(name)
+    root = (Path(__file__).resolve().parent.parent / "instances").resolve()
+    path = (root / folder).resolve()
+    if root not in path.parents:
+        raise ProfileError("Nombre de perfil no válido.")
+    if not (path / "profile.json").is_file():
+        raise ProfileError("No existe ese perfil.")
+    return path
 
 
 def _mod_action(path: str) -> tuple[str | None, str | None]:

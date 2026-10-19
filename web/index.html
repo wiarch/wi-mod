@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>wi-mod</title>
   <link rel="icon" href="/brand/wi-mod.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css?v=0.20.0">
+  <link rel="stylesheet" href="/styles.css?v=0.21.0">
 </head>
 <body>
   <div id="login" class="login" hidden>
@@ -57,6 +57,7 @@
       <button type="button" id="game-play" class="game-play" title="Lanzar juego" aria-label="Lanzar juego">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 6.2v11.6l9.2-5.8z"/></svg>
       </button>
+      <button type="button" id="instance-create" class="instance-open" hidden data-i18n="createInstance">Instancia</button>
     </div>
     <div class="search-wrap">
       <div class="search-field">
@@ -79,7 +80,7 @@
       <div class="brand-row">
         <div class="brand-main">
           <div class="brand">wi-mod</div>
-          <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.20.0</a>
+          <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.21.0</a>
         </div>
       </div>
       <input id="side-search" class="side-search" type="search" placeholder="Buscar en filtros y mods" data-i18n-placeholder="sideSearch" autocomplete="off" spellcheck="false" aria-label="Buscar">
@@ -596,6 +597,40 @@
     </form>
   </dialog>
 
+  <dialog id="instance-dialog">
+    <form id="instance-form">
+      <header>
+        <h2 data-i18n="instanceTitle">Crear perfil</h2>
+        <button type="button" class="icon" data-close>✕</button>
+      </header>
+      <label><span data-i18n="instanceName">Nombre</span>
+        <input id="instance-name" required maxlength="80" placeholder="Nombre del perfil" data-i18n-placeholder="instanceNamePh" autocomplete="off" spellcheck="false">
+      </label>
+      <label><span data-i18n="instanceMc">Versión de Minecraft</span>
+        <select id="instance-mc"></select>
+      </label>
+      <fieldset class="loader-picks">
+        <legend data-i18n="instanceLoader">Modloader</legend>
+        <label><input type="radio" name="instance-loader" value="forge" checked> Forge</label>
+        <label><input type="radio" name="instance-loader" value="fabric"> Fabric</label>
+        <label><input type="radio" name="instance-loader" value="quilt"> Quilt</label>
+        <label><input type="radio" name="instance-loader" value="neoforge"> NeoForge</label>
+        <label><input type="radio" name="instance-loader" value="vanilla"> Vanilla</label>
+      </fieldset>
+      <label><span data-i18n="instanceLoaderVer">Versión del modloader</span>
+        <select id="instance-loader-version"></select>
+      </label>
+      <div id="instance-progress" class="instance-progress" hidden>
+        <div class="instance-bar"><span id="instance-bar"></span></div>
+        <p class="hint" id="instance-status"></p>
+      </div>
+      <footer>
+        <button type="button" class="ghost" data-close data-i18n="cancel">Cancelar</button>
+        <button type="submit" class="solid" id="instance-go" data-i18n="instanceCreate">Crear</button>
+      </footer>
+    </form>
+  </dialog>
+
   <dialog id="launch-dialog">
     <form id="launch-form">
       <header>
@@ -867,6 +902,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=0.20.0"></script>
+  <script src="/app.js?v=0.21.0"></script>
 </body>
 </html>
