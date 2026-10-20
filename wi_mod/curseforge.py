@@ -61,22 +61,35 @@ def fetch_project(api_key: str, url: str) -> dict[str, Any]:
     return shaped
 
 
-def search_mods(api_key: str, game_domain: str, terms: str, limit: int = 8) -> list[dict[str, Any]]:
+def search_mods(
+    api_key: str,
+    game_domain: str,
+    terms: str,
+    limit: int = 8,
+    game_version: str = "",
+    loader: str = "",
+) -> list[dict[str, Any]]:
     text = " ".join(str(terms or "").split())[:80]
     domain = _ALIASES.get(str(game_domain or "").strip().lower(), str(game_domain or "").strip().lower())
     if len(text) < 2 or len(domain) < 2:
         return []
-    payload = _get(
-        "/mods/search",
-        api_key,
-        {
-            "gameId": game_id(api_key, domain),
-            "searchFilter": text,
-            "pageSize": max(1, min(int(limit), 12)),
-            "sortField": 6,
-            "sortOrder": "desc",
-        },
-    )
+    params: dict[str, Any] = {
+        "gameId": game_id(api_key, domain),
+        "searchFilter": text,
+        "pageSize": max(1, min(int(limit), 12)),
+        "sortField": 6,
+        "sortOrder": "desc",
+    }
+    version = str(game_version or "").strip()
+    kind = str(loader or "").strip().lower()
+    loader_id = {"forge": 1, "fabric": 4, "quilt": 5, "neoforge": 6}.get(kind)
+    if version or loader_id:
+        params["classId"] = 6
+    if version:
+        params["gameVersion"] = version
+    if loader_id:
+        params["modLoaderType"] = loader_id
+    payload = _get("/mods/search", api_key, params)
     rows = payload.get("data") if isinstance(payload, dict) else []
     hits = []
     for row in rows or []:
@@ -96,6 +109,12 @@ def search_mods(api_key: str, game_domain: str, terms: str, limit: int = 8) -> l
             }
         )
     return hits
+
+
+def download_file_url(api_key: str, mod_id: int, file_id: int) -> str:
+    payload = _get(f"/mods/{int(mod_id)}/files/{int(file_id)}/download-url", api_key)
+    data = payload.get("data") if isinstance(payload, dict) else ""
+    return str(data or "")
 
 
 def validate_key(api_key: str) -> None:

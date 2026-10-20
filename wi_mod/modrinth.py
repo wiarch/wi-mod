@@ -113,13 +113,17 @@ def _get(path: str) -> Any:
         raise ModrinthError("Modrinth no respondió.") from exc
 
 
-def search_projects(terms: str, limit: int = 8) -> list[dict[str, Any]]:
+def search_projects(terms: str, limit: int = 8, game_version: str = "", loader: str = "") -> list[dict[str, Any]]:
     query = " ".join(str(terms or "").split())
     if len(query) < 2:
         return []
-    params = urllib.parse.urlencode({"query": query, "limit": max(1, min(int(limit), 12))})
+    params: dict[str, Any] = {"query": query, "limit": max(1, min(int(limit), 12))}
+    facets = _compat_facets(game_version, loader)
+    if facets:
+        params["facets"] = json.dumps(facets)
+    encoded = urllib.parse.urlencode(params)
     request = urllib.request.Request(
-        f"{API}/search?{params}",
+        f"{API}/search?{encoded}",
         headers={
             "Accept": "application/json",
             "User-Agent": f"wi-mod/{__version__} (local library)",
@@ -150,3 +154,18 @@ def search_projects(terms: str, limit: int = 8) -> list[dict[str, Any]]:
             }
         )
     return hits
+
+
+def _compat_facets(game_version: str, loader: str) -> list[list[str]]:
+    version = str(game_version or "").strip()
+    kind = str(loader or "").strip().lower()
+    if kind not in {"forge", "fabric", "quilt", "neoforge"}:
+        kind = ""
+    if not version and not kind:
+        return []
+    facets = [["project_type:mod"]]
+    if version:
+        facets.append([f"versions:{version}"])
+    if kind:
+        facets.append([f"categories:{kind}"])
+    return facets

@@ -11,8 +11,10 @@ from __future__ import annotations
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
+import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -54,6 +56,11 @@ def install_loader(
     minecraft = instance / ".minecraft"
     if not minecraft.is_dir():
         raise LoaderInstallError("La instancia no tiene .minecraft.")
+    if loader not in META_LOADERS:
+        try:
+            return _find_version(minecraft, loader, build, game)
+        except LoaderInstallError:
+            pass
     if loader in META_LOADERS:
         return _install_meta(minecraft, loader, build, game)
     return _install_jar(instance, minecraft, loader, build, game)
@@ -84,6 +91,9 @@ def find_java() -> str | None:
         candidate = Path(home) / "bin" / binary
         if candidate.is_file():
             return str(candidate)
+    bundled = _bundled_java(binary)
+    if bundled:
+        return bundled
     if os.name != "nt":
         linked = Path("/usr/bin/java")
         if linked.is_file():
@@ -91,6 +101,148 @@ def find_java() -> str | None:
         installed = sorted(Path("/usr/lib/jvm").glob("*/bin/java")) if Path("/usr/lib/jvm").is_dir() else []
         return str(installed[-1]) if installed else None
     return _windows_java(binary)
+
+
+def _bundled_java(binary: str) -> str | None:
+    roots = [
+        Path(__file__).resolve().parents[1] / "java",
+        Path(sys.executable).resolve().parent / "java",
+    ]
+    found: list[Path] = []
+    for root in roots:
+        if not root.is_dir():
+            continue
+        found.extend(path for path in root.glob("**/bin/" + binary) if path.is_file())
+    if not found:
+        return None
+    found.sort(key=lambda path: path.as_posix().lower())
+    return str(found[-1])
+
+
+def find_javaw(mc_version: str = "") -> str | None:
+    needed = _java_feature(mc_version) if str(mc_version or "").strip() else 0
+    binary = "javaw.exe" if os.name == "nt" else "java"
+    paths = _java_candidates(binary)
+    if not paths:
+        fallback = "java.exe" if os.name == "nt" else "java"
+        paths = _java_candidates(fallback)
+    ranked = [( _java_release_major(path) or 0, str(path)) for path in paths]
+    if needed:
+        exact = [item for item in ranked if item[0] == needed]
+        if exact:
+            return exact[-1][1]
+        newer = sorted(item for item in ranked if item[0] > needed)
+        if newer:
+            return newer[0][1]
+    ranked.sort()
+    return ranked[-1][1] if ranked else None
+
+
+def _java_candidates(binary: str) -> list[Path]:
+    found: list[Path] = []
+    which = shutil.which(binary)
+    if which:
+        found.append(Path(which))
+    home = os.environ.get("JAVA_HOME", "").strip()
+    if home:
+        found.append(Path(home) / "bin" / binary)
+    bundled = _bundled_java(binary)
+    if bundled:
+        found.append(Path(bundled))
+    if os.name == "nt":
+        roots = [
+            Path(os.environ.get("ProgramFiles", r"C:\Program Files")),
+            Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")),
+            Path(os.environ.get("LOCALAPPDATA", "")) / "Programs",
+        ]
+        patterns = (
+            "Java/*/bin/" + binary,
+            "Eclipse Adoptium/*/bin/" + binary,
+            "Microsoft/*/bin/" + binary,
+            "Amazon Corretto/*/bin/" + binary,
+            "BellSoft/*/bin/" + binary,
+            "Zulu/*/bin/" + binary,
+            "Temurin/*/bin/" + binary,
+        )
+        for root in roots:
+            if not root.is_dir():
+                continue
+            for pattern in patterns:
+                found.extend(path for path in root.glob(pattern) if path.is_file())
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for path in found:
+        if not path.is_file():
+            continue
+        key = str(path.resolve()).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(path)
+    return unique
+
+
+def _java_release_major(binary: Path) -> int | None:
+    release = binary.parent.parent / "release"
+    try:
+        text = release.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    match = re.search(r'JAVA_VERSION="(\d+)', text)
+    if not match:
+        return None
+    return int(match.group(1))
+
+
+def install_java(dest_root: Path, mc_version: str = "") -> str:
+    found = find_java()
+    if found:
+        return found
+    if os.name != "nt":
+        raise LoaderInstallError("Instala Java y vuelve a crear el perfil.")
+    feature = _java_feature(mc_version)
+    dest_root.mkdir(parents=True, exist_ok=True)
+    archive = dest_root / f"temurin-{feature}.zip"
+    url = (
+        "https://api.adoptium.net/v3/binary/latest/"
+        f"{feature}/ga/windows/x64/jdk/hotspot/normal/eclipse?project=jdk"
+    )
+    _download(url, archive, timeout=300)
+    try:
+        java = _extract_jdk(archive, dest_root)
+    finally:
+        archive.unlink(missing_ok=True)
+    return java
+
+
+def _java_feature(mc_version: str) -> int:
+    nums = [int(part) for part in re.findall(r"\d+", str(mc_version or ""))[:3]]
+    minor, patch = (nums + [0, 0, 0])[1:3]
+    if minor > 20 or (minor == 20 and patch >= 5):
+        return 21
+    if minor >= 17:
+        return 17
+    return 8
+
+
+def _extract_jdk(archive: Path, dest: Path) -> str:
+    import zipfile
+
+    with zipfile.ZipFile(archive) as bundle:
+        for info in bundle.infolist():
+            parts = Path(info.filename).parts
+            if not info.filename or info.filename.startswith("/") or ".." in parts:
+                continue
+            bundle.extract(info, dest)
+    binary = "java.exe" if os.name == "nt" else "java"
+    hits = sorted(path for path in dest.glob("**/bin/" + binary) if path.is_file())
+    if not hits:
+        raise LoaderInstallError("El paquete de Java no trae el ejecutable.")
+    java = hits[-1]
+    home = java.parent.parent
+    os.environ["JAVA_HOME"] = str(home)
+    os.environ["PATH"] = str(home / "bin") + os.pathsep + os.environ.get("PATH", "")
+    return str(java)
 
 
 def _windows_java(binary: str) -> str | None:
@@ -155,17 +307,17 @@ def _install_jar(instance: Path, minecraft: Path, loader: str, build: str, game:
     log_path = minecraft / "logs" / "loader-install.log"
     try:
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        result = subprocess.run(
-            command,
-            cwd=target,
-            env=env,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            timeout=600,
-            check=False,
-        )
-        log_path.write_bytes(result.stdout or b"")
+        with log_path.open("wb") as log:
+            result = subprocess.run(
+                command,
+                cwd=target,
+                env=env,
+                stdin=subprocess.DEVNULL,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                timeout=600,
+                check=False,
+            )
     except subprocess.TimeoutExpired as exc:
         raise LoaderInstallError("El instalador tardó demasiado.") from exc
     except OSError as exc:
@@ -343,11 +495,11 @@ def _get_json(url: str) -> dict:
     return data
 
 
-def _download(url: str, dest: Path) -> None:
+def _download(url: str, dest: Path, timeout: int = 60) -> None:
     request = urllib.request.Request(url, headers={"User-Agent": f"wi-mod/{__version__}"})
     try:
         dest.parent.mkdir(parents=True, exist_ok=True)
-        with urllib.request.urlopen(request, timeout=60) as response, dest.open("wb") as handle:
+        with urllib.request.urlopen(request, timeout=timeout) as response, dest.open("wb") as handle:
             while True:
                 chunk = response.read(1024 * 64)
                 if not chunk:

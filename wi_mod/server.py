@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import socket
+import subprocess
 import sys
 import time
 import uuid
@@ -22,9 +23,17 @@ from wi_mod import __version__
 from wi_mod.archive import export_label, export_library, import_library, peek_library
 from wi_mod.conflicts import annotate as annotate_conflicts
 from wi_mod.deploy import deploy_mod, inspect_mod, purge as purge_deploy
-from wi_mod.curseforge import CurseForgeError, fetch_project as fetch_curseforge, project_ref, search_mods as search_curseforge, validate_key as validate_curseforge_key
+from wi_mod.curseforge import (
+    CurseForgeError,
+    download_file_url as curseforge_download_url,
+    fetch_project as fetch_curseforge,
+    project_ref,
+    search_mods as search_curseforge,
+    validate_key as validate_curseforge_key,
+)
 from wi_mod.images import download_picture
-from wi_mod.loader_installer import LoaderInstallError, find_java, install_loader
+from wi_mod.launcher import LauncherError, launch_game, stage_mods
+from wi_mod.loader_installer import LoaderInstallError, find_java, install_java, install_loader
 from wi_mod.modrinth import ModrinthError, fetch_project, project_slug, search_projects
 from wi_mod.profile_creator import (
     ProfileError,
@@ -34,6 +43,7 @@ from wi_mod.profile_creator import (
     list_game_versions,
 )
 from wi_mod.multipart import parse_multipart
+from wi_mod.official_profile import OfficialProfileError, register_instance, sync_instances
 from wi_mod.nexus import (
     Cache,
     NexusError,
@@ -375,6 +385,10 @@ class App:
         self.tmp.mkdir(parents=True, exist_ok=True)
         self.packs = packs_dir(root)
         _fill_default_games(self)
+        try:
+            sync_instances(root.parent / "instances")
+        except OfficialProfileError:
+            pass
 
 
 class QuietServer(ThreadingHTTPServer):
@@ -557,8 +571,10 @@ def make_handler(app: App):
             if path == "/api/modrinth/search":
                 query = parse_qs(urlparse(self.path).query)
                 q = (query.get("q") or [""])[0]
+                mc = (query.get("mc") or [""])[0]
+                loader = (query.get("loader") or [""])[0]
                 try:
-                    hits = search_projects(q)
+                    hits = search_projects(q, game_version=mc, loader=loader)
                 except ModrinthError as exc:
                     self._json(502, {"error": str(exc)})
                     return
@@ -571,8 +587,10 @@ def make_handler(app: App):
                 query = parse_qs(urlparse(self.path).query)
                 q = (query.get("q") or [""])[0]
                 game = (query.get("game") or [""])[0]
+                mc = (query.get("mc") or [""])[0]
+                loader = (query.get("loader") or [""])[0]
                 try:
-                    hits = search_curseforge(_curseforge_key(app), game, q)
+                    hits = search_curseforge(_curseforge_key(app), game, q, game_version=mc, loader=loader)
                 except CurseForgeError as exc:
                     self._json(exc.status or 502, {"error": str(exc)})
                     return
@@ -774,6 +792,11 @@ def make_handler(app: App):
                 )
                 self._json(200, {"catalog": catalog, "game": game})
                 return
+            if path == "/api/java/install":
+                body = self._json_body()
+                java = install_java(app.library.program_root / "java", str(body.get("mc_version") or ""))
+                self._json(200, {"ok": True, "java": java})
+                return
             if path == "/api/minecraft/profiles":
                 body = self._json_body()
                 name = str(body.get("name") or "")
@@ -787,10 +810,11 @@ def make_handler(app: App):
                 except ProfileExistsError:
                     instance = _minecraft_instance(name)
                     config = json.loads((instance / "profile.json").read_text(encoding="utf-8"))
-                    if not _profile_matches(config, mc_version, loader, loader_version) or _loader_ready(instance, config):
+                    if not _profile_matches(config, mc_version, loader, loader_version):
                         raise
                 else:
                     config = json.loads((instance / "profile.json").read_text(encoding="utf-8"))
+                register_instance(instance)
                 self._json(201, {"profile": config, "name": instance.name})
                 return
             if path == "/api/minecraft/profiles/install":
@@ -807,7 +831,20 @@ def make_handler(app: App):
                     str(config.get("loader_version") or ""),
                     str(config.get("mc_version") or ""),
                 )
+                register_instance(instance)
                 self._json(200, {"ok": True, "name": instance.name, "version": version_json.parent.name})
+                return
+            if path == "/api/minecraft/launch":
+                body = self._json_body()
+                instance = _minecraft_instance(str(body.get("name") or ""))
+                stage_mods(instance / ".minecraft", _instance_jars(app, instance))
+                process = launch_game(
+                    instance,
+                    str(body.get("username") or ""),
+                    str(body.get("uuid") or ""),
+                    str(body.get("accessToken") or ""),
+                )
+                self._json(200, {"ok": True, "name": instance.name, "pid": process.pid})
                 return
             if path == "/api/game/launch":
                 body = self._json_body()
@@ -817,6 +854,21 @@ def make_handler(app: App):
                     self._json(404, {"error": "Elige un juego arriba."})
                     return
                 path_value = str(body.get("path") or game.get("launchPath") or "").strip()
+                instance_name = str(body.get("name") or body.get("instance") or "").strip()
+                if _minecraft_play(domain, path_value) or instance_name:
+                    if not instance_name:
+                        raise LauncherError("Elige una instancia. No abro el launcher de Mojang.")
+                    instance = _minecraft_instance(instance_name)
+                    stage_mods(instance / ".minecraft", _instance_jars(app, instance))
+                    process = launch_game(instance)
+                    self._json(200, {
+                        "ok": True,
+                        "pid": process.pid,
+                        "path": "",
+                        "catalog": app.library.catalog(),
+                        "game": game,
+                    })
+                    return
                 if not path_value:
                     steam = steam_run_url(game.get("steamAppId"))
                     if steam:
@@ -908,6 +960,9 @@ def make_handler(app: App):
                 return
             if mod_id and action == "download":
                 self._json(200, _download_mod(app, mod_id))
+                return
+            if mod_id and action == "reveal":
+                self._json(200, _reveal_mod(app, mod_id))
                 return
             if mod_id and action == "install":
                 body = self._json_body() if int(self.headers.get("Content-Length") or 0) else {}
@@ -1196,7 +1251,7 @@ def make_handler(app: App):
             if isinstance(exc, ProfileExistsError):
                 self._json(409, {"error": str(exc)})
                 return
-            if isinstance(exc, (ProfileError, LoaderInstallError)):
+            if isinstance(exc, (ProfileError, LoaderInstallError, LauncherError, OfficialProfileError)):
                 self._json(400, {"error": str(exc)})
                 return
             if isinstance(exc, ValueError):
@@ -1210,6 +1265,53 @@ def make_handler(app: App):
             self._json(500, {"error": f"Error interno de wi-mod: {detail}"})
 
     return Handler
+
+
+def _minecraft_play(domain: str, path_value: str) -> bool:
+    low = str(path_value or "").lower().replace("/", "\\")
+    if "minecraftlauncher" in low or low.endswith("\\minecraft.exe"):
+        return True
+    return str(domain or "").lower().startswith("minecraft")
+
+
+def _instance_jars(app: App, instance: Path) -> list[Path]:
+    try:
+        config = json.loads((instance / "profile.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    if not isinstance(config, dict):
+        return []
+    name = str(config.get("name") or instance.name).strip()
+    pack = next(
+        (
+            item for item in app.library.list_modpacks()
+            if isinstance(item, dict) and str(item.get("name") or "").strip() == name
+        ),
+        None,
+    )
+    if not pack:
+        return []
+    pack_id = str(pack.get("id") or "")
+    jars: list[Path] = []
+    for mod in app.library.list_mods():
+        if not isinstance(mod, dict) or str(mod.get("modpackId") or "") != pack_id:
+            continue
+        flags = {part for part in str(mod.get("status") or "").split("+") if part}
+        if flags and "in" not in flags:
+            continue
+        for item in mod.get("files") or []:
+            if not isinstance(item, dict):
+                continue
+            relative = str(item.get("storedAs") or "").strip()
+            if not relative or relative.endswith(".disabled"):
+                continue
+            try:
+                path = app.library.absolute(relative)
+            except ValueError:
+                continue
+            if path.is_file() and path.suffix.lower() == ".jar":
+                jars.append(path)
+    return jars
 
 
 def _minecraft_instance(name: str) -> Path:
@@ -1247,7 +1349,7 @@ def _loader_ready(instance: Path, config: dict) -> bool:
 
 
 def _mod_action(path: str) -> tuple[str | None, str | None]:
-    match = re.fullmatch(r"/api/mods/([0-9a-f]{32})/(refresh|files|download|translate|install)", path)
+    match = re.fullmatch(r"/api/mods/([0-9a-f]{32})/(refresh|files|download|translate|install|reveal)", path)
     if not match:
         return None, None
     return match.group(1), match.group(2)
@@ -1932,84 +2034,156 @@ def _download_mod(app: App, mod_id: str) -> dict:
     mod = app.library.get(mod_id)
     if not mod:
         raise ValueError("Mod no encontrado.")
-    parsed = parse_mod_url(mod.get("nexusUrl") or "")
-    files_url = mod.get("filesUrl") or (
-        f"{mod.get('nexusUrl')}?tab=files" if mod.get("nexusUrl") else ""
-    )
-    if not parsed:
-        return {
-            "ok": False,
-            "reason": "manual",
-            "filesUrl": files_url,
-            "error": "Este mod no tiene enlace de Nexus.",
-            "mod": _public_mod(mod),
-        }
-    game, nexus_id = parsed
-    key = _api_key(app)
-    file_id = mod.get("primaryFileId")
-    file_name = mod.get("primaryFileName") or "mod.zip"
-    if not file_id:
-        remote = fetch_mod(key, game, nexus_id, app.cache)
-        file_id = remote.get("primaryFileId")
-        file_name = remote.get("primaryFileName") or file_name
-        app.library.apply_remote(mod_id, remote)
-        files_url = remote.get("filesUrl") or files_url
-    if not file_id:
-        return {
-            "ok": False,
-            "reason": "nofile",
-            "filesUrl": files_url,
-            "error": "Nexus no marcó un archivo principal.",
-            "mod": _public_mod(app.library.get(mod_id)),
-        }
     try:
-        links = download_links(key, game, nexus_id, int(file_id))
-    except NexusError as exc:
+        uri, file_name = _resolve_download(app, mod)
+    except ValueError as exc:
         return {
             "ok": False,
-            "reason": "premium" if exc.status in (403, 400) else "error",
-            "filesUrl": files_url,
-            "error": (
-                "Nexus solo deja descargar por API con cuenta Premium. Abre Files en el navegador."
-                if exc.status in (403, 400)
-                else str(exc)
-            ),
-            "mod": _public_mod(app.library.get(mod_id)),
-        }
-    uri = next(
-        (
-            str(item.get("URI") or item.get("uri") or "")
-            for item in links
-            if item.get("URI") or item.get("uri")
-        ),
-        "",
-    )
-    if not uri.startswith("https://"):
-        return {
-            "ok": False,
-            "reason": "premium",
-            "filesUrl": files_url,
-            "error": "Nexus no dio enlace directo. Abre Files en el navegador.",
-            "mod": _public_mod(app.library.get(mod_id)),
+            "reason": "error",
+            "error": str(exc),
+            "mod": _public_mod(app.library.get(mod_id) or mod),
         }
     dest = app.tmp / f"dl-{uuid.uuid4().hex}-{safe_name(file_name)}"
     try:
         _fetch_binary(uri, dest)
-        app.library.add_file(mod_id, file_name, dest)
+        record = app.library.add_file(mod_id, file_name, dest)
     finally:
         dest.unlink(missing_ok=True)
+    saved = str((record or {}).get("storedAs") or "")
     return {
         "ok": True,
         "reason": "saved",
-        "filesUrl": files_url,
+        "savedAs": saved,
         "mod": _public_mod(app.library.get(mod_id)),
     }
+
+
+def _reveal_mod(app: App, mod_id: str) -> dict:
+    mod = app.library.get(mod_id)
+    if not mod:
+        raise ValueError("Mod no encontrado.")
+    files = [item for item in (mod.get("files") or []) if isinstance(item, dict) and item.get("storedAs")]
+    if not files:
+        raise ValueError("Este mod no tiene archivo local.")
+    path = app.library.absolute(str(files[0].get("storedAs") or ""))
+    if not path.exists():
+        alt = path.with_name(path.name + ".disabled") if not path.name.endswith(".disabled") else path.with_name(path.name[: -len(".disabled")])
+        if alt.exists():
+            path = alt
+        else:
+            raise ValueError("El archivo ya no está en disco.")
+    _show_file(path)
+    return {"ok": True, "path": str(path)}
+
+
+def _show_file(path: Path) -> None:
+    target = str(path.resolve())
+    if sys.platform == "win32":
+        subprocess.run(["explorer", f"/select,{target}"], check=False)
+        return
+    if sys.platform == "darwin":
+        subprocess.Popen(["open", "-R", target])
+        return
+    subprocess.Popen(["xdg-open", str(path.parent)])
+
+
+def _resolve_download(app: App, mod: dict) -> tuple[str, str]:
+    page = str(mod.get("nexusUrl") or "")
+    platform = str(mod.get("platform") or "").lower()
+    file_name = str(mod.get("primaryFileName") or "").strip()
+    nexus = parse_mod_url(page)
+    if nexus:
+        return _nexus_download(app, mod, nexus, file_name)
+    slug = project_slug(page)
+    if slug or "modrinth" in platform:
+        return _modrinth_download(mod, slug or "", file_name)
+    if "curseforge.com" in page.lower() or "curseforge" in platform:
+        return _curseforge_download(app, mod, file_name)
+    direct = str(mod.get("filesUrl") or "")
+    if _is_file_url(direct):
+        return direct, file_name or _name_from_url(direct)
+    raise ValueError("Este mod no tiene enlace de API para bajar el archivo.")
+
+
+def _nexus_download(app: App, mod: dict, parsed: tuple[str, int], file_name: str) -> tuple[str, str]:
+    game, nexus_id = parsed
+    key = _api_key(app)
+    file_id = mod.get("primaryFileId")
+    if not file_id:
+        try:
+            remote = fetch_mod(key, game, nexus_id, app.cache)
+        except NexusError as exc:
+            raise ValueError(str(exc)) from exc
+        file_id = remote.get("primaryFileId")
+        file_name = str(remote.get("primaryFileName") or file_name)
+        app.library.apply_remote(mod["id"], remote)
+    if not file_id:
+        raise ValueError("Nexus no marcó un archivo principal.")
+    try:
+        links = download_links(key, game, nexus_id, int(file_id))
+    except NexusError as exc:
+        if exc.status in (403, 400):
+            raise ValueError("Nexus solo deja bajar por API con cuenta Premium.") from exc
+        raise ValueError(str(exc)) from exc
+    uri = next(
+        (str(item.get("URI") or item.get("uri") or "") for item in links if item.get("URI") or item.get("uri")),
+        "",
+    )
+    if not uri.startswith("https://"):
+        raise ValueError("Nexus no dio enlace directo.")
+    return uri, file_name or _name_from_url(uri)
+
+
+def _modrinth_download(mod: dict, slug: str, file_name: str) -> tuple[str, str]:
+    uri = str(mod.get("filesUrl") or "")
+    if not _is_file_url(uri) and slug:
+        try:
+            fetched = fetch_project(slug)
+        except ModrinthError as exc:
+            raise ValueError(str(exc)) from exc
+        uri = str(fetched.get("filesUrl") or "")
+        file_name = str(fetched.get("primaryFileName") or file_name)
+    if not uri.startswith("https://"):
+        raise ValueError("Modrinth no dio el archivo.")
+    return uri, file_name or _name_from_url(uri)
+
+
+def _curseforge_download(app: App, mod: dict, file_name: str) -> tuple[str, str]:
+    mod_id = mod.get("modId")
+    file_id = mod.get("primaryFileId")
+    if mod_id and file_id:
+        try:
+            uri = curseforge_download_url(_curseforge_key(app), int(mod_id), int(file_id))
+        except (CurseForgeError, TypeError, ValueError) as exc:
+            raise ValueError(str(exc) or "CurseForge no dio el archivo.") from exc
+        if uri.startswith("https://"):
+            return uri, file_name or _name_from_url(uri)
+    direct = str(mod.get("filesUrl") or "")
+    if _is_file_url(direct):
+        return direct, file_name or _name_from_url(direct)
+    raise ValueError("CurseForge no dio enlace de API. Revisa la clave en Ajustes.")
+
+
+def _is_file_url(url: str) -> bool:
+    parsed = urlparse(str(url or ""))
+    if parsed.scheme != "https" or not parsed.netloc:
+        return False
+    host = parsed.netloc.lower()
+    if host.startswith("cdn.modrinth.com") or host.endswith("forgecdn.net"):
+        return True
+    name = Path(unquote(parsed.path)).name.lower()
+    return "." in name and not name.endswith((".html", ".php", ".aspx"))
+
+
+def _name_from_url(url: str) -> str:
+    name = Path(unquote(urlparse(url).path)).name
+    return name or "mod.zip"
 
 
 def _fetch_binary(url: str, dest: Path) -> None:
     req = urllib.request.Request(
         url,
-        headers={"User-Agent": "wi-mod/0.1.0", "Accept": "*/*"},
+        headers={"User-Agent": f"wi-mod/{__version__}", "Accept": "*/*"},
         method="GET",
     )
     with urllib.request.urlopen(req, timeout=120) as res, dest.open("wb") as handle:

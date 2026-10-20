@@ -140,7 +140,7 @@ const UI = {
     bootLine: "olfateando la guarida…", pickGame: "Elegir juego", addGame: "Añadir juego",
     download: "Descargar", downloadWait: "Pediendo descarga a Nexus…",
     downloadOk: "Archivo guardado en mods/ del programa.",
-    downloadManual: "Abre Files en Nexus y descarga a mano.",
+    downloadManual: "No se pudo bajar por API.",
     downloadNone: "Sin archivo local. Descarga para guardarlo en mods/{juego}/…",
     downloadOne: "Local: {path}", downloadMany: "{n} archivos · {path}",
     activeOn: "Activo", activeOff: "Inactivo",
@@ -226,7 +226,7 @@ const UI = {
     orUrl: "O una URL", note: "Nota", erase: "Borrar", saveCat: "Guardar categoría",
     already: "Ya existe", cancel: "Cancelar", duplicate: "Duplicar", replace: "Sustituir",
     add: "Añadir", confirm: "Confirmar", yes: "Sí", useImage: "Usar imagen", view: "Ver",
-    edit: "Editar", select: "Seleccionar", moveToPack: "Mover a modpack", quit: "Salir",
+    edit: "Editar", select: "Seleccionar", moveToPack: "Mover a modpack", localFile: "Archivo local", quit: "Salir",
     quitAsk: "¿Cerrar wi-mod del todo o dejarlo en la bandeja?", remember: "Recordar opción",
     tray: "Bandeja", quitClose: "Cerrar", changeName: "Cambiar nombre", tutorial: "Tutorial",
     settings: "Ajustes", keys: "Claves", sound: "Sonido", theme: "Tema", compress: "Comprimir", restore: "Restaurar",
@@ -255,13 +255,15 @@ const UI = {
     coverBgUse: "Portada", coverBgDefault: "Predeterminado",
     coverBgTitleUse: "Usar portada del juego", coverBgTitleOff: "Usar fondo predeterminado",
     noDate: "sin fecha", newTag: "nueva", emptyFiltered: "Hay {n} mod(s) ocultos por el filtro.",
-    clearFilters: "Quitar filtros", emptyGame: "Sin mods en este juego.",
+    clearFilters: "Quitar filtros", emptyGame: "Sin mods en este juego.", emptyInstance: "Esta instancia no tiene mods.",
     createInstance: "Instancia", instanceTitle: "Crear perfil", instanceName: "Nombre",
     instanceNamePh: "Nombre del perfil", instanceMc: "Versión de Minecraft",
     instanceLoader: "Modloader", instanceLoaderVer: "Versión del modloader",
     instanceLoaderTip: "Elige un modloader para un perfil con mods, o Vanilla para uno sin mods.",
     instanceCreate: "Crear", instanceCreating: "Creando perfil…",
     instanceDownloading: "Descargando librerías…", instanceReady: "Perfil listo.",
+    javaAsk: "No encuentro Java. ¿Lo instalo ahora?",
+    javaInstalling: "Instalando Java…", javaReady: "Java listo.",
     instanceLoaders: "Buscando loaders…",
     sysBack: "Atrás", sysFwd: "Adelante", sysNone: "Sin instancia",
     searchInstance: "Buscar instancia", addInstance: "Añadir instancia",
@@ -298,7 +300,7 @@ const UI = {
     bootLine: "sniffing the den…", pickGame: "Choose game", addGame: "Add game",
     download: "Download", downloadWait: "Asking Nexus for the download…",
     downloadOk: "File saved under the app mods/ folder.",
-    downloadManual: "Open Files on Nexus and download manually.",
+    downloadManual: "The API could not download this file.",
     downloadNone: "No local file. Download to save under mods/{game}/…",
     downloadOne: "Local: {path}", downloadMany: "{n} files · {path}",
     activeOn: "Active", activeOff: "Inactive",
@@ -384,7 +386,7 @@ const UI = {
     orUrl: "Or a URL", note: "Note", erase: "Delete", saveCat: "Save category",
     already: "Already exists", cancel: "Cancel", duplicate: "Duplicate", replace: "Replace",
     add: "Add", confirm: "Confirm", yes: "Yes", useImage: "Use image", view: "View",
-    edit: "Edit", select: "Select", moveToPack: "Move to modpack", quit: "Quit",
+    edit: "Edit", select: "Select", moveToPack: "Move to modpack", localFile: "Local file", quit: "Quit",
     quitAsk: "Close wi-mod fully or leave it in the tray?", remember: "Remember choice",
     tray: "Tray", quitClose: "Close", changeName: "Change name", tutorial: "Tutorial",
     settings: "Settings", keys: "Keys", sound: "Sound", theme: "Theme", compress: "Compress", restore: "Restore",
@@ -413,13 +415,15 @@ const UI = {
     coverBgUse: "Cover", coverBgDefault: "Default",
     coverBgTitleUse: "Use game cover as background", coverBgTitleOff: "Use default background",
     noDate: "no date", newTag: "new", emptyFiltered: "{n} mod(s) hidden by the filter.",
-    clearFilters: "Clear filters", emptyGame: "No mods in this game.",
+    clearFilters: "Clear filters", emptyGame: "No mods in this game.", emptyInstance: "This instance has no mods.",
     createInstance: "Instance", instanceTitle: "Create profile", instanceName: "Name",
     instanceNamePh: "Profile name", instanceMc: "Minecraft version",
     instanceLoader: "Modloader", instanceLoaderVer: "Modloader version",
     instanceLoaderTip: "Select a modloader to create a modded profile, or Vanilla for an unmodded one.",
     instanceCreate: "Create", instanceCreating: "Creating profile…",
     instanceDownloading: "Downloading libraries…", instanceReady: "Profile ready.",
+    javaAsk: "Java is missing. Install it now?",
+    javaInstalling: "Installing Java…", javaReady: "Java is ready.",
     instanceLoaders: "Looking up loaders…",
     sysBack: "Back", sysFwd: "Forward", sysNone: "No instance",
     searchInstance: "Search instance", addInstance: "Add instance",
@@ -577,6 +581,8 @@ function queueHint(path) {
   }
   if (/minecraft\/loaders/.test(p)) return t("instanceLoaders");
   if (/minecraft\/profiles\/install/.test(p)) return t("instanceDownloading");
+  if (/minecraft\/launch/.test(p)) return t("launchOk");
+  if (/\/api\/java\/install/.test(p)) return t("javaInstalling");
   if (/minecraft\/profiles/.test(p)) return t("instanceCreating");
   if (/\/api\/images/.test(p)) return t("qExtract");
   if (/\/rawg/.test(p)) return t("qRawg");
@@ -2347,8 +2353,8 @@ function sideEntry(label, value, current, kind, mods, markFallback) {
     : "";
   const chipClass = kind === "packCat" ? `pack-cat-chip ${on}` : on;
   const chip = `<button type="button" class="${chipClass}" data-kind="${kind}" data-value="${encodeURIComponent(value)}" title="${esc(label)}">${icon}<span class="side-initial">${esc(sideInitial(label))}</span><span>${esc(label)}</span>${pencil}</button>`;
-  if (!value) {
-    return `<div class="side-entry"><div class="side-entry-row"><span class="side-twist-spacer" aria-hidden="true"></span>${chip}</div></div>`;
+  if (!value || kind === "modpack") {
+    return `<div class="side-entry${on ? " is-on" : ""}"><div class="side-entry-row"><span class="side-twist-spacer" aria-hidden="true"></span>${chip}</div></div>`;
   }
   const list = Array.isArray(mods) ? mods : modsForSide(kind, value);
   const visible = sideModsVisible(list, label);
@@ -2664,7 +2670,7 @@ async function deletePackCat(packId, catId) {
   if (!(await askConfirm("¿Borrar esta categoría del pack?"))) return;
   try {
     await api(`/api/modpacks/${packId}/categories/${catId}`, { method: "DELETE" });
-    $("packcat-dialog").close();
+    closeOpenDialogs();
     toast("Categoría borrada.", "warn");
     await load();
   } catch (error) {
@@ -3446,10 +3452,14 @@ function render() {
   const mods = visible();
   $("count").textContent = "";
   if (!mods.length) {
-    const inGame = scopedMods().length;
-    const other = state.mods.length - inGame;
-    if (inGame) {
-      $("grid").innerHTML = `<p class="empty">${esc(t("emptyFiltered", { n: inGame }))} <button type="button" class="ghost" id="clear-filters">${esc(t("clearFilters"))}</button></p>`;
+    const pool = state.modpack
+      ? scopedMods().filter((mod) => String(mod.modpackId || "") === state.modpack)
+      : scopedMods();
+    const other = state.mods.length - scopedMods().length;
+    if (state.modpack && !pool.length) {
+      $("grid").innerHTML = `<p class="empty">${esc(t("emptyInstance"))}</p>`;
+    } else if (pool.length) {
+      $("grid").innerHTML = `<p class="empty">${esc(t("emptyFiltered", { n: pool.length }))} <button type="button" class="ghost" id="clear-filters">${esc(t("clearFilters"))}</button></p>`;
       $("clear-filters").onclick = () => { clearFilters(); render(); };
     } else if (other) {
       $("grid").innerHTML = `<p class="empty">${esc(t("emptyGame"))}</p>`;
@@ -3875,6 +3885,7 @@ function openDetail(id) {
       <span class="row">
         <span id="detail-refresh-slot">${refreshButton(mod)}</span>
         <button class="ghost" type="button" id="detail-active"></button>
+        <button class="ghost" type="button" id="detail-file" hidden>Archivo local</button>
         <button class="ghost" type="button" id="detail-download" data-i18n="download">Descargar</button>
         <button class="ghost" type="button" id="detail-install">Instalar</button>
         <button class="solid" type="button" id="detail-save">Guardar</button>
@@ -3901,6 +3912,12 @@ function openDetail(id) {
   const refresh = $("detail-refresh");
   if (refresh) refresh.onclick = () => refreshOne(mod.id);
   $("detail-download").onclick = () => downloadMod(mod.id);
+  const fileBtn = $("detail-file");
+  if (fileBtn) {
+    fileBtn.hidden = !(mod.files || []).length;
+    fileBtn.textContent = t("localFile");
+    fileBtn.onclick = () => revealMod(mod.id);
+  }
   $("detail-install").onclick = () => installMod(mod);
   $("detail-active").onclick = () => setModStatus(mod.id, "in");
   $("detail-delete").onclick = () => removeMod(mod.id);
@@ -3989,6 +4006,14 @@ async function installMod(mod) {
   }
 }
 
+async function revealMod(id) {
+  try {
+    await api(`/api/mods/${id}/reveal`, { method: "POST" });
+  } catch (error) {
+    toast(error.message, "bad");
+  }
+}
+
 async function downloadMod(id) {
   const button = $("detail-download");
   setLoading(button, true, "Descargando");
@@ -3997,13 +4022,12 @@ async function downloadMod(id) {
   try {
     const data = await api(`/api/mods/${id}/download`, { method: "POST" });
     if (data.ok) {
-      toast(t("downloadOk"));
+      toast(data.savedAs ? `Guardado en ${data.savedAs}` : t("downloadOk"));
       sfx.ok();
       await load();
       openDetail(id);
       return;
     }
-    if (data.filesUrl) window.open(data.filesUrl, "_blank", "noreferrer");
     toast(data.error || t("downloadManual"), "warn");
     if (data.mod) {
       await load();
@@ -4110,6 +4134,7 @@ async function deleteMarked() {
       }
     }
     toast(failed ? `Eliminados ${removed}. Fallos ${failed}.` : `Eliminados ${removed}.`);
+    closeOpenDialogs();
     await load();
   } finally {
     setLoading(button, false);
@@ -4221,10 +4246,14 @@ async function refreshOne(id) {
   }
 }
 
+function closeOpenDialogs() {
+  document.querySelectorAll("dialog[open]").forEach((node) => node.close());
+}
+
 async function removeMod(id) {
   if (!(await askConfirm("¿Eliminar este mod y sus archivos?"))) return;
   await api(`/api/mods/${id}`, { method: "DELETE" });
-  $("detail-dialog").close();
+  closeOpenDialogs();
   await load();
 }
 
@@ -4244,8 +4273,8 @@ async function upload(id, files) {
 
 async function dropFile(modId, fileId) {
   await api(`/api/mods/${modId}/files/${fileId}`, { method: "DELETE" });
+  closeOpenDialogs();
   await load();
-  openDetail(modId);
 }
 
 function fillSecret(node, value) {
@@ -4586,6 +4615,11 @@ function openModMenu(id, x, y) {
   const menu = $("mod-menu");
   if (!menu || !id) return;
   menuModId = id;
+  const file = menu.querySelector('[data-act="file"]');
+  if (file) {
+    const mod = state.mods.find((item) => item.id === id);
+    file.hidden = !modDownloaded(mod);
+  }
   const pick = menu.querySelector('[data-act="pick"] span');
   if (pick) pick.textContent = state.selected.has(id) ? "Quitar selección" : t("select");
   menu.hidden = false;
@@ -4645,6 +4679,7 @@ $("mod-menu").onclick = (event) => {
     sfx.open();
     openDetail(id);
   }
+  if (act === "file") revealMod(id);
   if (act === "edit") openEdit(id);
   if (act === "note") openNote(id);
   if (act === "move") openMove(id);
@@ -5350,6 +5385,26 @@ async function playActiveGame(event) {
     toast(t("launchNeedGame"), "bad");
     return;
   }
+  const pack = state.modpack ? packById(state.modpack) : null;
+  if (minecraftPack(domain) || minecraftPack(pack?.gameDomain) || pack?.mcVersion) {
+    if (!pack?.name) {
+      toast("Elige una instancia.", "bad");
+      return;
+    }
+    try {
+      await api("/api/minecraft/launch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: pack.name }),
+      });
+      toast(t("launchOk"));
+      sfx.ok();
+    } catch (error) {
+      toast(error.message, "bad");
+      sfx.err();
+    }
+    return;
+  }
   const game = catalogGame(domain) || { gameDomain: domain, gameName: gameLabel(domain) };
   const forceSetup = event?.shiftKey || event?.altKey;
   if (!forceSetup && gameHasLauncher(game)) {
@@ -5365,6 +5420,11 @@ async function playActiveGame(event) {
     }
   }
   openLaunchSetup(game);
+}
+
+function isMinecraftDomain(domain) {
+  const name = String(gameLabel(domain) || domain || "").toLowerCase();
+  return String(domain || "").toLowerCase() === "minecraft" || name.includes("minecraft");
 }
 
 function bindGameAdd() {
@@ -5515,6 +5575,14 @@ function scheduleRemoteSearch() {
   remoteTimer = setTimeout(runRemoteSearch, 320);
 }
 
+function selectedInstanceFilter() {
+  const pack = state.modpack ? packById(state.modpack) : null;
+  const mc = String(pack?.mcVersion || "").trim();
+  const loader = String(pack?.loaderType || "").trim().toLowerCase();
+  if (!mc) return null;
+  return { mc, loader: loader === "vanilla" ? "" : loader };
+}
+
 async function runRemoteSearch() {
   const box = $("search-remote");
   if (!box) return;
@@ -5543,15 +5611,20 @@ async function runRemoteSearch() {
     return;
   }
   const token = ++remoteToken;
-  box.innerHTML = `<p class="hint">Buscando en ${esc(target)}…</p>`;
+  const filter = selectedInstanceFilter();
+  const tag = filter ? ` · ${filter.loader ? `${filter.loader} ` : ""}${filter.mc}` : "";
+  box.innerHTML = `<p class="hint">Buscando en ${esc(target)}${esc(tag)}…</p>`;
   const game = target === "Modrinth" ? "" : `&game=${encodeURIComponent(state.game)}`;
+  const compat = filter
+    ? `&mc=${encodeURIComponent(filter.mc)}${filter.loader ? `&loader=${encodeURIComponent(filter.loader)}` : ""}`
+    : "";
   const path = target === "Modrinth"
     ? "/api/modrinth/search"
     : (target === "CurseForge" ? "/api/curseforge/search" : "/api/nexus/search");
   try {
-    const data = await api(`${path}?q=${encodeURIComponent(q)}${game}`);
+    const data = await api(`${path}?q=${encodeURIComponent(q)}${game}${compat}`);
     if (token !== remoteToken) return;
-    paintRemote(data.results || [], target);
+    paintRemote(data.results || [], target, filter);
   } catch (error) {
     if (token !== remoteToken) return;
     maybePromptKeyError(error);
@@ -5559,11 +5632,12 @@ async function runRemoteSearch() {
   }
 }
 
-function paintRemote(results, label) {
+function paintRemote(results, label, filter) {
   const box = $("search-remote");
   const where = label || "Nexus";
+  const tag = filter ? ` compatible con ${filter.loader ? `${filter.loader} ` : ""}${filter.mc}` : "";
   if (!results.length) {
-    box.innerHTML = `<p class="hint">Nada en ${esc(where)} para esta búsqueda.</p>`;
+    box.innerHTML = `<p class="hint">Nada en ${esc(where)}${esc(tag)}.</p>`;
     return;
   }
   box.innerHTML = results.map((hit, index) => `
@@ -5581,13 +5655,47 @@ function paintRemote(results, label) {
     if (!hit) return;
     button.onclick = () => {
       if (hit.savedId) {
-        hideRemoteSearch();
-        openDetail(hit.savedId);
+        placeSavedMod(hit.savedId);
         return;
       }
       addRemoteMod(hit, button);
     };
   });
+}
+
+async function placeSavedMod(id) {
+  const pack = state.modpack || "";
+  const mod = state.mods.find((row) => row.id === id);
+  if (pack && (!mod || mod.modpackId !== pack || (state.packCat && mod.modpackCategoryId !== state.packCat))) {
+    try {
+      await api(`/api/mods/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          modpackId: pack,
+          modpackCategoryId: state.packCat || "",
+        }),
+      });
+      toast("En la instancia.");
+      await load();
+      revealAdded(id);
+      return;
+    } catch (error) {
+      toast(error.message, "bad");
+    }
+  }
+  hideRemoteSearch();
+  openDetail(id);
+}
+
+function revealAdded(id) {
+  if (visible().some((mod) => mod.id === id)) return;
+  state.query = "";
+  state.listQuery = "";
+  if ($("search")) $("search").value = "";
+  if ($("list-search")) $("list-search").value = "";
+  hideRemoteSearch();
+  render();
 }
 
 async function addRemoteMod(hit, button) {
@@ -5602,6 +5710,8 @@ async function addRemoteMod(hit, button) {
         platform: hit.platform || "Nexus",
         gameDomain: hit.gameDomain || state.game,
         gameName: hit.gameName || gameLabel(state.game),
+        modpackId: state.modpack || "",
+        modpackCategoryId: state.packCat || "",
         manual: hit.platform && hit.platform !== "Nexus" ? {
           name: hit.name,
           author: hit.author || "",
@@ -5617,11 +5727,9 @@ async function addRemoteMod(hit, button) {
     button.className = "ghost";
     button.textContent = "Ya está";
     button.disabled = false;
-    button.onclick = () => {
-      hideRemoteSearch();
-      if (hit.savedId) openDetail(hit.savedId);
-    };
+    button.onclick = () => placeSavedMod(hit.savedId);
     await load();
+    revealAdded(hit.savedId);
   } catch (error) {
     button.disabled = false;
     button.textContent = "Añadir";
@@ -5796,7 +5904,6 @@ function gameOptionsForPacks() {
 
 function openModpacksDialog() {
   resetModpackForm();
-  renderModpacksList();
   const dialog = $("modpacks-dialog");
   if (dialog && !dialog.open) {
     sfx.open();
@@ -5968,24 +6075,6 @@ function resetModpackForm() {
   fillMpMinecraft(null).catch((error) => toast(error.message || String(error), "bad"));
 }
 
-function renderModpacksList() {
-  const node = $("modpacks-list");
-  if (!state.modpacks.length) {
-    node.innerHTML = `<p class="hint">Ningún modpack todavía.</p>`;
-    return;
-  }
-  node.innerHTML = state.modpacks.map((pack) => {
-    const n = state.mods.filter((mod) => mod.modpackId === pack.id).length;
-    const sections = (pack.categories || []).map((cat) => cat.name).join(", ") || "sin categorías";
-    return `<div class="file">
-      <div>
-        <b>${esc(pack.name)}</b>
-        <p class="meta">${esc(pack.gameName || pack.gameDomain)} · ${n} mods · ${esc(sections)}</p>
-      </div>
-    </div>`;
-  }).join("");
-}
-
 function editModpack(id) {
   const pack = packById(id);
   if (!pack) return;
@@ -6011,11 +6100,32 @@ async function deleteCurrentModpack() {
     await api(`/api/modpacks/${id}`, { method: "DELETE" });
     if (state.modpack === id) state.modpack = "";
     toast("Modpack eliminado.", "warn");
+    closeOpenDialogs();
     await load();
-    openModpacksDialog();
   } catch (error) {
     toast(error.message, "bad");
   }
+}
+
+async function createInstance(name, body) {
+  await api("/api/minecraft/profiles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name,
+      mc_version: body.mcVersion,
+      loader_type: body.loaderType,
+      loader_version: body.loaderVersion,
+    }),
+  });
+}
+
+function installInstance(name) {
+  return api("/api/minecraft/profiles/install", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  }).then(() => toast(t("instanceReady")));
 }
 
 async function saveModpackForm(event) {
@@ -6076,24 +6186,22 @@ async function saveModpackForm(event) {
       toast(extra.length ? "Modpack creado con categorías." : "Modpack creado.");
     }
     const pack = saved.modpack;
+    let installAfter = false;
     if (!editId && body.loaderType) {
-      await api("/api/minecraft/profiles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          mc_version: body.mcVersion,
-          loader_type: body.loaderType,
-          loader_version: body.loaderVersion,
-        }),
-      });
-      if (body.loaderType !== "vanilla") {
-        await api("/api/minecraft/profiles/install", {
+      try {
+        await createInstance(name, body);
+      } catch (error) {
+        if (!/java/i.test(error.message || "")) throw error;
+        if (!(await askConfirm(t("javaAsk")))) throw error;
+        await api("/api/java/install", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ mc_version: body.mcVersion || "" }),
         });
+        toast(t("javaReady"));
+        await createInstance(name, body);
       }
+      installAfter = body.loaderType !== "vanilla";
     }
     if (pack?.id) await applyMpMark(pack.id);
     if (!editId && pack?.id) {
@@ -6107,6 +6215,7 @@ async function saveModpackForm(event) {
       instanceFinish = null;
       $("modpacks-dialog").close();
       finish?.(pack);
+      if (installAfter) installInstance(name).catch((error) => toast(error.message, "bad"));
       return;
     }
     await load();

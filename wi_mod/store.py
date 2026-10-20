@@ -508,29 +508,14 @@ class Library:
         return True
 
     def _mod_files_dir(self, mod: dict[str, Any], packs: list[dict[str, Any]]) -> Path:
-        """mods/{juego}/{categoría|modpack}[/cat del pack]/{mod}/ en la raíz del programa."""
+        """mods/{juego}[/{modpack}] junto al programa. Sin Documentos."""
         game = folder_name(mod.get("gameName") or mod.get("gameDomain") or "sin-juego")
         base = self.program_root / "mods" / game
         pack_id = str(mod.get("modpackId") or "").strip()
         if pack_id:
             pack = self._find_pack(packs, pack_id)
-            pack_label = folder_name((pack or {}).get("name") or "modpack")
-            base = base / pack_label
-            cat_id = str(mod.get("modpackCategoryId") or "").strip()
-            if cat_id and pack:
-                cat = next(
-                    (
-                        item
-                        for item in (pack.get("categories") or [])
-                        if isinstance(item, dict) and str(item.get("id") or "") == cat_id
-                    ),
-                    None,
-                )
-                if cat and cat.get("name"):
-                    base = base / folder_name(cat.get("name"))
-        else:
-            base = base / folder_name(mod.get("category") or "General")
-        return base / folder_name(mod.get("name") or mod.get("id") or "mod")
+            base = base / folder_name((pack or {}).get("name") or "modpack")
+        return base
 
     def _mod_location_key(self, mod: dict[str, Any], packs: list[dict[str, Any]]) -> str:
         return self._mod_files_dir(mod, packs).as_posix().lower()

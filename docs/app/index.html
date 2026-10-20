@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>wi-mod</title>
   <link rel="icon" href="brand/wi-mod.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css?v=0.22.1">
+  <link rel="stylesheet" href="styles.css?v=0.23.0">
 </head>
 <body>
   <div id="login" class="login" hidden>
@@ -44,7 +44,7 @@
     <img class="sysbar-logo pywebview-drag-region" src="brand/wi-mod.svg" alt="" width="18" height="18">
     <div class="sysbar-id">
       <div class="brand pywebview-drag-region">wi-mod</div>
-      <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.22.1</a>
+      <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.23.0</a>
     </div>
     <button type="button" id="sys-back" class="sys-ico" disabled aria-label="Atrás" data-i18n-aria="sysBack" title="Atrás" data-i18n-title="sysBack">
       <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M14 6 8 12l6 6"/></svg>
@@ -477,7 +477,6 @@
         <button type="button" class="icon" data-close>✕</button>
       </header>
       <p class="hint" data-i18n="packHint">Pon el nombre y las categorías. Luego asigna los mods marcados.</p>
-      <div id="modpacks-list" class="files" style="max-height:140px"></div>
       <div class="instance-row">
         <label><span data-i18n="name">Nombre</span><input id="mp-name" type="text" placeholder="Ej. Lux Stack" data-i18n-placeholder="exampleLux" required></label>
         <label id="mp-mc-ver" hidden><span data-i18n="instanceMc">Versión de Minecraft</span>
@@ -679,6 +678,7 @@
     <button type="button" data-act="edit"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 20h4l10-10-4-4L4 16zM14 6l4 4"/></svg><span data-i18n="edit">Editar</span></button>
     <button type="button" data-act="note"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 3h9l5 5v13H6zM14 3v6h6M8 13h8M8 17h6"/></svg><span data-i18n="note">Nota</span></button>
     <button type="button" data-act="pick"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M8 12l3 3 5-6"/></svg><span data-i18n="select">Seleccionar</span></button>
+    <button type="button" data-act="file"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 6h6l2 2h8v10H4z"/></svg><span data-i18n="localFile">Archivo local</span></button>
     <button type="button" data-act="move"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg><span data-i18n="moveToPack">Mover a modpack</span></button>
   </div>
   <div id="app-menu" class="mod-menu" hidden>
@@ -912,8 +912,8 @@
     </div>
   </div>
 
-  <script src="demo-keys.js?v=0.22.1" onerror=""></script>
-  <script src="demo.js?v=0.22.1"></script>
-  <script src="app.js?v=0.22.1"></script>
+  <script src="demo-keys.js?v=0.23.0" onerror=""></script>
+  <script src="demo.js?v=0.23.0"></script>
+  <script src="app.js?v=0.23.0"></script>
 </body>
 </html>

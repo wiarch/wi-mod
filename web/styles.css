@@ -2868,6 +2868,7 @@ main {
 }
 .mark-file input { display: none; }
 .mark-pop footer { display: flex; gap: 8px; justify-content: flex-end; }
+.mod-menu > button[hidden] { display: none !important; }
 .mod-menu > button {
   display: flex;
   align-items: center;
