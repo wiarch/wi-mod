@@ -2330,6 +2330,11 @@ button.key-pill { cursor: pointer; }
   background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 70%, transparent), transparent 70%);
   min-height: 0;
   height: 100%;
+  overflow: hidden;
+}
+.side-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
 }
 .side-resize {
@@ -2356,12 +2361,11 @@ button.key-pill { cursor: pointer; }
   line-height: 1;
 }
 .side-foot {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
-  margin-top: auto;
+  flex: 0 0 auto;
+  margin-top: 8px;
   padding-top: 8px;
-  background: linear-gradient(180deg, transparent, var(--bg) 28%);
+  background: var(--bg);
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
 }
 .side-rail:hover { border-color: var(--copper); }
 .side-initial { display: none; }
