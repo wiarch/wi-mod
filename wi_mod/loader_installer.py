@@ -74,10 +74,61 @@ def _install_meta(minecraft: Path, loader: str, build: str, game: str) -> Path:
     return version_json
 
 
+def find_java() -> str | None:
+    found = shutil.which("java")
+    if found:
+        return found
+    binary = "java.exe" if os.name == "nt" else "java"
+    home = os.environ.get("JAVA_HOME", "").strip()
+    if home:
+        candidate = Path(home) / "bin" / binary
+        if candidate.is_file():
+            return str(candidate)
+    if os.name != "nt":
+        linked = Path("/usr/bin/java")
+        if linked.is_file():
+            return str(linked)
+        installed = sorted(Path("/usr/lib/jvm").glob("*/bin/java")) if Path("/usr/lib/jvm").is_dir() else []
+        return str(installed[-1]) if installed else None
+    return _windows_java(binary)
+
+
+def _windows_java(binary: str) -> str | None:
+    roots = [
+        Path(os.environ.get("ProgramFiles", r"C:\Program Files")),
+        Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")),
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Programs",
+    ]
+    patterns = (
+        "Java/*/bin/" + binary,
+        "Eclipse Adoptium/*/bin/" + binary,
+        "Microsoft/*/bin/" + binary,
+        "Amazon Corretto/*/bin/" + binary,
+        "BellSoft/*/bin/" + binary,
+        "Zulu/*/bin/" + binary,
+        "Temurin/*/bin/" + binary,
+    )
+    found: list[Path] = []
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for pattern in patterns:
+            found.extend(path for path in root.glob(pattern) if path.is_file())
+    appdata = os.environ.get("APPDATA", "").strip()
+    if not found and appdata:
+        runtime = Path(appdata) / ".minecraft" / "runtime"
+        if runtime.is_dir():
+            found.extend(path for path in runtime.glob("**/bin/" + binary) if path.is_file())
+    if not found:
+        return None
+    found.sort(key=lambda path: path.as_posix().lower())
+    return str(found[-1])
+
+
 def _install_jar(instance: Path, minecraft: Path, loader: str, build: str, game: str) -> Path:
-    java = shutil.which("java")
+    java = find_java()
     if not java:
-        raise LoaderInstallError("No encuentro Java en el PATH.")
+        raise LoaderInstallError("No encuentro Java. Instálalo o agrega java.exe al PATH.")
     installer = _download_installer(minecraft, loader, build, game)
     work = minecraft / "tmp"
     try:

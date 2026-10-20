@@ -24,7 +24,7 @@ from wi_mod.conflicts import annotate as annotate_conflicts
 from wi_mod.deploy import deploy_mod, inspect_mod, purge as purge_deploy
 from wi_mod.curseforge import CurseForgeError, fetch_project as fetch_curseforge, project_ref, search_mods as search_curseforge, validate_key as validate_curseforge_key
 from wi_mod.images import download_picture
-from wi_mod.loader_installer import LoaderInstallError, install_loader
+from wi_mod.loader_installer import LoaderInstallError, find_java, install_loader
 from wi_mod.modrinth import ModrinthError, fetch_project, project_slug, search_projects
 from wi_mod.profile_creator import (
     ProfileError,
@@ -295,6 +295,12 @@ _BRAND = {
     "minecraft.jpg": "image/jpeg",
     "stardewvalley.jpg": "image/jpeg",
     "game_pattern.png": "image/png",
+    "loader-forge.png": "image/png",
+    "loader-fabric.png": "image/png",
+    "loader-quilt.png": "image/png",
+    "loader-neoforge.ico": "image/x-icon",
+    "loader-vanilla.ico": "image/x-icon",
+    "wi-mod.svg": "image/svg+xml",
 }
 _ID = re.compile(r"^[0-9a-f]{32}$")
 
@@ -770,13 +776,21 @@ def make_handler(app: App):
                 return
             if path == "/api/minecraft/profiles":
                 body = self._json_body()
-                instance = create_profile(
-                    str(body.get("name") or ""),
-                    str(body.get("mc_version") or ""),
-                    str(body.get("loader_type") or ""),
-                    str(body.get("loader_version") or ""),
-                )
-                config = json.loads((instance / "profile.json").read_text(encoding="utf-8"))
+                name = str(body.get("name") or "")
+                mc_version = str(body.get("mc_version") or "")
+                loader = str(body.get("loader_type") or "").strip().lower()
+                loader_version = str(body.get("loader_version") or "")
+                if loader in {"forge", "neoforge"} and not find_java():
+                    raise LoaderInstallError("No encuentro Java. Instálalo o agrega java.exe al PATH.")
+                try:
+                    instance = create_profile(name, mc_version, loader, loader_version)
+                except ProfileExistsError:
+                    instance = _minecraft_instance(name)
+                    config = json.loads((instance / "profile.json").read_text(encoding="utf-8"))
+                    if not _profile_matches(config, mc_version, loader, loader_version) or _loader_ready(instance, config):
+                        raise
+                else:
+                    config = json.loads((instance / "profile.json").read_text(encoding="utf-8"))
                 self._json(201, {"profile": config, "name": instance.name})
                 return
             if path == "/api/minecraft/profiles/install":
@@ -1209,6 +1223,27 @@ def _minecraft_instance(name: str) -> Path:
     if not (path / "profile.json").is_file():
         raise ProfileError("No existe ese perfil.")
     return path
+
+
+def _profile_matches(config: dict, mc_version: str, loader: str, loader_version: str) -> bool:
+    return (
+        str(config.get("mc_version") or "") == str(mc_version or "").strip()
+        and str(config.get("loader_type") or "") == loader
+        and str(config.get("loader_version") or "") == str(loader_version or "").strip()
+    )
+
+
+def _loader_ready(instance: Path, config: dict) -> bool:
+    if str(config.get("loader_type") or "") == "vanilla":
+        return True
+    build = str(config.get("loader_version") or "").strip()
+    root = instance / ".minecraft" / "versions"
+    if not build or not root.is_dir():
+        return False
+    try:
+        return any(build in path.parent.name for path in root.glob("*/*.json"))
+    except OSError:
+        return False
 
 
 def _mod_action(path: str) -> tuple[str | None, str | None]:

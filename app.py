@@ -60,6 +60,50 @@ class _Host:
         _ensure_tray(window)
         _hide_window(window)
 
+    def win_min(self) -> None:
+        window = self.holder.get("window")
+        if window is not None:
+            window.minimize()
+
+    def win_max(self) -> None:
+        window = self.holder.get("window")
+        if window is None:
+            return
+        native = getattr(window, "native", None)
+        if native is None:
+            window.maximize()
+            return
+
+        def toggle():
+            from System.Windows.Forms import FormWindowState, Screen
+
+            area = Screen.FromHandle(native.Handle).WorkingArea
+            bounds = native.Bounds
+            filled = abs(bounds.Width - area.Width) < 12 and abs(bounds.Height - area.Height) < 12
+            native.WindowState = FormWindowState.Normal
+            if filled and self.holder.get("box") is not None:
+                native.Bounds = self.holder["box"]
+                return
+            self.holder["box"] = bounds
+            native.Bounds = area
+
+        try:
+            from System import Func, Type
+
+            if native.InvokeRequired:
+                native.Invoke(Func[Type](toggle))
+                return
+        except Exception:
+            pass
+        toggle()
+
+    def win_close(self) -> None:
+        window = self.holder.get("window")
+        if window is None:
+            return
+        _ensure_tray(window)
+        _hide_window(window)
+
     def site(self) -> None:
         webbrowser.open("https://wiarch.github.io/wi-mod/")
 
@@ -239,10 +283,16 @@ def _open(url: str, app: App) -> None:
                 width=1280,
                 height=840,
                 min_size=(980, 640),
+                resizable=True,
                 maximized=True,
+                frameless=True,
+                easy_drag=False,
+                text_select=True,
+                background_color="#0c0b0a",
                 js_api=_Host(holder),
             )
             holder["window"] = window
+            holder["max"] = True
 
             def on_closing():
                 if _quitting:
@@ -254,6 +304,7 @@ def _open(url: str, app: App) -> None:
 
             def on_shown():
                 _apply_window_icon()
+                _open_maximized(window, holder)
                 _ensure_tray(window)
 
             window.events.closing += on_closing
@@ -264,6 +315,76 @@ def _open(url: str, app: App) -> None:
             print(f"Ventana nativa no disponible ({exc}). Abro el navegador.")
     webbrowser.open(url)
     threading.Event().wait()
+
+
+def _chrome(native) -> None:
+    """Bordes para achicar, sin barra de título ni línea de color."""
+    import ctypes
+
+    hwnd = int(native.Handle.ToInt32())
+    user32 = ctypes.windll.user32
+    style = user32.GetWindowLongW(hwnd, -16)
+    style = (style | 0x00040000 | 0x00010000 | 0x00020000 | 0x00080000) & ~0x00C00000
+    user32.SetWindowLongW(hwnd, -16, style)
+    user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0027)
+
+    class _Margins(ctypes.Structure):
+        _fields_ = (
+            ("cxLeftWidth", ctypes.c_int),
+            ("cxRightWidth", ctypes.c_int),
+            ("cyTopHeight", ctypes.c_int),
+            ("cyBottomHeight", ctypes.c_int),
+        )
+
+    ctypes.windll.dwmapi.DwmExtendFrameIntoClientArea(hwnd, ctypes.byref(_Margins(0, 0, 0, 0)))
+    none = ctypes.c_int(0xFFFFFFFE)
+    ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, 34, ctypes.byref(none), 4)
+
+
+def _open_maximized(window, holder: dict) -> None:
+    """Cada arranque abre maximizada. El botón restaura y luego se achica."""
+    native = getattr(window, "native", None)
+    if native is None:
+        try:
+            window.maximize()
+        except Exception:
+            return
+        return
+
+    def apply():
+        from System.Drawing import Rectangle
+        from System.Windows.Forms import FormWindowState, Screen
+
+        _chrome(native)
+        native.WindowState = FormWindowState.Normal
+        area = Screen.FromHandle(native.Handle).WorkingArea
+        box = native.Bounds
+        if abs(box.Width - area.Width) < 12 and abs(box.Height - area.Height) < 12:
+            width = min(1280, area.Width)
+            height = min(840, area.Height)
+            box = Rectangle(
+                area.X + (area.Width - width) // 2,
+                area.Y + (area.Height - height) // 2,
+                width,
+                height,
+            )
+        else:
+            box = Rectangle(box.X, box.Y, box.Width, box.Height)
+        holder["box"] = box
+        native.Bounds = area
+
+    try:
+        from System import Func, Type
+
+        if native.InvokeRequired:
+            native.Invoke(Func[Type](apply))
+            return
+    except Exception:
+        pass
+    try:
+        apply()
+    except Exception:
+        return
 
 
 def _hide_window(window) -> None:

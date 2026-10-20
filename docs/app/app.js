@@ -172,7 +172,7 @@ const UI = {
     detectGames: "Detectar",
     detectGamesTip: "Busca la carpeta del juego activo en todos los discos",
     searchMods: "Buscar mods", searchIn: "Buscar en {name}", listSearch: "Filtrar lista", menu: "Menú",
-    platform: "Plataforma", modpack: "Modpack", category: "Categoría",
+    platform: "Plataforma", platforms: "Plataformas", tags: "Etiquetas", modpack: "Modpack", category: "Categoría",
     createPack: "Crear modpack", addCategory: "Añadir categoría",
     hideNames: "Ocultar nombres", showNames: "Mostrar nombres", hide: "Ocultar", show: "Mostrar",
     dragWidth: "Arrastra el ancho", newVersion: "Versión nueva", selectAll: "Seleccionar todo",
@@ -259,9 +259,15 @@ const UI = {
     createInstance: "Instancia", instanceTitle: "Crear perfil", instanceName: "Nombre",
     instanceNamePh: "Nombre del perfil", instanceMc: "Versión de Minecraft",
     instanceLoader: "Modloader", instanceLoaderVer: "Versión del modloader",
+    instanceLoaderTip: "Elige un modloader para un perfil con mods, o Vanilla para uno sin mods.",
     instanceCreate: "Crear", instanceCreating: "Creando perfil…",
     instanceDownloading: "Descargando librerías…", instanceReady: "Perfil listo.",
     instanceLoaders: "Buscando loaders…",
+    sysBack: "Atrás", sysFwd: "Adelante", sysNone: "Sin instancia",
+    searchInstance: "Buscar instancia", addInstance: "Añadir instancia",
+    sysIdle: "Ninguna instancia en marcha", sysDownloads: "Descargas",
+    tasks: "Tareas", tasksDone: "Completadas", tasksClear: "Limpiar",
+    sysMin: "Minimizar", sysMax: "Maximizar", sysClose: "Cerrar",
     emptyAll: "Pega un enlace de Nexus con Añadir mod. La ficha trae imagen, resumen, categoría, versión y última actualización.",
     picked: "{n} marcados", pickFirst: "Marca mods primero.", noResults: "Sin resultados",
     type2: "Escribe al menos 2 letras.", searching: "Buscando…",
@@ -324,7 +330,7 @@ const UI = {
     detectGames: "Detect",
     detectGamesTip: "Find the active game folder across all disks",
     searchMods: "Search mods", searchIn: "Search {name}", listSearch: "Filter list", menu: "Menu",
-    platform: "Platform", modpack: "Modpack", category: "Category",
+    platform: "Platform", platforms: "Platforms", tags: "Tags", modpack: "Modpack", category: "Category",
     createPack: "Create modpack", addCategory: "Add category",
     hideNames: "Hide names", showNames: "Show names", hide: "Hide", show: "Show",
     dragWidth: "Drag to resize", newVersion: "New version", selectAll: "Select all",
@@ -411,9 +417,15 @@ const UI = {
     createInstance: "Instance", instanceTitle: "Create profile", instanceName: "Name",
     instanceNamePh: "Profile name", instanceMc: "Minecraft version",
     instanceLoader: "Modloader", instanceLoaderVer: "Modloader version",
+    instanceLoaderTip: "Select a modloader to create a modded profile, or Vanilla for an unmodded one.",
     instanceCreate: "Create", instanceCreating: "Creating profile…",
     instanceDownloading: "Downloading libraries…", instanceReady: "Profile ready.",
     instanceLoaders: "Looking up loaders…",
+    sysBack: "Back", sysFwd: "Forward", sysNone: "No instance",
+    searchInstance: "Search instance", addInstance: "Add instance",
+    sysIdle: "No instances running", sysDownloads: "Downloads",
+    tasks: "Tasks", tasksDone: "Complete", tasksClear: "Clear all",
+    sysMin: "Minimize", sysMax: "Maximize", sysClose: "Close",
     emptyAll: "Paste a Nexus link with Add mod. The card brings image, summary, category, version, and last update.",
     picked: "{n} selected", pickFirst: "Select mods first.", noResults: "No results",
     type2: "Type at least 2 letters.", searching: "Searching…",
@@ -537,47 +549,36 @@ function setLoading(button, on, label) {
   }
 }
 
-let loadJobs = 0;
-let loadStarted = 0;
+let taskSeq = 1;
+const liveTasks = [];
 let loadFrame = 0;
-let loadHide = 0;
-let loadShown = false;
-let loadLabel = "";
 
-function fmtEta(ms) {
-  const s = Math.max(0, Math.ceil(ms / 1000));
-  if (s < 60) return `${s} s`;
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+function taskModName(id) {
+  const mod = (state.mods || []).find((item) => item.id === id);
+  return mod?.name || "";
 }
 
-function paintLoad(done) {
-  const bar = $("dock-load-bar");
-  const meta = $("dock-load-meta");
-  const box = $("dock-load");
-  if (!bar || !meta || !box) return;
-  const elapsed = performance.now() - loadStarted;
+function taskPct(task) {
+  const elapsed = performance.now() - task.started;
   const tau = 2400;
   const goal = -tau * Math.log(0.08);
-  let pct = 100;
-  let eta = 0;
-  if (!done) {
-    if (elapsed < goal) {
-      pct = Math.max(4, Math.min(92, Math.round((1 - Math.exp(-elapsed / tau)) * 100)));
-      eta = goal - elapsed;
-    } else {
-      pct = Math.min(97, 92 + Math.floor((elapsed - goal) / 700));
-      eta = 700;
-    }
-  }
-  bar.style.width = `${pct}%`;
-  meta.textContent = loadLabel ? `${loadLabel} ${pct}%` : `${pct}%`;
-  box.hidden = false;
-  meta.hidden = false;
-  loadShown = true;
+  if (elapsed < goal) return Math.max(4, Math.min(92, Math.round((1 - Math.exp(-elapsed / tau)) * 100)));
+  return Math.min(97, 92 + Math.floor((elapsed - goal) / 700));
 }
 
 function queueHint(path) {
   const p = String(path || "");
+  const mod = p.match(/\/api\/mods\/([0-9a-f]{32})\/(download|install|files|refresh|translate)/);
+  if (mod) {
+    const name = taskModName(mod[1]);
+    if (mod[2] === "download") return name ? `⬇️ ${name}` : t("qDown");
+    if (mod[2] === "install" || mod[2] === "files") return name ? `📦 ${name}` : t("qExtract");
+    return name ? `🔄 ${name}` : t("qSync");
+  }
+  if (/minecraft\/loaders/.test(p)) return t("instanceLoaders");
+  if (/minecraft\/profiles\/install/.test(p)) return t("instanceDownloading");
+  if (/minecraft\/profiles/.test(p)) return t("instanceCreating");
+  if (/\/api\/images/.test(p)) return t("qExtract");
   if (/\/rawg/.test(p)) return t("qRawg");
   if (/\/import/.test(p)) return t("qExtract");
   if (/download/.test(p)) return t("qDown");
@@ -585,39 +586,59 @@ function queueHint(path) {
   return "";
 }
 
+function paintLiveTasks(freshId) {
+  const list = $("tasks-live");
+  if (!list) return;
+  const want = new Set(liveTasks.map((task) => String(task.id)));
+  list.querySelectorAll("[data-live]").forEach((node) => {
+    if (!want.has(node.dataset.live)) node.remove();
+  });
+  liveTasks.forEach((task, index) => {
+    let node = list.querySelector(`[data-live="${task.id}"]`);
+    if (!node) {
+      node = document.createElement("li");
+      node.dataset.live = String(task.id);
+      node.className = "tasks-item" + (task.id === freshId ? " tasks-in" : "");
+      node.innerHTML = `<span class="tasks-mark" aria-hidden="true">↓</span><span><b></b><small class="tasks-pct"></small></span><span></span><div class="tasks-bar"><span></span></div>`;
+      list.insertBefore(node, list.children[index] || null);
+    }
+    const pct = taskPct(task);
+    node.querySelector("b").textContent = task.label;
+    node.querySelector(".tasks-pct").textContent = `${pct}%`;
+    node.querySelector(".tasks-bar span").style.width = `${pct}%`;
+  });
+  list.hidden = !liveTasks.length;
+}
+
 function beginLoad(label) {
-  if (label) loadLabel = label;
-  loadJobs += 1;
-  if (loadJobs !== 1) return;
-  clearTimeout(loadHide);
-  loadShown = false;
-  loadStarted = performance.now();
-  const tick = () => {
-    if (loadJobs <= 0) return;
-    if (performance.now() - loadStarted > 180) paintLoad(false);
+  const text = String(label || "").trim();
+  if (!text) return 0;
+  const task = { id: taskSeq++, label: text, started: performance.now() };
+  liveTasks.unshift(task);
+  paintLiveTasks(task.id);
+  paintSysActivity();
+  if (!loadFrame) {
+    const tick = () => {
+      if (!liveTasks.length) {
+        loadFrame = 0;
+        return;
+      }
+      paintLiveTasks();
+      loadFrame = requestAnimationFrame(tick);
+    };
     loadFrame = requestAnimationFrame(tick);
-  };
-  loadFrame = requestAnimationFrame(tick);
+  }
+  return task.id;
 }
 
-function hideLoad() {
-  cancelAnimationFrame(loadFrame);
-  clearTimeout(loadHide);
-  const box = $("dock-load");
-  const meta = $("dock-load-meta");
-  const bar = $("dock-load-bar");
-  if (box) box.hidden = true;
-  if (meta) meta.hidden = true;
-  if (bar) bar.style.width = "0%";
-  loadShown = false;
-  loadLabel = "";
-}
-
-function endLoad() {
-  if (loadJobs <= 0) return;
-  loadJobs -= 1;
-  if (loadJobs > 0) return;
-  hideLoad();
+function endLoad(id) {
+  if (!id) return;
+  const index = liveTasks.findIndex((task) => task.id === id);
+  if (index < 0) return;
+  const [task] = liveTasks.splice(index, 1);
+  pushDoneTask(task.label);
+  paintLiveTasks();
+  paintSysActivity();
 }
 
 function syncMute() {
@@ -724,7 +745,7 @@ function toast(text, kind = "ok") {
 }
 
 async function api(path, options = {}) {
-  beginLoad(queueHint(path));
+  const job = beginLoad(queueHint(path));
   try {
   const headers = new Headers(options.headers || {});
   const token = sessionToken();
@@ -756,7 +777,7 @@ async function api(path, options = {}) {
   pushLog("req", `${options.method || "GET"} ${path} · ${res.status}`);
   return res;
   } finally {
-    endLoad();
+    endLoad(job);
   }
 }
 
@@ -941,13 +962,6 @@ function gameModsBytes() {
 function paintDockStats(data) {
   if (data) lastStatus = data;
   const info = lastStatus || {};
-  const game = $("dock-game");
-  if (game) {
-    const name = state.game ? gameLabel(state.game) : "—";
-    game.textContent = name;
-    game.dataset.tip = t("dockGameTip");
-    game.title = name;
-  }
   const mods = $("dock-mods");
   if (mods) {
     mods.dataset.tip = t("diskModsTip");
@@ -1407,8 +1421,6 @@ function paintGamePlay() {
   const tip = linked ? t("launchLinked") : t("launchUnlinked");
   btn.title = tip;
   btn.setAttribute("aria-label", tip);
-  const inst = $("instance-create");
-  if (inst) inst.hidden = !String(state.game || "").toLowerCase().startsWith("minecraft");
 }
 
 function selectGame(domain) {
@@ -1470,13 +1482,26 @@ function renderGameHero() {
   const cover = gameCover(domain);
   const mods = scopedMods().length;
   const packs = packsForGame().length;
-  const bits = [
-    meta.released || "",
-    meta.genres?.length ? meta.genres.slice(0, 3).join(", ") : "",
-    meta.platforms?.length ? meta.platforms.slice(0, 3).join(", ") : "",
-    meta.rating != null ? `★ ${meta.rating}` : "",
-    meta.metacritic != null ? `Metacritic ${meta.metacritic}` : "",
-  ].filter(Boolean);
+  const packs = packsForGame().length;
+  const score = meta.metacritic == null ? null : Number(meta.metacritic);
+  const tier = score == null ? "" : score >= 75 ? "good" : score >= 50 ? "mid" : "bad";
+  const modsWord = t("modsN", { n: "" }).trim();
+  const packsWord = t("packsN", { n: "" }).trim();
+  const pile = (kind, label, items) => {
+    const names = (items || []).map((item) => String(item || "").trim()).filter(Boolean);
+    if (!names.length) return "";
+    return `<span class="hero-chip ${kind} hero-pile" tabindex="0">${esc(label)}<span class="hero-pile-pop">${names.map((item) => `<i>${esc(item)}</i>`).join("")}</span></span>`;
+  };
+  const stats = `
+    <div class="hero-stats">
+      ${meta.released ? `<span class="hero-chip">${esc(meta.released)}</span>` : ""}
+      ${pile("genre", t("tags"), meta.genres)}
+      ${pile("plat", t("platforms"), meta.platforms)}
+      ${meta.rating != null ? `<span class="hero-num"><b>★ ${esc(meta.rating)}</b><small>RAWG</small></span>` : ""}
+      ${score != null ? `<span class="hero-num score ${tier}"><b>${esc(score)}</b><small>Metacritic</small></span>` : ""}
+      <span class="hero-num"><b>${mods}</b><small>${esc(modsWord)}</small></span>
+      <span class="hero-num"><b>${packs}</b><small>${esc(packsWord)}</small></span>
+    </div>`;
   node.hidden = false;
   node.style.backgroundImage = "";
   const packStrip = packHeroStrip();
@@ -1504,7 +1529,7 @@ function renderGameHero() {
           <h2>${esc(name)}</h2>
           <button type="button" class="game-hero-toggle" id="hero-toggle">${esc(t("hideCard"))}</button>
         </div>
-        <p class="meta">${esc(bits.join(" · ") || domain)} · ${esc(t("modsN", { n: mods }))} · ${esc(t("packsN", { n: packs }))}</p>
+        ${stats}
         <p class="desc">${esc((state.lang === "es" ? (meta.descriptionEs || meta.description) : meta.description) || t("heroFallback"))}</p>
         <div class="game-hero-links">
           ${meta.rawgUrl ? `<a href="${esc(meta.rawgUrl)}" target="_blank" rel="noreferrer">RAWG</a>` : ""}
@@ -2159,9 +2184,27 @@ function renderFilters() {
   bindSideNavControls();
 }
 
+function sideFoldShut(id) {
+  const block = document.querySelector(`.side-block[data-fold="${id}"]`);
+  const layout = document.querySelector(".layout");
+  return Boolean(block?.classList.contains("is-shut") || layout?.classList.contains("side-icons"));
+}
+
 async function sideAdd(kind) {
   sfx.click();
   if (kind === "modpack") {
+    const minecraft = String(state.game || "").toLowerCase().startsWith("minecraft");
+    if (minecraft || sideFoldShut("modpacks")) {
+      if (!state.game) {
+        toast("Elige un juego arriba.", "warn");
+        return;
+      }
+      const pack = minecraft
+        ? await openInstanceDialog()
+        : await createModpackInline(state.game, gameLabel(state.game));
+      if (pack?.id) state.modpack = pack.id;
+      return;
+    }
     startSideName("modpacks", "Nombre del pack", async (name) => {
       if (!state.game) throw new Error("Elige un juego arriba.");
       const saved = await api("/api/modpacks", {
@@ -2536,6 +2579,7 @@ async function createModpackInline(gameDomain, gameName) {
     toast("Elige un juego arriba.", "warn");
     return null;
   }
+  if (domain.toLowerCase().startsWith("minecraft")) return openInstanceDialog();
   const name = await askInput({ title: "Modpack", placeholder: "Nombre del pack", okLabel: "Crear" });
   if (!name) return null;
   const saved = await api("/api/modpacks", {
@@ -3399,6 +3443,7 @@ function render() {
   paintSearchPlatform();
   paintUpdateBanner();
   paintDockStats();
+  paintSysbar();
   const mods = visible();
   $("count").textContent = "";
   if (!mods.length) {
@@ -5338,6 +5383,7 @@ bindGameAdd();
 if ($("game-play")) $("game-play").onclick = playActiveGame;
 
 let instanceLoaders = {};
+let instanceFinish = null;
 
 function instanceLoaderPicked() {
   return document.querySelector('input[name="instance-loader"]:checked')?.value || "";
@@ -5367,88 +5413,68 @@ function fillInstanceLoaderVersions() {
   select.innerHTML = versions.map((version) => `<option value="${esc(version)}">${esc(version)}</option>`).join("");
 }
 
-function setInstanceProgress(percent, message, busy) {
-  const wrap = $("instance-progress");
-  const bar = $("instance-bar");
-  const status = $("instance-status");
-  if (wrap) wrap.hidden = false;
-  if (bar) {
-    bar.style.width = `${percent}%`;
-    bar.parentElement.classList.toggle("busy", Boolean(busy));
-  }
-  if (status) status.textContent = message || "";
-}
-
 async function refreshInstanceLoaders() {
   const version = $("instance-mc")?.value || "";
   if (!version) return;
-  setInstanceProgress(15, t("instanceLoaders"), true);
   const data = await api(`/api/minecraft/loaders?version=${encodeURIComponent(version)}`);
   instanceLoaders = data.loaders || {};
   paintInstanceLoaders(instanceLoaders);
   fillInstanceLoaderVersions();
-  $("instance-progress").hidden = true;
 }
 
-async function openInstanceDialog() {
-  const dialog = $("instance-dialog");
-  if (!dialog) return;
-  sfx.open();
-  $("instance-name").value = "";
-  $("instance-progress").hidden = true;
-  $("instance-go").disabled = false;
-  dialog.showModal();
+function minecraftPack(domain) {
+  return String(domain || "").toLowerCase().startsWith("minecraft");
+}
+
+function paintMpMinecraft(pack) {
+  const on = minecraftPack(pack?.gameDomain || state.game);
+  $("mp-mc")?.toggleAttribute("hidden", !on);
+  $("mp-mc-ver")?.toggleAttribute("hidden", !on);
+  $("modpacks-form")?.classList.toggle("mc-pack", on);
+}
+
+let mpMcToken = 0;
+
+async function fillMpMinecraft(pack) {
+  const token = ++mpMcToken;
+  paintMpMinecraft(pack);
+  if ($("mp-mc")?.hidden) return;
   const data = await api("/api/minecraft/versions");
+  if (token !== mpMcToken) return;
   const select = $("instance-mc");
+  if (!select) return;
   select.innerHTML = (data.versions || []).map((version) => `<option value="${esc(version)}">${esc(version)}</option>`).join("");
+  if (pack?.mcVersion) select.value = pack.mcVersion;
   await refreshInstanceLoaders();
+  if (token !== mpMcToken) return;
+  if (pack?.loaderType) {
+    const radio = document.querySelector(`input[name="instance-loader"][value="${pack.loaderType}"]`);
+    if (radio && !radio.disabled) radio.checked = true;
+    fillInstanceLoaderVersions();
+  }
+  if (pack?.loaderVersion && $("instance-loader-version")) $("instance-loader-version").value = pack.loaderVersion;
 }
 
-async function submitInstance(event) {
-  event.preventDefault();
-  const button = $("instance-go");
-  const name = $("instance-name").value.trim();
-  const mc = $("instance-mc").value;
-  const loader = instanceLoaderPicked();
-  const build = loader === "vanilla" ? mc : ($("instance-loader-version").value || "");
-  if (!name || !mc || !loader || (loader !== "vanilla" && !build)) {
-    setInstanceProgress(0, t("instanceCreating"), false);
-    $("instance-status").textContent = t("pickFirst");
-    return;
-  }
-  button.disabled = true;
-  setInstanceProgress(12, t("instanceCreating"), true);
-  try {
-    await api("/api/minecraft/profiles", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, mc_version: mc, loader_type: loader, loader_version: build }),
-    });
-    if (loader !== "vanilla") {
-      setInstanceProgress(45, t("instanceDownloading"), true);
-      await api("/api/minecraft/profiles/install", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-    }
-    setInstanceProgress(100, t("instanceReady"), false);
-    toast(t("instanceReady"));
-    $("instance-dialog").close();
-  } catch (error) {
-    setInstanceProgress(0, error.message || String(error), false);
-    toast(error.message || String(error), "bad");
-  } finally {
-    button.disabled = false;
-  }
+function openInstanceDialog() {
+  const dialog = $("modpacks-dialog");
+  if (!dialog) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    instanceFinish = resolve;
+    openModpacksDialog();
+    const onClose = () => {
+      dialog.removeEventListener("close", onClose);
+      const finish = instanceFinish;
+      instanceFinish = null;
+      finish?.(null);
+    };
+    dialog.addEventListener("close", onClose);
+  });
 }
 
-if ($("instance-create")) $("instance-create").onclick = () => { openInstanceDialog().catch((error) => toast(error.message || String(error), "bad")); };
 if ($("instance-mc")) $("instance-mc").onchange = () => { refreshInstanceLoaders().catch((error) => toast(error.message || String(error), "bad")); };
 document.querySelectorAll('input[name="instance-loader"]').forEach((input) => {
   input.onchange = () => fillInstanceLoaderVersions();
 });
-if ($("instance-form")) $("instance-form").onsubmit = submitInstance;
 if ($("launch-form")) $("launch-form").onsubmit = (event) => event.preventDefault();
 $("game-picker").onclick = (event) => {
   event.preventDefault();
@@ -5772,7 +5798,11 @@ function gameOptionsForPacks() {
 function openModpacksDialog() {
   resetModpackForm();
   renderModpacksList();
-  $("modpacks-dialog").showModal();
+  const dialog = $("modpacks-dialog");
+  if (dialog && !dialog.open) {
+    sfx.open();
+    dialog.showModal();
+  }
 }
 
 function mpCatNames() {
@@ -5929,11 +5959,14 @@ function resetModpackForm() {
   $("mp-edit-id").value = "";
   $("mp-name").value = "";
   $("mp-notes").value = "";
-  $("mp-save").textContent = "Guardar modpack";
+  $("mp-save").textContent = t("instanceCreate");
   $("mp-delete").hidden = true;
+  const title = $("modpacks-dialog")?.querySelector("h2");
+  if (title) title.textContent = t("createPack");
   $("mp-cats").innerHTML = "";
   addMpCatRow();
   loadMpMark("");
+  fillMpMinecraft(null).catch((error) => toast(error.message || String(error), "bad"));
 }
 
 function renderModpacksList() {
@@ -5962,9 +5995,12 @@ function editModpack(id) {
   $("mp-notes").value = pack.notes || "";
   $("mp-save").textContent = "Actualizar";
   $("mp-delete").hidden = false;
+  const title = $("modpacks-dialog")?.querySelector("h2");
+  if (title) title.textContent = t("modpacks");
   $("mp-cats").innerHTML = "";
   addMpCatRow();
   loadMpMark(pack.id);
+  fillMpMinecraft(pack).catch((error) => toast(error.message || String(error), "bad"));
 }
 
 async function deleteCurrentModpack() {
@@ -6000,6 +6036,18 @@ async function saveModpackForm(event) {
     gameName,
     notes: $("mp-notes").value || "",
   };
+  if (!$("mp-mc")?.hidden) {
+    const mc = $("instance-mc")?.value || "";
+    const loader = instanceLoaderPicked();
+    const build = loader === "vanilla" ? mc : ($("instance-loader-version")?.value || "");
+    if (!mc || !loader || (loader !== "vanilla" && !build)) {
+      toast(t("pickFirst"), "bad");
+      return;
+    }
+    body.mcVersion = mc;
+    body.loaderType = loader;
+    body.loaderVersion = build;
+  }
   const extra = mpCatNames().map((label) => ({ name: label }));
   const button = $("mp-save");
   setLoading(button, true, "Guardando");
@@ -6029,6 +6077,25 @@ async function saveModpackForm(event) {
       toast(extra.length ? "Modpack creado con categorías." : "Modpack creado.");
     }
     const pack = saved.modpack;
+    if (!editId && body.loaderType) {
+      await api("/api/minecraft/profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          mc_version: body.mcVersion,
+          loader_type: body.loaderType,
+          loader_version: body.loaderVersion,
+        }),
+      });
+      if (body.loaderType !== "vanilla") {
+        await api("/api/minecraft/profiles/install", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        });
+      }
+    }
     if (pack?.id) await applyMpMark(pack.id);
     if (!editId && pack?.id) {
       if (pack.gameDomain) {
@@ -6037,7 +6104,10 @@ async function saveModpackForm(event) {
       }
       state.modpack = pack.id;
       await load();
+      const finish = instanceFinish;
+      instanceFinish = null;
       $("modpacks-dialog").close();
+      finish?.(pack);
       return;
     }
     await load();
@@ -7099,6 +7169,288 @@ function installMarks() {
 }
 installMarks();
 
+const navStack = [];
+let navAt = -1;
+let navLock = false;
+
+function loaderSrc(type) {
+  const file = {
+    forge: "loader-forge.png",
+    fabric: "loader-fabric.png",
+    quilt: "loader-quilt.png",
+    neoforge: "loader-neoforge.ico",
+    vanilla: "loader-vanilla.ico",
+  }[String(type || "").toLowerCase()];
+  if (!file) return "";
+  const icon = document.querySelector("link[rel='icon']")?.getAttribute("href") || "/brand/wi-mod.svg";
+  return icon.replace(/[^/]+$/, "") + file;
+}
+
+function instanceTitle(pack) {
+  if (!pack) return t("sysNone");
+  const loader = String(pack.loaderType || "");
+  const mc = String(pack.mcVersion || "");
+  const pretty = { forge: "Forge", fabric: "Fabric", quilt: "Quilt", neoforge: "NeoForge", vanilla: "Vanilla" };
+  if (loader && mc) return `${pretty[loader.toLowerCase()] || loader} ${mc}`;
+  return pack.name || t("sysNone");
+}
+
+function paintSysNav() {
+  const back = $("sys-back");
+  const fwd = $("sys-fwd");
+  if (back) back.disabled = navAt <= 0;
+  if (fwd) fwd.disabled = navAt < 0 || navAt >= navStack.length - 1;
+}
+
+function navRemember() {
+  if (navLock) return;
+  const snap = { game: state.game || "", modpack: state.modpack || "" };
+  const cur = navStack[navAt];
+  if (cur && cur.game === snap.game && cur.modpack === snap.modpack) return;
+  navStack.splice(navAt + 1);
+  navStack.push(snap);
+  if (navStack.length > 40) navStack.shift();
+  navAt = navStack.length - 1;
+  paintSysNav();
+}
+
+function navGo(dir) {
+  const next = navAt + dir;
+  if (next < 0 || next >= navStack.length) return;
+  const snap = navStack[next];
+  navLock = true;
+  navAt = next;
+  state.game = snap.game;
+  state.modpack = snap.modpack;
+  state.packCat = "";
+  if (state.game) localStorage.setItem("wi-mod-game", state.game);
+  render();
+  navLock = false;
+  paintSysNav();
+}
+
+function closeSysMenu() {
+  const menu = $("sys-instance-menu");
+  const btn = $("sys-instance");
+  if (menu) menu.hidden = true;
+  if (btn) btn.setAttribute("aria-expanded", "false");
+}
+
+function paintSysbar() {
+  const name = $("sys-instance-name");
+  const ico = $("sys-instance-ico");
+  const pack = packById(state.modpack);
+  if (name) name.textContent = instanceTitle(pack);
+  if (ico) {
+    const src = loaderSrc(pack?.loaderType);
+    ico.hidden = !src;
+    if (src) ico.src = src;
+  }
+  navRemember();
+  const running = $("sys-running");
+  if (running && !liveTasks.length) running.textContent = t("sysIdle");
+}
+
+const TASK_KEY = "wi-mod-tasks";
+const doneTasks = (() => {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(TASK_KEY) || "[]");
+    return Array.isArray(raw) ? raw : [];
+  } catch (_) {
+    return [];
+  }
+})();
+
+function taskAgo(at) {
+  const min = Math.max(0, Math.round((Date.now() - at) / 60000));
+  if (min < 1) return "ahora";
+  if (min < 60) return `${min} min`;
+  return `${Math.round(min / 60)} h`;
+}
+
+function paintDoneTasks(freshId) {
+  const list = $("tasks-done");
+  if (!list) return;
+  list.hidden = !doneTasks.length;
+  list.innerHTML = doneTasks.map((task) => `
+    <li class="${task.id === freshId ? "tasks-in" : ""}">
+      <span class="tasks-mark" aria-hidden="true">↓</span>
+      <span><b>${esc(task.label)}</b><small>${esc(taskAgo(task.at))}</small></span>
+      <button type="button" class="tasks-x" data-task="${task.id}" aria-label="Quitar">✕</button>
+    </li>
+  `).join("");
+  list.querySelectorAll("[data-task]").forEach((button) => {
+    button.onclick = (event) => {
+      event.stopPropagation();
+      const id = Number(button.dataset.task);
+      const index = doneTasks.findIndex((task) => task.id === id);
+      if (index >= 0) doneTasks.splice(index, 1);
+      try { sessionStorage.setItem(TASK_KEY, JSON.stringify(doneTasks)); } catch (_) { /* ignore */ }
+      paintDoneTasks();
+    };
+  });
+}
+
+function pushDoneTask(label) {
+  const text = String(label || "").trim();
+  if (!text) return;
+  const id = Date.now() + Math.floor(Math.random() * 1000);
+  doneTasks.unshift({ id, label: text, at: Date.now() });
+  if (doneTasks.length > 30) doneTasks.pop();
+  try { sessionStorage.setItem(TASK_KEY, JSON.stringify(doneTasks)); } catch (_) { /* ignore */ }
+  paintDoneTasks(id);
+}
+
+function paintSysActivity() {
+  const badge = $("sys-dl-badge");
+  const dl = $("sys-downloads");
+  const n = liveTasks.length;
+  if (dl) dl.classList.toggle("on", n > 0);
+  if (badge) {
+    badge.hidden = n < 1;
+    badge.textContent = String(n);
+  }
+}
+
+function bindTasks() {
+  const button = $("sys-downloads");
+  const pop = $("tasks-pop");
+  if (!button || !pop || button.dataset.bound) return;
+  button.dataset.bound = "1";
+  paintDoneTasks();
+  button.onclick = (event) => {
+    event.stopPropagation();
+    const open = pop.hidden;
+    pop.hidden = !open;
+    button.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".tasks-wrap")) {
+      pop.hidden = true;
+      button.setAttribute("aria-expanded", "false");
+    }
+  });
+  const clear = $("tasks-clear");
+  if (clear) clear.onclick = (event) => {
+    event.stopPropagation();
+    doneTasks.splice(0, doneTasks.length);
+    try { sessionStorage.removeItem(TASK_KEY); } catch (_) { /* ignore */ }
+    paintDoneTasks();
+  };
+  const fold = $("tasks-fold");
+  if (fold) fold.onclick = (event) => {
+    event.stopPropagation();
+    const list = $("tasks-done");
+    if (!list) return;
+    const shut = fold.getAttribute("aria-expanded") !== "false";
+    fold.setAttribute("aria-expanded", shut ? "false" : "true");
+    list.style.display = shut ? "none" : "";
+  };
+}
+
+function instanceIcon(pack) {
+  const marked = markIcon("modpack", pack.id);
+  if (marked) return marked.replace("side-emoji", "side-emoji sys-pack-ico").replace("side-ico", "side-ico sys-pack-ico");
+  const src = loaderSrc(pack.loaderType);
+  if (src) return `<img class="sys-pack-ico" alt="" src="${esc(src)}">`;
+  return `<span class="sys-pack-ico">📦</span>`;
+}
+
+function fillSysMenu() {
+  const menu = $("sys-instance-menu");
+  if (!menu) return;
+  let search = menu.querySelector(".sys-menu-search");
+  if (!search) {
+    menu.innerHTML = `<input class="sys-menu-search" type="search" placeholder="${esc(t("searchInstance"))}" autocomplete="off" spellcheck="false"><div class="sys-menu-list"></div><button type="button" class="sys-menu-add" id="sys-instance-add"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg><span>${esc(t("addInstance"))}</span></button>`;
+    search = menu.querySelector(".sys-menu-search");
+    search.addEventListener("input", () => fillSysMenu());
+    search.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        closeSysMenu();
+        return;
+      }
+      if (event.key === "Enter") {
+        event.preventDefault();
+        menu.querySelector(".sys-menu-list [data-pack]")?.click();
+      }
+    });
+    menu.querySelector("#sys-instance-add").onclick = async (event) => {
+      event.stopPropagation();
+      closeSysMenu();
+      const pack = await createModpackInline(state.game, gameLabel(state.game));
+      if (!pack?.id) return;
+      state.modpack = pack.id;
+      state.packCat = "";
+      render();
+    };
+  }
+  const query = search.value.trim().toLowerCase();
+  const packs = (typeof packsForGame === "function" ? packsForGame() : []).filter((pack) => {
+    if (!query) return true;
+    const title = instanceTitle(pack).toLowerCase();
+    const name = String(pack.name || "").toLowerCase();
+    return title.includes(query) || name.includes(query);
+  });
+  const list = menu.querySelector(".sys-menu-list");
+  list.innerHTML = packs.length
+    ? packs.map((pack) => {
+      const on = pack.id === state.modpack ? " on" : "";
+      return `<button type="button" class="${on}" data-pack="${esc(pack.id)}">${instanceIcon(pack)}<span>${esc(instanceTitle(pack))}</span></button>`;
+    }).join("")
+    : `<button type="button" disabled>${esc(t("sysNone"))}</button>`;
+  list.querySelectorAll("[data-pack]").forEach((button) => {
+    button.onclick = () => {
+      state.modpack = button.dataset.pack || "";
+      state.packCat = "";
+      sfx.click();
+      closeSysMenu();
+      render();
+    };
+  });
+}
+
+function bindSysbar() {
+  const back = $("sys-back");
+  const fwd = $("sys-fwd");
+  const chip = $("sys-instance");
+  if (back) back.onclick = () => navGo(-1);
+  if (fwd) fwd.onclick = () => navGo(1);
+  if (chip) chip.onclick = (event) => {
+    event.stopPropagation();
+    const menu = $("sys-instance-menu");
+    if (!menu) return;
+    const open = menu.hidden;
+    if (open) {
+      fillSysMenu();
+      menu.querySelector(".sys-menu-search")?.focus();
+    }
+    menu.hidden = !open;
+    chip.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".sys-instance-wrap")) closeSysMenu();
+  });
+  const hostOf = () => (window.pywebview && window.pywebview.api) || null;
+  const showWins = () => {
+    const wins = $("sys-wins");
+    const host = hostOf();
+    if (wins) wins.hidden = !(host && typeof host.win_min === "function");
+  };
+  showWins();
+  window.addEventListener("pywebviewready", showWins);
+  const min = $("sys-min");
+  const max = $("sys-max");
+  const close = $("sys-close");
+  const flipMax = () => max && max.classList.toggle("is-max");
+  if (min) min.onclick = () => hostOf()?.win_min?.();
+  if (max) max.onclick = () => { hostOf()?.win_max?.(); flipMax(); };
+  if (close) close.onclick = () => hostOf()?.win_close?.();
+  document.querySelectorAll(".pywebview-drag-region").forEach((node) => {
+    node.addEventListener("dblclick", () => { hostOf()?.win_max?.(); flipMax(); });
+  });
+}
+
 function bindSideFolds() {
   const key = "wi-mod-side-folds";
   let shut = [];
@@ -7162,6 +7514,8 @@ function bindSideFolds() {
   paintFoldsToggle();
 }
 bindSideFolds();
+bindSysbar();
+bindTasks();
 bindSideSearch();
 
 function bindSideSize() {

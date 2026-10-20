@@ -1190,6 +1190,9 @@ class Library:
         pack["gameName"] = str(fields.get("gameName") or pack.get("gameName") or "").strip() or game
         if "notes" in fields or create:
             pack["notes"] = str(fields.get("notes") or "")
+        for key in ("mcVersion", "loaderType", "loaderVersion"):
+            if key in fields:
+                pack[key] = str(fields.get(key) or "").strip()
         if "categories" in fields and isinstance(fields["categories"], list):
             cats: list[dict[str, Any]] = []
             seen: set[str] = set()
