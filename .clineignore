@@ -1,0 +1,25 @@
+# Entornos virtuales y dependencias
+venv/
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+
+# Instancias y archivos pesados de Minecraft
+/instances/
+.minecraft/
+*.jar
+*.exe
+*.zip
+*.log
+
+# Compilación, temporales y control de versiones
+dist/
+build/
+.git/
+.vscode/
+.idea/
+
+# Pesados generados por este proyecto (caché del webview y JDK embebido)
+data/webview/
+java/

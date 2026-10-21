@@ -125,13 +125,18 @@ class ModManager:
         return [row for row in rows if isinstance(row, dict)]
 
     def _matching_version(self, project_id: str, mc_version: str, loader: str) -> dict:
+        wanted_version = str(mc_version or "").strip()
+        wanted_loader = str(loader or "").strip().lower()
+        matches = []
         for row in self._versions(project_id):
-            if not isinstance(row, dict):
-                continue
-            games = row.get("game_versions") or []
+            games = {str(item).strip() for item in (row.get("game_versions") or [])}
             loaders = {str(item).strip().lower() for item in (row.get("loaders") or [])}
-            if mc_version in games and loader in loaders and _primary_jar(row):
-                return row
+            # Coincidencia exacta en AMBOS arrays; nada de rangos ni "1.20" genérico.
+            if wanted_version in games and wanted_loader in loaders and _primary_jar(row):
+                matches.append(row)
+        if matches:
+            # No confío en el orden de la API: la última es la más reciente publicada.
+            return max(matches, key=lambda row: str(row.get("date_published") or ""))
         raise ModManagerError(
             f"{project_id} no tiene un .jar para {mc_version} con {loader}."
         )

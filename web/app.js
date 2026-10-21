@@ -2353,7 +2353,7 @@ function sideEntry(label, value, current, kind, mods, markFallback) {
     : "";
   const chipClass = kind === "packCat" ? `pack-cat-chip ${on}` : on;
   const chip = `<button type="button" class="${chipClass}" data-kind="${kind}" data-value="${encodeURIComponent(value)}" title="${esc(label)}">${icon}<span class="side-initial">${esc(sideInitial(label))}</span><span>${esc(label)}</span>${pencil}</button>`;
-  if (!value || kind === "modpack") {
+  if (!value || kind === "modpack" || kind === "platform") {
     return `<div class="side-entry${on ? " is-on" : ""}"><div class="side-entry-row"><span class="side-twist-spacer" aria-hidden="true"></span>${chip}</div></div>`;
   }
   const list = Array.isArray(mods) ? mods : modsForSide(kind, value);
@@ -7350,7 +7350,8 @@ function paintSysbar() {
   const pack = packById(state.modpack);
   if (name) name.textContent = instanceTitle(pack);
   if (ico) {
-    const src = loaderSrc(pack?.loaderType);
+    const mark = pack ? markOf("modpack", pack.id) : null;
+    const src = mark?.imageUrl || loaderSrc(pack?.loaderType);
     ico.hidden = !src;
     if (src) ico.src = src;
   }
@@ -7504,7 +7505,7 @@ function fillSysMenu() {
   list.innerHTML = packs.length
     ? packs.map((pack) => {
       const on = pack.id === state.modpack ? " on" : "";
-      return `<button type="button" class="${on}" data-pack="${esc(pack.id)}">${instanceIcon(pack)}<span>${esc(instanceTitle(pack))}</span></button>`;
+      return `<button type="button" class="${on}" data-pack="${esc(pack.id)}">${instanceIcon(pack)}<span>${esc(pack.name || instanceTitle(pack))}<small style="opacity:.6;margin-left:8px">${esc(instanceTitle(pack))}</small></span></button>`;
     }).join("")
     : `<button type="button" disabled>${esc(t("sysNone"))}</button>`;
   list.querySelectorAll("[data-pack]").forEach((button) => {

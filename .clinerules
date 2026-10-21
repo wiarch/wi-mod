@@ -1,0 +1,23 @@
+# Reglas del proyecto wi-mod
+
+## Edición quirúrgica
+- Modifica solo las líneas necesarias. No reescribas archivos enteros.
+- Lee solo el rango de líneas que necesitas. No releas archivos ya leídos.
+- No cambies formato, imports ni comentarios que no tengan relación con la tarea.
+- Sigue las convenciones del código existente.
+
+## Respuestas
+- Responde directo. Sin explicaciones teóricas después de generar código.
+- Resume en pocas líneas: qué cambió, en qué archivo y cómo verificarlo.
+
+## Fallos y bucles
+- Si un comando o test falla 2 veces consecutivas, detente.
+- Informa el error exacto y la causa probable. Espera instrucciones antes de reintentar.
+- No repitas el mismo comando sin cambiar algo.
+
+## Dominio wi-mod
+- Los mods (.jar) van aislados en `/instances/[nombre]/.minecraft/mods/`. Nunca los mezcles entre instancias ni los guardes fuera de esa ruta.
+- El juego se ejecuta con `javaw.exe` y el argumento `--gameDir` apuntando a `/instances/[nombre]/.minecraft/`.
+- Al descargar mods de Modrinth o CurseForge, valida coincidencia exacta de `mc_version` y `loader_type` (por ejemplo `1.20.1` y `neoforge`). Compara contra los arrays `game_versions` y `loaders` del archivo. No uses rangos ni versiones genéricas como `1.20`.
+- Entre las versiones que coinciden, elige la más reciente por `date_published`.
+- Si no hay coincidencia exacta, falla con un error claro. No descargues un jar "parecido".

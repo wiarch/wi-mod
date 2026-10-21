@@ -13,7 +13,7 @@ import uuid
 import zipfile
 from pathlib import Path
 
-from wi_mod.loader_installer import find_javaw
+from wi_mod.loader_installer import LoaderInstallError, _download, find_java_binary, install_java
 
 
 class LauncherError(Exception):
@@ -33,9 +33,15 @@ def launch_game(
     loader_version = str(config.get("loader_version") or mc_version).strip()
     if not mc_version:
         raise LauncherError("El perfil no tiene versión de Minecraft.")
-    java = find_javaw(mc_version)
+    java = find_java_binary(mc_version)
     if not java:
-        raise LauncherError("No encuentro javaw. Instala Java 17 o 21 según la versión.")
+        try:
+            install_java(Path(__file__).resolve().parents[1] / "java", mc_version)
+        except LoaderInstallError as exc:
+            raise LauncherError(f"No encuentro el Java que pide Minecraft {mc_version}: {exc}") from exc
+        java = find_java_binary(mc_version)
+    if not java:
+        raise LauncherError(f"No encuentro el Java que pide Minecraft {mc_version}.")
     player = str(username or "Player").strip() or "Player"
     player_id = str(uuid_value or "").strip() or _offline_uuid(player)
     access = str(token or "0").strip() or "0"
@@ -46,6 +52,7 @@ def launch_game(
     version_id = str(profile.get("id") or mc_version)
     main_class = _main_class(profile)
     natives = minecraft / "versions" / version_id / "natives"
+    ensure_game_files(minecraft, profile, str(profile.get("inheritsFrom") or mc_version))
     libraries = _library_jars(minecraft, profile.get("libraries") or [], natives)
     client = _client_jar(minecraft, str(profile.get("inheritsFrom") or mc_version))
     classpath_entries = list(libraries)
@@ -91,9 +98,9 @@ def launch_game(
 
 
 def _read_instance(instance: Path) -> dict:
-    path = instance / "profile.json"
+    path = instance / "instance.json"
     if not path.is_file():
-        path = instance / "instance.json"
+        path = instance / "profile.json"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
@@ -179,6 +186,71 @@ def _main_class(profile: dict) -> str:
     if not name:
         raise LauncherError("El perfil no dice qué clase arrancar.")
     return name
+
+
+ASSET_URL = "https://resources.download.minecraft.net"
+
+
+def ensure_game_files(minecraft: Path, profile: dict, base_version: str) -> None:
+    """Baja lo que falte: librerías, client.jar, índice y objetos de assets."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    jobs: list[tuple[str, Path]] = []
+    root = minecraft / "libraries"
+    for library in profile.get("libraries") or []:
+        if not isinstance(library, dict) or not _allowed(library):
+            continue
+        downloads = library.get("downloads") if isinstance(library.get("downloads"), dict) else {}
+        artifact = downloads.get("artifact") if isinstance(downloads.get("artifact"), dict) else {}
+        url = str(artifact.get("url") or "").strip()
+        path = _library_file(root, library)
+        if url and path is not None and not path.is_file():
+            jobs.append((url, path))
+    client = (profile.get("downloads") or {}).get("client") or {}
+    client_path = minecraft / "versions" / base_version / f"{base_version}.jar"
+    if str(client.get("url") or "") and not client_path.is_file():
+        jobs.append((str(client["url"]), client_path))
+    index = profile.get("assetIndex") if isinstance(profile.get("assetIndex"), dict) else {}
+    assets = _assets_dir(minecraft)
+    index_id = str(index.get("id") or "").strip()
+    index_path = assets / "indexes" / f"{index_id}.json"
+    if index_id and str(index.get("url") or "") and not index_path.is_file():
+        jobs.append((str(index["url"]), index_path))
+    _download_all(jobs)
+    if not index_path.is_file():
+        return
+    try:
+        objects = json.loads(index_path.read_text(encoding="utf-8")).get("objects") or {}
+    except (OSError, json.JSONDecodeError):
+        return
+    wanted: list[tuple[str, Path]] = []
+    for item in objects.values():
+        digest = str((item or {}).get("hash") or "")
+        if len(digest) < 3:
+            continue
+        target = assets / "objects" / digest[:2] / digest
+        if not target.is_file():
+            wanted.append((f"{ASSET_URL}/{digest[:2]}/{digest}", target))
+    _download_all(wanted)
+
+
+def _download_all(jobs: list[tuple[str, Path]]) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    if not jobs:
+        return
+
+    def fetch(job: tuple[str, Path]) -> None:
+        url, dest = job
+        part = dest.with_name(dest.name + ".part")
+        _download(url, part)
+        part.replace(dest)
+
+    try:
+        with ThreadPoolExecutor(max_workers=16) as pool:
+            list(pool.map(fetch, jobs))
+    except LoaderInstallError as exc:
+        raise LauncherError(f"No pude descargar archivos de Minecraft: {exc}") from exc
 
 
 def _client_jar(minecraft: Path, version: str) -> Path | None:
@@ -422,7 +494,9 @@ def _spawn(minecraft: Path, version_id: str, command: list[str]) -> subprocess.P
         argfile.write_text("\n".join(_argfile_line(part) for part in command[1:]) + "\n", encoding="utf-8")
         flags = {}
         if os.name == "nt":
-            flags["creationflags"] = 0x00000200 | 0x08000000
+            # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP: sin consola heredada y
+            # sin morir si se cierra wi-mod. javaw no abre ventana de consola.
+            flags["creationflags"] = 0x00000008 | 0x00000200
         else:
             flags["start_new_session"] = True
         with log_path.open("ab") as handle:
@@ -438,7 +512,15 @@ def _spawn(minecraft: Path, version_id: str, command: list[str]) -> subprocess.P
             )
     except OSError as exc:
         raise LauncherError("No pude arrancar Java.") from exc
-    return process
+    try:
+        process.wait(timeout=4)
+    except subprocess.TimeoutExpired:
+        return process
+    try:
+        tail = log_path.read_text(encoding="utf-8", errors="replace").split("--- launch ---")[-1].strip()
+    except OSError:
+        tail = ""
+    raise LauncherError(f"Minecraft se cerró al arrancar (código {process.returncode}). {tail[:220]}")
 
 
 def _argfile_line(arg: str) -> str:

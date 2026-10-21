@@ -119,6 +119,25 @@ def _bundled_java(binary: str) -> str | None:
     return str(found[-1])
 
 
+def find_java_binary(mc_version: str = "") -> str | None:
+    """Busca javaw.exe (PATH, JAVA_HOME, runtimes de Minecraft). Nunca Minecraft.exe."""
+    return find_javaw(mc_version)
+
+
+def _minecraft_runtime_roots() -> list[Path]:
+    roots: list[Path] = []
+    local = os.environ.get("LOCALAPPDATA", "").strip()
+    appdata = os.environ.get("APPDATA", "").strip()
+    if local:
+        base = Path(local)
+        roots.append(base / "Packages" / "Microsoft.4297127D64EC6_8wekyb3d8bbwe" / "LocalCache" / "Local" / "runtime")
+        roots.append(base / ".minecraft" / "runtime")
+        roots.append(base / "Programs" / "Minecraft Launcher" / "runtime")
+    if appdata:
+        roots.append(Path(appdata) / ".minecraft" / "runtime")
+    return roots
+
+
 def find_javaw(mc_version: str = "") -> str | None:
     needed = _java_feature(mc_version) if str(mc_version or "").strip() else 0
     binary = "javaw.exe" if os.name == "nt" else "java"
@@ -134,6 +153,7 @@ def find_javaw(mc_version: str = "") -> str | None:
         newer = sorted(item for item in ranked if item[0] > needed)
         if newer:
             return newer[0][1]
+        return None
     ranked.sort()
     return ranked[-1][1] if ranked else None
 
@@ -150,6 +170,9 @@ def _java_candidates(binary: str) -> list[Path]:
     if bundled:
         found.append(Path(bundled))
     if os.name == "nt":
+        for runtime in _minecraft_runtime_roots():
+            if runtime.is_dir():
+                found.extend(path for path in runtime.glob("**/bin/" + binary) if path.is_file())
         roots = [
             Path(os.environ.get("ProgramFiles", r"C:\Program Files")),
             Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")),
@@ -195,7 +218,7 @@ def _java_release_major(binary: Path) -> int | None:
 
 
 def install_java(dest_root: Path, mc_version: str = "") -> str:
-    found = find_java()
+    found = find_javaw(mc_version) if str(mc_version or "").strip() else find_java()
     if found:
         return found
     if os.name != "nt":
@@ -217,6 +240,8 @@ def install_java(dest_root: Path, mc_version: str = "") -> str:
 
 def _java_feature(mc_version: str) -> int:
     nums = [int(part) for part in re.findall(r"\d+", str(mc_version or ""))[:3]]
+    if nums and nums[0] >= 26:
+        return 25
     minor, patch = (nums + [0, 0, 0])[1:3]
     if minor > 20 or (minor == 20 and patch >= 5):
         return 21
@@ -228,14 +253,20 @@ def _java_feature(mc_version: str) -> int:
 def _extract_jdk(archive: Path, dest: Path) -> str:
     import zipfile
 
+    top: set[str] = set()
     with zipfile.ZipFile(archive) as bundle:
         for info in bundle.infolist():
             parts = Path(info.filename).parts
             if not info.filename or info.filename.startswith("/") or ".." in parts:
                 continue
+            top.add(parts[0])
             bundle.extract(info, dest)
     binary = "java.exe" if os.name == "nt" else "java"
-    hits = sorted(path for path in dest.glob("**/bin/" + binary) if path.is_file())
+    hits: list[Path] = []
+    for name in sorted(top):
+        hits.extend(path for path in (dest / name).glob("bin/" + binary) if path.is_file())
+    if not hits:
+        hits = sorted(path for path in dest.glob("**/bin/" + binary) if path.is_file())
     if not hits:
         raise LoaderInstallError("El paquete de Java no trae el ejecutable.")
     java = hits[-1]

@@ -47,9 +47,13 @@ _SKIP_DIRS = {
 _SKIP_EXE = re.compile(
     r"(unins|setup|install|crash|report|update|launcher_data|vcredist|dxsetup|"
     r"redist|helper|service|overlay|cef|chrome|unitycrash|bugreport|dotnet|"
-    r"vc_redist|directx|prune|crashhandler|errorreporter)",
+    r"vc_redist|directx|prune|crashhandler|errorreporter|"
+    r"^minecraft(launcher)?\.exe$|^javaw?\.exe$)",
     re.I,
 )
+
+# Launcher oficial de Mojang: nunca se abre desde wi-mod.
+_MOJANG_LAUNCHER = re.compile(r"^minecraft(launcher)?\.exe$", re.I)
 
 _KNOWN = (
     "skyrim", "fallout", "oblivion", "starfield", "witcher", "cyberpunk",
@@ -65,7 +69,7 @@ _EXE_HINTS = (
     "oblivion.exe", "starfield.exe",
     "witcher3.exe", "cyberpunk2077.exe", "eldenring.exe",
     "stardew valley.exe", "stardewvalley.exe", "terraria.exe",
-    "minecraft.exe", "javaw.exe", "valheim.exe",
+    "valheim.exe",
 )
 
 
@@ -444,6 +448,8 @@ def launch_path(path: str) -> None:
         if exe is None:
             raise ValueError("Esa carpeta no tiene un .exe jugable. Elige el ejecutable o otra carpeta del juego.")
         file = exe
+    if _MOJANG_LAUNCHER.match(file.name):
+        raise ValueError("No abro el launcher de Mojang. Elige una instancia de wi-mod.")
     cwd = str(file.parent)
     try:
         os.startfile(str(file))  # type: ignore[attr-defined]

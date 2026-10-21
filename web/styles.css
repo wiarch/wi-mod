@@ -3946,10 +3946,13 @@ select optgroup {
   transform: translateX(-50%);
   background: linear-gradient(135deg, #32281f, #241e18);
   border: 1px solid var(--copper);
-  padding: 8px 14px;
-  border-radius: 999px;
+  padding: 10px 16px;
+  border-radius: 14px;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
   max-width: min(420px, calc(100vw - 32px));
+  max-height: 40vh;
+  overflow: auto;
+  overflow-wrap: anywhere;
   text-align: center;
   color: var(--text, #f4ece3);
   z-index: 300;
