@@ -25,6 +25,10 @@ class ModrinthError(Exception):
     pass
 
 
+class ModrinthNoMatch(ModrinthError):
+    """El proyecto no tiene un .jar para esa versión de MC y ese loader."""
+
+
 def project_slug(url: str) -> str | None:
     match = re.search(
         r"modrinth\.com/(?:mod|modpack|resourcepack|datapack|shader|plugin|project)/([^/?#]+)",
@@ -37,16 +41,14 @@ def project_slug(url: str) -> str | None:
     return slug or None
 
 
-def fetch_project(slug: str) -> dict[str, Any]:
+def fetch_project(slug: str, mc_version: str = "", loader: str = "") -> dict[str, Any]:
     project = _get(f"/project/{urllib.parse.quote(slug)}")
     if not isinstance(project, dict):
         raise ModrinthError("Modrinth no devolvió el proyecto.")
     real_slug = str(project.get("slug") or slug).strip()
     kind = _KINDS.get(str(project.get("project_type") or ""), "mod")
     versions = _get(f"/project/{urllib.parse.quote(real_slug)}/version")
-    latest = versions[0] if isinstance(versions, list) and versions else {}
-    if not isinstance(latest, dict):
-        latest = {}
+    latest = _pick_version(versions, real_slug, mc_version, loader)
     files = latest.get("files") if isinstance(latest.get("files"), list) else []
     primary = next((item for item in files if isinstance(item, dict) and item.get("primary")), None)
     if primary is None and files and isinstance(files[0], dict):
@@ -75,6 +77,29 @@ def fetch_project(slug: str) -> dict[str, Any]:
         "modId": None,
         "fetchedAt": None,
     }
+
+
+def _pick_version(versions: Any, slug: str, mc_version: str, loader: str) -> dict[str, Any]:
+    rows = [row for row in versions if isinstance(row, dict)] if isinstance(versions, list) else []
+    wanted_mc = str(mc_version or "").strip()
+    wanted_loader = str(loader or "").strip().lower()
+    if not wanted_mc or wanted_loader not in {"forge", "fabric", "quilt", "neoforge"}:
+        return rows[0] if rows else {}
+    matches = []
+    for row in rows:
+        games = {str(item).strip() for item in (row.get("game_versions") or [])}
+        loaders = {str(item).strip().lower() for item in (row.get("loaders") or [])}
+        files = row.get("files") if isinstance(row.get("files"), list) else []
+        has_jar = any(
+            isinstance(item, dict) and str(item.get("filename") or "").lower().endswith(".jar")
+            for item in files
+        )
+        # Coincidencia exacta en AMBOS arrays; nada de rangos ni "1.20" genérico.
+        if wanted_mc in games and wanted_loader in loaders and has_jar:
+            matches.append(row)
+    if not matches:
+        raise ModrinthNoMatch(f"{slug} no tiene un .jar para MC {wanted_mc} con {wanted_loader}.")
+    return max(matches, key=lambda row: str(row.get("date_published") or ""))
 
 
 def _owner(slug: str) -> str:

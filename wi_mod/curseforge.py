@@ -26,6 +26,13 @@ class CurseForgeError(Exception):
         self.status = status
 
 
+class CurseForgeNoMatch(CurseForgeError):
+    """El proyecto no tiene un .jar para esa versión de MC y ese loader."""
+
+
+_LOADER_IDS = {"forge": 1, "fabric": 4, "quilt": 5, "neoforge": 6}
+
+
 def project_ref(url: str) -> tuple[str, str, str] | None:
     match = _SLUG.search(str(url or ""))
     if not match:
@@ -36,7 +43,38 @@ def project_ref(url: str) -> tuple[str, str, str] | None:
     return game, kind, slug
 
 
-def fetch_project(api_key: str, url: str) -> dict[str, Any]:
+def compatible_file(api_key: str, mod_id: int, mc_version: str, loader: str, name: str = "") -> dict[str, Any]:
+    """Archivo .jar más reciente (fileDate) cuyo gameVersions trae exactamente la MC y el loader."""
+    wanted_mc = str(mc_version or "").strip()
+    wanted_loader = str(loader or "").strip().lower()
+    loader_id = _LOADER_IDS[wanted_loader]
+    matches: list[dict[str, Any]] = []
+    index = 0
+    while index < 300:
+        payload = _get(
+            f"/mods/{int(mod_id)}/files",
+            api_key,
+            {"gameVersion": wanted_mc, "modLoaderType": loader_id, "pageSize": 50, "index": index},
+        )
+        rows = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(rows, list) or not rows:
+            break
+        for row in rows:
+            if not isinstance(row, dict) or not str(row.get("fileName") or "").lower().endswith(".jar"):
+                continue
+            tags = {str(item).strip().lower() for item in (row.get("gameVersions") or [])}
+            # Coincidencia exacta en la lista de versiones y de loader; nada de rangos.
+            if wanted_mc.lower() in tags and wanted_loader in tags:
+                matches.append(row)
+        if len(rows) < 50:
+            break
+        index += 50
+    if not matches:
+        raise CurseForgeNoMatch(f"{name or mod_id} no tiene un .jar para MC {wanted_mc} con {wanted_loader}.")
+    return max(matches, key=lambda row: str(row.get("fileDate") or ""))
+
+
+def fetch_project(api_key: str, url: str, mc_version: str = "", loader: str = "") -> dict[str, Any]:
     ref = project_ref(url)
     if not ref:
         raise CurseForgeError("Ese enlace no es de un proyecto de CurseForge.")
@@ -56,6 +94,13 @@ def fetch_project(api_key: str, url: str) -> dict[str, Any]:
     if not isinstance(mod, dict):
         mod = rows[0]
     shaped = _shape(mod, url)
+    if str(mc_version or "").strip() and str(loader or "").strip().lower() in _LOADER_IDS:
+        found = compatible_file(api_key, int(mod_id), mc_version, loader, shaped["name"])
+        shaped["version"] = str(found.get("displayName") or found.get("fileName") or "")
+        shaped["updatedAt"] = str(found.get("fileDate") or "") or shaped["updatedAt"]
+        shaped["filesUrl"] = str(found.get("downloadUrl") or "")
+        shaped["primaryFileName"] = str(found.get("fileName") or "")
+        shaped["primaryFileId"] = found.get("id")
     shaped["gameDomain"] = game_slug
     shaped["gameName"] = game_slug
     return shaped

@@ -25,6 +25,8 @@ from wi_mod.conflicts import annotate as annotate_conflicts
 from wi_mod.deploy import deploy_mod, inspect_mod, purge as purge_deploy
 from wi_mod.curseforge import (
     CurseForgeError,
+    CurseForgeNoMatch,
+    compatible_file as curseforge_compatible_file,
     download_file_url as curseforge_download_url,
     fetch_project as fetch_curseforge,
     project_ref,
@@ -34,7 +36,7 @@ from wi_mod.curseforge import (
 from wi_mod.images import download_picture
 from wi_mod.launcher import LauncherError, launch_game, stage_mods
 from wi_mod.loader_installer import LoaderInstallError, find_java, install_java, install_loader
-from wi_mod.modrinth import ModrinthError, fetch_project, project_slug, search_projects
+from wi_mod.modrinth import ModrinthError, ModrinthNoMatch, fetch_project, project_slug, search_projects
 from wi_mod.profile_creator import (
     ProfileError,
     ProfileExistsError,
@@ -1757,11 +1759,13 @@ def _refresh_one(app: App, mod_id: str, apply: bool = False) -> dict:
     slug = project_slug(page)
     parsed = parse_mod_url(page)
     if project_ref(page):
-        remote = fetch_curseforge(_curseforge_key(app), page)
+        mc, loader = _pack_compat(app, str(mod.get("modpackId") or ""))
+        remote = fetch_curseforge(_curseforge_key(app), page, mc, loader)
         remote["gameDomain"] = str(mod.get("gameDomain") or remote.get("gameDomain") or "")
         remote["gameName"] = str(mod.get("gameName") or remote.get("gameName") or "")
     elif slug:
-        remote = fetch_project(slug)
+        mc, loader = _pack_compat(app, str(mod.get("modpackId") or ""))
+        remote = fetch_project(slug, mc, loader)
         remote["gameDomain"] = str(mod.get("gameDomain") or remote.get("gameDomain") or "")
         remote["gameName"] = str(mod.get("gameName") or remote.get("gameName") or "")
     elif parsed:
@@ -1933,7 +1937,11 @@ def _fields_from_body(app: App, body: dict) -> dict:
 
 def _curseforge_fields(app: App, body: dict, url: str) -> dict:
     manual = body.get("manual") if isinstance(body.get("manual"), dict) else {}
-    fetched = fetch_curseforge(_curseforge_key(app), url)
+    mc, loader = _pack_compat(app, str(body.get("modpackId") or ""))
+    try:
+        fetched = fetch_curseforge(_curseforge_key(app), url, mc, loader)
+    except CurseForgeNoMatch as exc:
+        raise ValueError(str(exc)) from exc
     remote = str(fetched.get("gameDomain") or "").strip().lower()
     game = remote or str(body.get("gameDomain") or (manual or {}).get("gameDomain") or "").strip().lower()
     game_name = str(fetched.get("gameName") or body.get("gameName") or (manual or {}).get("gameName") or "").strip()
@@ -1957,8 +1965,11 @@ def _curseforge_fields(app: App, body: dict, url: str) -> dict:
 
 def _modrinth_fields(app: App, body: dict, slug: str) -> dict:
     manual = body.get("manual") if isinstance(body.get("manual"), dict) else {}
+    mc, loader = _pack_compat(app, str(body.get("modpackId") or ""))
     try:
-        fetched = fetch_project(slug)
+        fetched = fetch_project(slug, mc, loader)
+    except ModrinthNoMatch as exc:
+        raise ValueError(str(exc)) from exc
     except ModrinthError:
         return _official_fields(app, body, str(body.get("url") or ""))
     remote = str(fetched.get("gameDomain") or "").strip().lower()
@@ -2096,9 +2107,11 @@ def _resolve_download(app: App, mod: dict) -> tuple[str, str]:
         return _nexus_download(app, mod, nexus, file_name)
     slug = project_slug(page)
     if slug or "modrinth" in platform:
-        return _modrinth_download(mod, slug or "", file_name)
+        mc, loader = _pack_compat(app, str(mod.get("modpackId") or ""))
+        return _modrinth_download(mod, slug or "", file_name, mc, loader)
     if "curseforge.com" in page.lower() or "curseforge" in platform:
-        return _curseforge_download(app, mod, file_name)
+        mc, loader = _pack_compat(app, str(mod.get("modpackId") or ""))
+        return _curseforge_download(app, mod, file_name, mc, loader)
     direct = str(mod.get("filesUrl") or "")
     if _is_file_url(direct):
         return direct, file_name or _name_from_url(direct)
@@ -2134,11 +2147,19 @@ def _nexus_download(app: App, mod: dict, parsed: tuple[str, int], file_name: str
     return uri, file_name or _name_from_url(uri)
 
 
-def _modrinth_download(mod: dict, slug: str, file_name: str) -> tuple[str, str]:
+def _pack_compat(app: App, pack_id: str) -> tuple[str, str]:
+    pack = app.library.get_modpack(pack_id) if pack_id else None
+    if not isinstance(pack, dict):
+        return "", ""
+    return str(pack.get("mcVersion") or "").strip(), str(pack.get("loaderType") or "").strip().lower()
+
+
+def _modrinth_download(mod: dict, slug: str, file_name: str, mc: str = "", loader: str = "") -> tuple[str, str]:
     uri = str(mod.get("filesUrl") or "")
-    if not _is_file_url(uri) and slug:
+    # Con instancia (MC + loader) siempre se vuelve a resolver: filesUrl guardado puede ser de otro loader.
+    if slug and (mc and loader or not _is_file_url(uri)):
         try:
-            fetched = fetch_project(slug)
+            fetched = fetch_project(slug, mc, loader)
         except ModrinthError as exc:
             raise ValueError(str(exc)) from exc
         uri = str(fetched.get("filesUrl") or "")
@@ -2148,9 +2169,17 @@ def _modrinth_download(mod: dict, slug: str, file_name: str) -> tuple[str, str]:
     return uri, file_name or _name_from_url(uri)
 
 
-def _curseforge_download(app: App, mod: dict, file_name: str) -> tuple[str, str]:
+def _curseforge_download(app: App, mod: dict, file_name: str, mc: str = "", loader: str = "") -> tuple[str, str]:
     mod_id = mod.get("modId")
     file_id = mod.get("primaryFileId")
+    # Con instancia (MC + loader) siempre se vuelve a resolver: el archivo guardado puede ser de otro loader.
+    if mod_id and mc and loader in {"forge", "fabric", "quilt", "neoforge"}:
+        try:
+            found = curseforge_compatible_file(_curseforge_key(app), int(mod_id), mc, loader, str(mod.get("name") or ""))
+        except CurseForgeError as exc:
+            raise ValueError(str(exc) or "CurseForge no dio el archivo.") from exc
+        file_id = found.get("id")
+        file_name = str(found.get("fileName") or file_name)
     if mod_id and file_id:
         try:
             uri = curseforge_download_url(_curseforge_key(app), int(mod_id), int(file_id))
