@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="wi-mod">
+  <defs>
+    <linearGradient id="g" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f0a04a"/>
+      <stop offset="1" stop-color="#c45c26"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="#1a1208"/>
+  <rect x="2" y="2" width="28" height="28" rx="7" fill="url(#g)"/>
+  <text x="16" y="22" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="800" fill="#1a1208" letter-spacing="-0.5">wi</text>
+</svg>
