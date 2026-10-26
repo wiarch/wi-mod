@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import json
+import sys
 import threading
+import urllib.error
+import urllib.request
 import webbrowser
 
 from wi_mod.server import ROOT, App, make_server
@@ -22,11 +26,26 @@ def main() -> None:
 
 
 def _run() -> None:
+    pending = _nxm_arg()
+    if pending and _forward_nxm(pending):
+        return
     app = App(ROOT / "data")
     server = _listen(app)
     thread = threading.Thread(target=server.serve_forever, name="wi-mod")
     thread.start()
     host, port = server.server_address
+    try:
+        (ROOT / "data" / "port").write_text(str(port), encoding="ascii")
+    except OSError:
+        pass
+    if pending:
+        threading.Thread(target=lambda: _ingest_nxm(app, pending), name="wi-mod-nxm", daemon=True).start()
+    try:
+        from wi_mod.nxm import register_protocol
+
+        register_protocol()
+    except Exception:
+        pass
     url = f"http://{host}:{port}/"
     try:
         _open(url, app)
@@ -37,6 +56,42 @@ def _run() -> None:
         server.shutdown()
         server.server_close()
         thread.join(timeout=3)
+
+
+def _nxm_arg() -> str:
+    for arg in sys.argv[1:]:
+        text = str(arg).strip().strip('"')
+        if text.lower().startswith("nxm:"):
+            return text
+    return ""
+
+
+def _forward_nxm(url: str) -> bool:
+    port = 47621
+    try:
+        port = int((ROOT / "data" / "port").read_text(encoding="ascii").strip())
+    except (OSError, ValueError):
+        pass
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{port}/api/nxm",
+        data=json.dumps({"url": url}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=3) as res:
+            return 200 <= int(res.status) < 300
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return False
+
+
+def _ingest_nxm(app: App, url: str) -> None:
+    from wi_mod.nxm import ingest_nxm
+
+    try:
+        ingest_nxm(app, url)
+    except Exception as exc:  # noqa: BLE001
+        app.note(str(exc), ok=False, reload=False)
 
 
 def _listen(app: App):

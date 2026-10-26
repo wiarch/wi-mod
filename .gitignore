@@ -4,6 +4,7 @@ data/*
 mods/
 java/
 instances/
+tools/7zip/
 __pycache__/
 *.pyc
 .venv/

@@ -63,6 +63,13 @@ _KNOWN = (
 )
 
 # Nombres típicos de .exe cuando solo tenemos la carpeta del juego.
+_SCRIPT_EXTENDER = {
+    "skyrimse.exe": "skse64_loader.exe",
+    "skyrimvr.exe": "sksevr_loader.exe",
+    "tesv.exe": "skse_loader.exe",
+    "skyrim.exe": "skse_loader.exe",
+}
+
 _EXE_HINTS = (
     "skyrimse.exe", "skyrimvr.exe", "tesv.exe", "skyrim.exe",
     "fallout4.exe", "falloutnv.exe", "fallout3.exe", "fo4.exe",
@@ -433,6 +440,14 @@ def detect_game(game_name: str, game_domain: str = "", *, timeout: float = 45.0,
     return out
 
 
+def _with_script_extender(exe: Path) -> Path | None:
+    loader_name = _SCRIPT_EXTENDER.get(exe.name.lower())
+    if not loader_name:
+        return None
+    loader = exe.parent / loader_name
+    return loader if loader.is_file() else None
+
+
 def launch_path(path: str) -> None:
     target = str(path or "").strip()
     if not target:
@@ -450,6 +465,9 @@ def launch_path(path: str) -> None:
         file = exe
     if _MOJANG_LAUNCHER.match(file.name):
         raise ValueError("No abro el launcher de Mojang. Elige una instancia de wi-mod.")
+    loader = _with_script_extender(file)
+    if loader is not None:
+        file = loader
     cwd = str(file.parent)
     try:
         os.startfile(str(file))  # type: ignore[attr-defined]

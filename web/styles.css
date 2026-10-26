@@ -3386,6 +3386,38 @@ main:has(.bulk:not([hidden])) { padding-bottom: 68px; }
 .card.inactive .shot {
   filter: grayscale(0.35);
 }
+.card.downloading { position: relative; }
+.card.downloading .shot { position: relative; }
+.card.downloading .shot::after {
+  content: "Descargando…";
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 2;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(20, 14, 8, 0.82);
+  color: var(--copper-hot);
+  font-size: 12px;
+  font-weight: 700;
+}
+.card.downloading::after,
+.mod-table tr.card.downloading {
+  background-image: repeating-linear-gradient(-45deg, transparent, transparent 8px, rgba(226, 164, 92, 0.22) 8px, rgba(226, 164, 92, 0.22) 16px);
+  background-size: 220px 220px;
+  animation: card-dl 0.9s linear infinite;
+}
+.card.downloading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+@keyframes card-dl {
+  from { background-position: 0 0; }
+  to { background-position: 220px 0; }
+}
 .pack-hero-actions {
   display: flex;
   flex-wrap: wrap;

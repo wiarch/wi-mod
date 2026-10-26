@@ -8,11 +8,17 @@ const state = {
   packCat: "",
   category: "",
   files: "all",
-  sort: "added",
+  sort: (() => {
+    const saved = localStorage.getItem("wi-mod-sort");
+    if (saved === "added" || saved === "downloaded" || saved === "updated" || saved === "name" || saved === "priority") return saved;
+    return "added";
+  })(),
   view: (() => {
+    const saved = localStorage.getItem("wi-mod-view");
+    if (saved === "grid" || saved === "list" || saved === "table") return saved;
     const scale = Number(localStorage.getItem("wi-mod-scale"));
-    if (Number.isFinite(scale) && scale <= 0.1) return "list";
-    return "table";
+    if (Number.isFinite(scale) && scale <= 0.4) return "list";
+    return "grid";
   })(),
   cardScale: (() => {
     const saved = Number(localStorage.getItem("wi-mod-scale"));
@@ -142,6 +148,9 @@ const UI = {
     downloadOk: "Archivo guardado en mods/ del programa.",
     downloadManual: "No se pudo bajar por API.",
     downloadNone: "Sin archivo local. Descarga para guardarlo en mods/{juego}/…",
+    noLocal: "Sin archivo local",
+    readyInstall: "Listo para instalar",
+    installed: "Instalado",
     downloadOne: "Local: {path}", downloadMany: "{n} archivos · {path}",
     activeOn: "Activo", activeOff: "Inactivo",
     activeTipOn: "Activo en el juego. Clic → .disabled",
@@ -263,6 +272,8 @@ const UI = {
     instanceCreate: "Crear", instanceCreating: "Creando perfil…",
     instanceDownloading: "Descargando librerías…", instanceReady: "Perfil listo.",
     javaAsk: "No encuentro Java. ¿Lo instalo ahora?",
+    zipAsk: "Para .7z y .rar hace falta 7-Zip. ¿Lo instalo ahora?",
+    zipInstalling: "Instalando 7-Zip…",
     javaInstalling: "Instalando Java…", javaReady: "Java listo.",
     instanceLoaders: "Buscando loaders…",
     sysBack: "Atrás", sysFwd: "Adelante", sysNone: "Sin instancia",
@@ -302,6 +313,9 @@ const UI = {
     downloadOk: "File saved under the app mods/ folder.",
     downloadManual: "The API could not download this file.",
     downloadNone: "No local file. Download to save under mods/{game}/…",
+    noLocal: "No local file",
+    readyInstall: "Ready to install",
+    installed: "Installed",
     downloadOne: "Local: {path}", downloadMany: "{n} files · {path}",
     activeOn: "Active", activeOff: "Inactive",
     activeTipOn: "Active in-game. Click → .disabled",
@@ -423,6 +437,8 @@ const UI = {
     instanceCreate: "Create", instanceCreating: "Creating profile…",
     instanceDownloading: "Downloading libraries…", instanceReady: "Profile ready.",
     javaAsk: "Java is missing. Install it now?",
+    zipAsk: "7-Zip is required for .7z and .rar. Install it now?",
+    zipInstalling: "Installing 7-Zip…",
     javaInstalling: "Installing Java…", javaReady: "Java is ready.",
     instanceLoaders: "Looking up loaders…",
     sysBack: "Back", sysFwd: "Forward", sysNone: "No instance",
@@ -583,6 +599,7 @@ function queueHint(path) {
   if (/minecraft\/profiles\/install/.test(p)) return t("instanceDownloading");
   if (/minecraft\/launch/.test(p)) return t("launchOk");
   if (/\/api\/java\/install/.test(p)) return t("javaInstalling");
+  if (/\/api\/7zip\/install/.test(p)) return t("zipInstalling");
   if (/minecraft\/profiles/.test(p)) return t("instanceCreating");
   if (/\/api\/images/.test(p)) return t("qExtract");
   if (/\/rawg/.test(p)) return t("qRawg");
@@ -751,7 +768,12 @@ function toast(text, kind = "ok") {
 }
 
 async function api(path, options = {}) {
+  const dl = String(path).match(/\/api\/mods\/([0-9a-f]{32})\/download/);
   const job = beginLoad(queueHint(path));
+  if (dl) {
+    markDownloading(dl[1], true);
+    openTasks();
+  }
   try {
   const headers = new Headers(options.headers || {});
   const token = sessionToken();
@@ -784,6 +806,7 @@ async function api(path, options = {}) {
   return res;
   } finally {
     endLoad(job);
+    if (dl) markDownloading(dl[1], false);
   }
 }
 
@@ -1004,13 +1027,69 @@ async function pollDock() {
     if (token) headers["X-Session"] = token;
     const res = await fetch("/api/status", { headers, credentials: "same-origin" });
     if (!res.ok) throw new Error("status");
-    paintDockStats(await res.json());
+    const info = await res.json();
+    paintDockStats(info);
+    await takeEvents(info.events);
   } catch {
     paintDockStats({
       diskFreeBytes: lastStatus?.diskFreeBytes || 0,
       ramBytes: lastStatus?.ramBytes || 0,
     });
   }
+}
+
+let lastEvent = 0;
+const downloading = new Set();
+const cardJobs = new Map();
+
+function markDownloading(id, on) {
+  if (!id) return;
+  if (on) downloading.add(id);
+  else downloading.delete(id);
+  document.querySelectorAll(`.card[data-id="${id}"]`).forEach((node) => node.classList.toggle("downloading", on));
+}
+
+function openTasks() {
+  const pop = $("tasks-pop");
+  const button = $("sys-downloads");
+  if (!pop) return;
+  pop.hidden = false;
+  if (button) button.setAttribute("aria-expanded", "true");
+}
+
+async function takeEvents(events) {
+  const fresh = (events || []).filter((ev) => Number(ev.n) > lastEvent);
+  if (!fresh.length) return;
+  lastEvent = Math.max(...fresh.map((ev) => Number(ev.n) || 0));
+  let reload = false;
+  fresh.forEach((ev) => {
+    const modId = String(ev.modId || "");
+    if (ev.phase === "download" && modId) {
+      if (!cardJobs.has(modId)) cardJobs.set(modId, beginLoad(ev.name ? `⬇️ ${ev.name}` : (ev.message || t("qDown"))));
+      markDownloading(modId, true);
+      openTasks();
+      reload = true;
+      return;
+    }
+    if ((ev.phase === "done" || ev.phase === "fail") && modId) {
+      const job = cardJobs.get(modId);
+      if (job) {
+        endLoad(job);
+        cardJobs.delete(modId);
+      }
+      markDownloading(modId, false);
+    }
+    if (ev.message && ev.phase !== "download") toast(ev.message, ev.ok === false ? "bad" : "");
+    if (ev.reload) reload = true;
+  });
+  if (!reload) return;
+  const open = $("detail-dialog")?.open ? ($("detail")?.dataset.id || "") : "";
+  await load();
+  downloading.forEach((id) => markDownloading(id, true));
+  if (!open) return;
+  const mod = state.mods.find((item) => item.id === open);
+  const hint = $("detail-files");
+  if (mod && hint) hint.textContent = filesHint(mod);
 }
 
 function applyDockVis() {
@@ -1613,6 +1692,14 @@ async function setPackActive(active) {
 
 function modDownloaded(mod) {
   return (mod?.files || []).some((file) => file && String(file.storedAs || "").trim());
+}
+
+function fileState(mod) {
+  if (!modDownloaded(mod)) return t("noLocal");
+  const bits = [t("gotOn")];
+  if (mod.installed) bits.push(t("installed"));
+  if (statusOn(mod, "in")) bits.push(t("activeOn"));
+  return bits.join(" · ");
 }
 
 async function setMarkedActive(active) {
@@ -3325,6 +3412,7 @@ async function placePriority(ids, targetId, after) {
   state.sort = "priority";
   const sort = $("sort");
   if (sort) sort.value = "priority";
+  localStorage.setItem("wi-mod-sort", "priority");
   try {
     for (const mod of block) {
       const data = await api(`/api/mods/${mod.id}`, {
@@ -3477,16 +3565,16 @@ function render() {
       <th>${esc(t("category"))}</th>
       <th>${esc(t("version"))}</th>
     </tr></thead><tbody>${mods.map((mod) => `
-      <tr class="card ${state.selected.has(mod.id) ? "on" : ""} ${!statusOn(mod, "in") && (mod.files || []).length ? "inactive" : ""}" data-id="${mod.id}">
+      <tr class="card ${state.selected.has(mod.id) ? "on" : ""} ${!statusOn(mod, "in") && (mod.files || []).length ? "inactive" : ""} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}">
         <td>${priorityCell(mod)}</td>
         <td>${conflictCell(mod)}</td>
         <td class="flags">${statusPicks(mod)}</td>
-        <td class="mod-name">${esc(mod.name)}${mod.updateAvailable ? `<span class="ver-new">${esc(t("newTag"))}</span>` : ""}</td>
+        <td class="mod-name">${esc(mod.name)}${mod.updateAvailable ? `<span class="ver-new">${esc(t("newTag"))}</span>` : ""} <span class="meta">${esc(fileState(mod))}</span></td>
         <td>${esc(categoryLabel(mod.category, mod))}</td>
         <td>${esc(mod.version || "?")}</td>
       </tr>`).join("")}</tbody></table>`;
   } else $("grid").innerHTML = mods.map((mod, index) => `
-    <article class="card ${state.selected.has(mod.id) ? "on" : ""} ${!statusOn(mod, "in") && (mod.files || []).length ? "inactive" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 35}ms">
+    <article class="card ${state.selected.has(mod.id) ? "on" : ""} ${!statusOn(mod, "in") && (mod.files || []).length ? "inactive" : ""} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 35}ms">
       <div class="shot" ${shot(mod)}><span>${esc(mod.gameName || mod.gameDomain || "Juego")}</span></div>
       <div class="card-body">
         <h3>${esc(mod.name)}${mod.updateAvailable ? `<span class="ver-new">${esc(t("newTag"))}</span>` : ""}</h3>
@@ -3498,7 +3586,7 @@ function render() {
         ${priorityCell(mod)}
         ${statusPicks(mod)}
         ${packMoves()}
-        <span class="meta">${esc(fmtDate(mod.updatedAt))}</span>
+        <span class="meta">${esc(fileState(mod))} · ${esc(fmtDate(mod.updatedAt))}</span>
       </footer>
     </article>
   `).join("");
@@ -3940,9 +4028,7 @@ function paintDetailActive(mod) {
 function filesHint(mod) {
   const files = mod.files || [];
   if (!files.length) return t("downloadNone");
-  const first = files[0]?.storedAs || files[0]?.name || "";
-  if (files.length === 1) return t("downloadOne", { path: first });
-  return t("downloadMany", { n: files.length, path: first });
+  return fileState(mod);
 }
 
 function fomodPlugins(plan) {
@@ -3978,7 +4064,7 @@ function askFomod(plan) {
   });
 }
 
-async function installMod(mod) {
+async function installMod(mod, retried) {
   const button = $("detail-install");
   setLoading(button, true, "…");
   try {
@@ -3995,11 +4081,19 @@ async function installMod(mod) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plugins: picks }),
       });
+      mod.installed = true;
       toast(`Enlazados ${done.linked || 0} en Data. Saltados ${done.skipped || 0}.`);
+      render();
       return;
     }
+    mod.installed = true;
     toast(`Enlazados ${data.linked || 0} en Data. Saltados ${data.skipped || 0}.`);
+    render();
   } catch (error) {
+    if (!retried && /7-zip|7z\.exe/i.test(error.message || "") && await askConfirm(t("zipAsk"))) {
+      await api("/api/7zip/install", { method: "POST" });
+      return installMod(mod, true);
+    }
     toast(error.message, "bad");
   } finally {
     setLoading(button, false);
@@ -5751,7 +5845,13 @@ if ($("list-search")) {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") hideRemoteSearch();
 });
-$("sort").onchange = (event) => { state.sort = event.target.value; sfx.click(); render(); };
+$("sort").onchange = (event) => {
+  state.sort = event.target.value;
+  localStorage.setItem("wi-mod-sort", state.sort);
+  sfx.click();
+  render();
+};
+$("sort").value = state.sort;
 $("pick-all").onclick = () => selectAllVisible();
 document.querySelectorAll(".view-toggle [data-view]").forEach((button) => {
   button.onclick = () => setView(button.dataset.view);

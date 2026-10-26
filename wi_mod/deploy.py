@@ -9,15 +9,18 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import subprocess
 import zipfile
 from pathlib import Path
 from typing import Any
 
 from wi_mod.fomod import parse_module
 from wi_mod.packages import classify, list_entries, read_member
+from wi_mod.plugins_txt import disable_plugins, enable_plugins, is_plugin
 from wi_mod.store import Library
 
 _MANIFEST = "deploy-links.json"
+SKYRIM_DOMAINS = {"skyrimspecialedition", "skyrim", "skyrimvr"}
 
 
 def data_dir(launch_path: str) -> Path:
@@ -51,9 +54,40 @@ def _load_manifest(library: Library) -> dict[str, Any]:
     return data
 
 
+def installed_ids(library: Library) -> set[str]:
+    links = _load_manifest(library).get("links") or {}
+    return {
+        str(row.get("modId"))
+        for row in links.values()
+        if isinstance(row, dict) and row.get("modId")
+    }
+
+
 def _save_manifest(library: Library, data: dict[str, Any]) -> None:
     path = _manifest_path(library)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _runtime_file(name: str) -> bool:
+    low = name.lower()
+    if low in {"skse64_loader.exe", "sksevr_loader.exe", "skse_loader.exe"}:
+        return True
+    return low.endswith(".dll") and low.startswith(("skse64_", "sksevr_", "skse_"))
+
+
+def _game_runtime(names: list[str]) -> list[tuple[str, str]]:
+    """(ruta en el paquete, nombre junto al .exe). No van dentro de Data."""
+    found: list[tuple[str, str]] = []
+    for name in names:
+        norm = name.replace("\\", "/")
+        parent, _, base = norm.rpartition("/")
+        if not _runtime_file(base):
+            continue
+        low = parent.lower()
+        if low == "data" or low.endswith("/data") or low == "src" or low.endswith("/src"):
+            continue
+        found.append((norm, base))
+    return found
 
 
 def _safe(relative: str) -> str:
@@ -91,6 +125,38 @@ def _extract_zip(archive: Path, names: list[str], staging: Path) -> list[Path]:
                 shutil.copyfileobj(src, out, length=1024 * 1024)
             written.append(target)
     return written
+
+
+def _extract_7z(archive: Path, names: list[str], staging: Path) -> None:
+    from wi_mod.packages import _seven_zip
+
+    tool = _seven_zip()
+    if tool is None:
+        raise ValueError("Para .7z y .rar hace falta 7-Zip (7z.exe). El .zip no lo necesita.")
+    rels = []
+    for name in names:
+        clean = name.replace("\\", "/").strip().lstrip("/")
+        if not clean or (len(clean) > 1 and clean[1] == ":"):
+            continue
+        rels.append(clean)
+    if not rels:
+        raise ValueError("El paquete no dejó archivos para enlazar.")
+    staging.mkdir(parents=True, exist_ok=True)
+    listing = staging / "_wi-mod-list.txt"
+    listing.write_text("\n".join(rels), encoding="utf-8")
+    try:
+        proc = subprocess.run(
+            [str(tool), "x", "-y", f"-o{staging}", str(archive), f"@{listing}"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+    finally:
+        listing.unlink(missing_ok=True)
+    if proc.returncode != 0:
+        raise ValueError((proc.stderr or proc.stdout or "").strip() or "7-Zip no pudo extraer el paquete.")
 
 
 def _mod_archive(library: Library, mod: dict[str, Any]) -> Path:
@@ -160,7 +226,8 @@ def deploy_mod(
     if staging.exists():
         shutil.rmtree(staging)
     staging.mkdir(parents=True)
-    placed: list[tuple[Path, str]] = []
+    placed: list[tuple[Path, str, Path]] = []
+    game_root = game_data.parent
     if info["kind"] == "STANDARD":
         root = (info.get("root") or "").lower()
         picked = []
@@ -174,23 +241,25 @@ def deploy_mod(
                 continue
             picked.append(name)
             rels.append(rel)
-        if archive.suffix.lower() != ".zip":
-            raise ValueError("El despliegue de .7z/.rar aún usa 7-Zip solo para leer. Comprime o baja el mod en .zip.")
-        written = _extract_zip(archive, picked, staging)
-        by_name = {path.name.lower(): path for path in written}
-        # written keeps full relative path under staging because _extract_zip uses archive name
+        runtime = _game_runtime(names)
+        bundle = list(dict.fromkeys([*picked, *[row[0] for row in runtime]]))
+        if bundle:
+            if archive.suffix.lower() != ".zip":
+                _extract_7z(archive, bundle, staging)
+            else:
+                _extract_zip(archive, bundle, staging)
         for src_name, rel in zip(picked, rels):
             src = staging / _safe(src_name)
             if src.is_file():
-                placed.append((src, _safe(rel)))
-        del by_name
+                placed.append((src, _safe(rel), game_data))
+        for src_name, filename in runtime:
+            src = staging / _safe(src_name)
+            if src.is_file():
+                placed.append((src, filename, game_root))
     else:
-        if archive.suffix.lower() != ".zip":
-            raise ValueError("El instalador FOMOD de .7z/.rar necesita el paquete en .zip por ahora.")
         pairs = _selected_map(info, plan or {}, plugins or [])
         if not pairs:
             raise ValueError("Elige al menos una opción del FOMOD.")
-        # folders: expand to files under that prefix
         expanded: list[tuple[str, str]] = []
         lower_names = {name.lower(): name for name in names}
         for source, dest in pairs:
@@ -206,11 +275,14 @@ def deploy_mod(
                 tail = original[len(prefix):]
                 expanded.append((original, _safe(f"{dest}/{tail}" if dest else tail)))
         written_names = [row[0] for row in expanded]
-        _extract_zip(archive, written_names, staging)
+        if archive.suffix.lower() != ".zip":
+            _extract_7z(archive, written_names, staging)
+        else:
+            _extract_zip(archive, written_names, staging)
         for original, dest in expanded:
             src = staging / _safe(original)
             if src.is_file():
-                placed.append((src, dest))
+                placed.append((src, dest, game_data))
     if not placed:
         raise ValueError("El paquete no dejó archivos para enlazar.")
     manifest = _load_manifest(library)
@@ -219,13 +291,13 @@ def deploy_mod(
     linked = 0
     skipped = 0
     kind_used = "hardlink"
-    for src, rel in placed:
-        key = rel.lower()
+    for src, rel, base in placed:
+        key = rel.lower() if base == game_data else f"/{rel.lower()}"
         current = links.get(key)
         if isinstance(current, dict) and int(current.get("priority") or 0) > priority and current.get("modId") != mod.get("id"):
             skipped += 1
             continue
-        dest = game_data / rel
+        dest = base / rel
         if dest.exists() and not isinstance(current, dict):
             skipped += 1
             continue
@@ -234,11 +306,12 @@ def deploy_mod(
             "modId": str(mod.get("id") or ""),
             "priority": priority,
             "relative": rel,
-            "dataDir": str(game_data),
+            "dataDir": str(base),
         }
         linked += 1
     manifest["dataDir"] = str(game_data)
     _save_manifest(library, manifest)
+    enabled = _enable(mod, links, game_data)
     return {
         "kind": info["kind"],
         "deployed": True,
@@ -246,8 +319,55 @@ def deploy_mod(
         "skipped": skipped,
         "link": kind_used,
         "dataDir": str(game_data),
+        "plugins": enabled,
         "plan": plan,
     }
+
+
+def _mod_plugins(mod: dict[str, Any], links: dict[str, Any]) -> list[str]:
+    """Plugins (.esp/.esm/.esl) sueltos en la raíz de Data que puso este mod."""
+    mod_id = str(mod.get("id") or "")
+    return [
+        str(row.get("relative"))
+        for row in links.values()
+        if isinstance(row, dict)
+        and row.get("modId") == mod_id
+        and "/" not in str(row.get("relative") or "")
+        and is_plugin(str(row.get("relative") or ""))
+    ]
+
+
+def _domain(mod: dict[str, Any]) -> str:
+    return str(mod.get("gameDomain") or "").strip().lower()
+
+
+def _enable(mod: dict[str, Any], links: dict[str, Any], game_data: Path) -> list[str]:
+    if _domain(mod) not in SKYRIM_DOMAINS:
+        return []
+    return enable_plugins(_mod_plugins(mod, links), _domain(mod), game_data)
+
+
+def undeploy_mod(library: Library, mod: dict[str, Any]) -> dict[str, Any]:
+    """Quita solo los enlaces de este mod y su línea en plugins.txt."""
+    manifest = _load_manifest(library)
+    links: dict[str, Any] = manifest["links"]
+    mod_id = str(mod.get("id") or "")
+    plugins = _mod_plugins(mod, links)
+    removed = 0
+    for key, row in list(links.items()):
+        if not isinstance(row, dict) or row.get("modId") != mod_id:
+            continue
+        dest = Path(str(row.get("dataDir") or "")) / str(row.get("relative") or "")
+        if dest.is_symlink() or dest.exists():
+            try:
+                dest.unlink()
+                removed += 1
+            except OSError:
+                continue
+        del links[key]
+    _save_manifest(library, manifest)
+    disabled = disable_plugins(plugins, _domain(mod), remove=True) if _domain(mod) in SKYRIM_DOMAINS else []
+    return {"deployed": False, "removed": removed, "plugins": disabled}
 
 
 def purge(library: Library, launch_path: str = "") -> dict[str, int]:

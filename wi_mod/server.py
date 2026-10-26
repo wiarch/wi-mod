@@ -10,6 +10,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import threading
 import time
 import uuid
 import urllib.error
@@ -22,7 +23,8 @@ from urllib.parse import parse_qs, unquote, urlparse
 from wi_mod import __version__
 from wi_mod.archive import export_label, export_library, import_library, peek_library
 from wi_mod.conflicts import annotate as annotate_conflicts
-from wi_mod.deploy import deploy_mod, inspect_mod, purge as purge_deploy
+from wi_mod.deploy import deploy_mod, inspect_mod, installed_ids, purge as purge_deploy, undeploy_mod
+from wi_mod.packages import install_seven_zip
 from wi_mod.curseforge import (
     CurseForgeError,
     CurseForgeNoMatch,
@@ -46,6 +48,8 @@ from wi_mod.profile_creator import (
 )
 from wi_mod.multipart import parse_multipart
 from wi_mod.official_profile import OfficialProfileError, register_instance, sync_instances
+from wi_mod.download_watcher import start_download_watcher
+from wi_mod.nxm import http_url, ingest_nxm
 from wi_mod.nexus import (
     Cache,
     NexusError,
@@ -293,6 +297,7 @@ def _status_payload(app: App) -> dict:
         "online": _online(),
         "downBps": down,
         "upBps": up,
+        "events": app.notes(),
     }
 # De momento la app abre sin usuario ni clave.
 LOGIN_OFF = True
@@ -386,11 +391,32 @@ class App:
         self.tmp = root / "tmp"
         self.tmp.mkdir(parents=True, exist_ok=True)
         self.packs = packs_dir(root)
+        self._notes: list[dict] = []
+        self._note_n = 0
+        self._note_lock = threading.Lock()
         _fill_default_games(self)
         try:
             sync_instances(root.parent / "instances")
         except OfficialProfileError:
             pass
+        start_download_watcher(self)
+
+    def note(self, message: str, *, ok: bool = True, reload: bool = False, phase: str = "", mod_id: str = "", name: str = "") -> None:
+        with self._note_lock:
+            self._note_n += 1
+            item = {"n": self._note_n, "message": message, "ok": ok, "reload": reload}
+            if phase:
+                item["phase"] = phase
+            if mod_id:
+                item["modId"] = mod_id
+            if name:
+                item["name"] = name
+            self._notes.append(item)
+            del self._notes[:-20]
+
+    def notes(self) -> list[dict]:
+        with self._note_lock:
+            return list(self._notes)
 
 
 class QuietServer(ThreadingHTTPServer):
@@ -528,6 +554,9 @@ def make_handler(app: App):
                 return
             if path == "/api/library":
                 mods = [_public_mod(mod) for mod in app.library.list_mods()]
+                linked = installed_ids(app.library)
+                for mod in mods:
+                    mod["installed"] = str(mod.get("id") or "") in linked
                 annotate_conflicts(app.library, mods)
                 packs = app.library.list_modpacks()
                 self._json(
@@ -650,6 +679,12 @@ def make_handler(app: App):
                     remember,
                 )
                 self._json(200, self._session_payload(token), token=token, remember=remember)
+                return
+            if path == "/api/nxm":
+                body = self._json_body()
+                url = str(body.get("url") or "")
+                threading.Thread(target=lambda: ingest_nxm(app, url), name="wi-mod-nxm", daemon=True).start()
+                self._json(202, {"ok": True})
                 return
             if path == "/api/logout":
                 app.library.logout(self._token())
@@ -798,6 +833,9 @@ def make_handler(app: App):
                 body = self._json_body()
                 java = install_java(app.library.program_root / "java", str(body.get("mc_version") or ""))
                 self._json(200, {"ok": True, "java": java})
+                return
+            if path == "/api/7zip/install":
+                self._json(200, {"ok": True, "path": install_seven_zip()})
                 return
             if path == "/api/minecraft/profiles":
                 body = self._json_body()
@@ -969,6 +1007,12 @@ def make_handler(app: App):
             if mod_id and action == "install":
                 body = self._json_body() if int(self.headers.get("Content-Length") or 0) else {}
                 self._json(200, _install_mod(app, mod_id, body))
+                return
+            if mod_id and action == "uninstall":
+                mod = app.library.get(mod_id)
+                if not mod:
+                    raise ValueError("Mod no encontrado.")
+                self._json(200, undeploy_mod(app.library, mod))
                 return
             if path == "/api/game/purge":
                 body = self._json_body() if int(self.headers.get("Content-Length") or 0) else {}
@@ -2211,7 +2255,7 @@ def _name_from_url(url: str) -> str:
 
 def _fetch_binary(url: str, dest: Path) -> None:
     req = urllib.request.Request(
-        url,
+        http_url(url),
         headers={"User-Agent": f"wi-mod/{__version__}", "Accept": "*/*"},
         method="GET",
     )

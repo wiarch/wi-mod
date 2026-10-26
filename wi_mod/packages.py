@@ -17,6 +17,14 @@ _FOLDERS = ("meshes/", "textures/", "interface/", "scripts/", "skse/", "sound/",
 
 
 def _seven_zip() -> Path | None:
+    roots = [Path(__file__).resolve().parent.parent / "tools" / "7zip"]
+    local = os.environ.get("LOCALAPPDATA")
+    if local:
+        roots.append(Path(local) / "wi-mod" / "7zip")
+    for root in roots:
+        for candidate in (root / "7z.exe", root / "Files" / "7-Zip" / "7z.exe"):
+            if candidate.is_file():
+                return candidate
     found = shutil.which("7z")
     if found:
         return Path(found)
@@ -28,6 +36,58 @@ def _seven_zip() -> Path | None:
         if candidate.is_file():
             return candidate
     return None
+
+
+def _seven_zip_dir() -> Path:
+    root = Path(__file__).resolve().parent.parent / "tools" / "7zip"
+    if " " not in str(root):
+        return root
+    local = os.environ.get("LOCALAPPDATA") or str(Path.home())
+    return Path(local) / "wi-mod" / "7zip"
+
+
+def install_seven_zip() -> str:
+    """Saca 7z.exe del MSI oficial. No pide admin."""
+    found = _seven_zip()
+    if found is not None:
+        return str(found)
+    dest = _seven_zip_dir()
+    dest.mkdir(parents=True, exist_ok=True)
+    work = dest / "_setup"
+    if work.exists():
+        shutil.rmtree(work, ignore_errors=True)
+    work.mkdir()
+    msi = work / "7zip.msi"
+    try:
+        import urllib.request
+
+        req = urllib.request.Request(
+            "https://www.7-zip.org/a/7z2601-x64.msi",
+            headers={"User-Agent": "wi-mod"},
+        )
+        with urllib.request.urlopen(req, timeout=180) as res, msi.open("wb") as handle:
+            shutil.copyfileobj(res, handle)
+        proc = subprocess.run(
+            ["msiexec", "/a", str(msi), "/qn", f"TARGETDIR={work}"],
+            check=False,
+            timeout=180,
+        )
+        if proc.returncode not in (0, 3010):
+            raise ValueError(f"msiexec {proc.returncode}")
+        exe = next(work.rglob("7z.exe"), None)
+        dll = next(work.rglob("7z.dll"), None)
+        if exe is None or dll is None:
+            raise ValueError("sin 7z.exe")
+        shutil.copy2(exe, dest / "7z.exe")
+        shutil.copy2(dll, dest / "7z.dll")
+    except Exception as exc:
+        raise ValueError("No pude instalar 7-Zip.") from exc
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    tool = dest / "7z.exe"
+    if not tool.is_file():
+        raise ValueError("7-Zip no quedó instalado.")
+    return str(tool)
 
 
 def _norm(name: str) -> str:
@@ -91,8 +151,8 @@ def classify(names: list[str]) -> dict[str, str]:
             roots.add(name[:folder_at])
             continue
         if low.endswith(_MARKERS):
-            parent = name.rsplit("/", 1)[0]
-            roots.add(f"{parent}/" if parent else "")
+            slash = name.rfind("/")
+            roots.add(f"{name[:slash]}/" if slash >= 0 else "")
     if not roots:
         raise ValueError("No parece un mod de Skyrim: no hay FOMOD, .esp ni meshes/textures.")
     root = "" if "" in roots else min(roots, key=len)
