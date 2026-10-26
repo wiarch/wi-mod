@@ -15,7 +15,7 @@ _FOLDERS = {
     "skyrimvr": "Skyrim VR",
 }
 _EXTENSIONS = (".esm", ".esl", ".esp")
-_BASE = ("Skyrim.esm", "Update.esm", "Dawnguard.esm", "HearthFires.esm", "Dragonborn.esm")
+_BASE = ("Update.esm", "Dawnguard.esm", "HearthFires.esm", "Dragonborn.esm")
 _ENCODING = "cp1252"
 
 Entry = tuple[bool, str]
@@ -64,25 +64,55 @@ def sort_plugins(entries: list[Entry]) -> list[Entry]:
     return sorted(entries, key=lambda row: _rank(row[1]))
 
 
+_HEADER = (
+    "# This file is used by Skyrim to keep track of your downloaded content.",
+    "# Please do not modify this file.",
+)
+
+
 def write_plugins(path: Path, entries: list[Entry]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [f"{'*' if enabled else ''}{name}" for enabled, name in sort_plugins(entries)]
-    text = "\r\n".join(["# Generado por wi-mod", *lines]) + "\r\n"
+    text = "\n".join([*_HEADER, *lines]) + "\n"
     temp = path.with_name(path.name + ".wi-tmp")
-    temp.write_text(text, encoding=_ENCODING, errors="replace", newline="")
+    temp.write_bytes(text.encode(_ENCODING, errors="replace"))
     os.replace(temp, path)
 
 
 def _with_base(entries: list[Entry], data: Path | None) -> list[Entry]:
-    """Añade los maestros de Bethesda que existan en Data (Skyrim.esm siempre)."""
+    """Añade los maestros de Bethesda que existan en Data. Skyrim.esm no se lista."""
     known = {name.lower() for _, name in entries}
-    out = list(entries)
+    out = [(enabled, name) for enabled, name in entries if name.lower() != "skyrim.esm"]
+    known.discard("skyrim.esm")
     for base in _BASE:
         if base.lower() in known:
             continue
-        if base == _BASE[0] or (data is not None and (data / base).is_file()):
+        if data is not None and (data / base).is_file():
             out.append((True, base))
     return out
+
+
+def ensure_plugins(game_domain: str, data: Path) -> None:
+    """Si plugins.txt no carga las expansiones o las creaciones, las vuelve a activar."""
+    path = plugins_path(game_domain)
+    current = read_plugins(path)
+    entries = _with_base(list(current), data)
+    known = {name.lower() for _, name in entries}
+    if data.is_dir():
+        for file in data.iterdir():
+            name = file.name
+            if not file.is_file() or not is_plugin(name):
+                continue
+            low = name.lower()
+            if low == "skyrim.esm" or low in known:
+                continue
+            if not current or low.startswith("cc") or low == "_resourcepack.esl":
+                entries.append((True, name))
+                known.add(low)
+    if [(flag, name.lower()) for flag, name in entries] == [(flag, name.lower()) for flag, name in current]:
+        return
+    if entries:
+        write_plugins(path, entries)
 
 
 def enable_plugins(names: list[str], game_domain: str = "skyrimspecialedition", data: Path | None = None) -> list[str]:

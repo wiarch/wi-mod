@@ -278,7 +278,7 @@ const UI = {
     instanceLoaders: "Buscando loaders…",
     sysBack: "Atrás", sysFwd: "Adelante", sysNone: "Sin instancia",
     searchInstance: "Buscar instancia", addInstance: "Añadir instancia",
-    sysIdle: "Ninguna instancia en marcha", sysDownloads: "Descargas",
+    sysDownloads: "Descargas",
     tasks: "Tareas", tasksDone: "Completadas", tasksClear: "Limpiar",
     sysMin: "Minimizar", sysMax: "Maximizar", sysClose: "Cerrar",
     emptyAll: "Pega un enlace de Nexus con Añadir mod. La ficha trae imagen, resumen, categoría, versión y última actualización.",
@@ -443,7 +443,7 @@ const UI = {
     instanceLoaders: "Looking up loaders…",
     sysBack: "Back", sysFwd: "Forward", sysNone: "No instance",
     searchInstance: "Search instance", addInstance: "Add instance",
-    sysIdle: "No instances running", sysDownloads: "Downloads",
+    sysDownloads: "Downloads",
     tasks: "Tasks", tasksDone: "Complete", tasksClear: "Clear all",
     sysMin: "Minimize", sysMax: "Maximize", sysClose: "Close",
     emptyAll: "Paste a Nexus link with Add mod. The card brings image, summary, category, version, and last update.",
@@ -1079,7 +1079,10 @@ async function takeEvents(events) {
       }
       markDownloading(modId, false);
     }
-    if (ev.message && ev.phase !== "download") toast(ev.message, ev.ok === false ? "bad" : "");
+    if (ev.message && ev.phase !== "download") {
+      toast(ev.message, ev.ok === false ? "bad" : "");
+      if (ev.ok === false) pushLog("error", ev.message);
+    }
     if (ev.reload) reload = true;
   });
   if (!reload) return;
@@ -1194,6 +1197,7 @@ async function localizeLibrary() {
 
 const GAME_SCORES = {
   worldofwarcraftclassic: 4.15,
+  projectzomboid: 3.88,
   fallout4: 3.81,
   newvegas: 4.43,
   gta5: 4.47,
@@ -1529,7 +1533,7 @@ async function enrichActiveGame() {
   const domain = state.game;
   if (!domain) return;
   const current = catalogGame(domain);
-  if (current?.imageUrl && current?.description && (current?.rawgId || "steamAppId" in current)) {
+  if (current?.rawgId || current?.imageUrl) {
     renderGameHero();
     return;
   }
@@ -5998,7 +6002,7 @@ function gameOptionsForPacks() {
     ["minecraft", "Minecraft"],
     ["gtasa", "GTA San Andreas"],
     ["skyrimspecialedition", "The Elder Scrolls V: Skyrim Special Edition"],
-    ["worldofwarcraftclassic", "World of Warcraft Classic"],
+    ["projectzomboid", "Project Zomboid"],
   ];
 }
 
@@ -7456,8 +7460,6 @@ function paintSysbar() {
     if (src) ico.src = src;
   }
   navRemember();
-  const running = $("sys-running");
-  if (running && !liveTasks.length) running.textContent = t("sysIdle");
 }
 
 const TASK_KEY = "wi-mod-tasks";

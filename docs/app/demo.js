@@ -7,10 +7,10 @@
     "minecraft",
     "gtasa",
     "skyrimspecialedition",
-    "worldofwarcraftclassic",
+    "projectzomboid",
   ];
   const TTL_MS = 5 * 60 * 60 * 1000;
-  const KEY = "wi-mod-demo-v6";
+  const KEY = "wi-mod-demo-v7";
   const DESKTOP = "La versión de escritorio no tiene este límite.";
   function demoKeys() {
     const raw = (typeof window !== "undefined" && window.__WI_DEMO_KEYS__) || {};
@@ -178,16 +178,16 @@
       "platforms": [],
       "genres": []
     },
-    "worldofwarcraftclassic": {
-      "rawgId": 368967,
-      "rawgSlug": "world-of-warcraft-classic",
-      "gameName": "World of Warcraft Classic",
-      "gameDomain": "worldofwarcraftclassic",
-      "imageUrl": "https://media.rawg.io/media/games/c21/c21aa06fd66da98f2388965be78c8b89.jpg",
-      "released": "2019-08-27",
-      "rating": 4.15,
-      "metacritic": 81,
-      "description": "World of Warcraft Classic recreates the original Azeroth.",
+    "projectzomboid": {
+      "rawgId": 10900,
+      "rawgSlug": "project-zomboid",
+      "gameName": "Project Zomboid",
+      "gameDomain": "projectzomboid",
+      "imageUrl": "https://media.rawg.io/media/screenshots/243/2436b84b99f1121c302367f0c5901b84.jpg",
+      "released": "2013-11-08",
+      "rating": 3.88,
+      "metacritic": null,
+      "description": "Project Zomboid.",
       "platforms": [],
       "genres": []
     },

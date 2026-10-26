@@ -703,9 +703,9 @@ class Library:
             {"gameDomain": "minecraft", "gameName": "Minecraft", "rawgId": 22509, "imageUrl": "/brand/minecraft.jpg", "rating": 4.44},
             {"gameDomain": "gtasa", "gameName": "GTA San Andreas", "rawgId": 416, "rating": 4.5},
             {"gameDomain": "skyrimspecialedition", "gameName": "The Elder Scrolls V: Skyrim Special Edition", "rawgId": 12447, "rating": 4.45},
-            {"gameDomain": "worldofwarcraftclassic", "gameName": "World of Warcraft Classic", "rawgId": 368967, "imageUrl": "https://media.rawg.io/media/games/c21/c21aa06fd66da98f2388965be78c8b89.jpg", "rating": 4.15},
+            {"gameDomain": "projectzomboid", "gameName": "Project Zomboid", "rawgId": 10900, "steamAppId": 108600, "imageUrl": "https://media.rawg.io/media/screenshots/243/2436b84b99f1121c302367f0c5901b84.jpg", "rating": 3.88},
         )
-        retired = {"gta5", "fallout4", "newvegas", "stalkershadowofchernobyl", "darksoulsremastered"}
+        retired = {"gta5", "fallout4", "newvegas", "stalkershadowofchernobyl", "darksoulsremastered", "worldofwarcraftclassic"}
         with self._lock:
             data = self._read()
             self._migrate(data)

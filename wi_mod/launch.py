@@ -440,6 +440,24 @@ def detect_game(game_name: str, game_domain: str = "", *, timeout: float = 45.0,
     return out
 
 
+_SKYRIM_DOMAIN = {
+    "skyrimse.exe": "skyrimspecialedition",
+    "skyrimvr.exe": "skyrimvr",
+    "tesv.exe": "skyrim",
+    "skyrim.exe": "skyrim",
+}
+
+
+def _prime_plugins(exe: Path) -> None:
+    domain = _SKYRIM_DOMAIN.get(exe.name.lower())
+    data = exe.parent / "Data"
+    if not domain or not data.is_dir():
+        return
+    from wi_mod.plugins_txt import ensure_plugins
+
+    ensure_plugins(domain, data)
+
+
 def _with_script_extender(exe: Path) -> Path | None:
     loader_name = _SCRIPT_EXTENDER.get(exe.name.lower())
     if not loader_name:
@@ -448,13 +466,52 @@ def _with_script_extender(exe: Path) -> Path | None:
     return loader if loader.is_file() else None
 
 
-def launch_path(path: str) -> None:
+def _image_running(exe_name: str) -> bool:
+    proc = subprocess.run(
+        ["tasklist", "/FI", f"IMAGENAME eq {exe_name}", "/NH"],
+        capture_output=True,
+        text=True,
+        creationflags=0x08000000,
+        check=False,
+    )
+    out = (proc.stdout or "").lower()
+    return exe_name.lower() in out and "no tasks" not in out
+
+
+def early_exit_reason(exe_name: str) -> str:
+    """Si el juego no sigue abierto a los 12 s, explica por qué."""
+    import time
+
+    time.sleep(12)
+    if _image_running(exe_name):
+        return ""
+    if exe_name.lower() not in _SKYRIM_DOMAIN:
+        return f"{exe_name} se cerró al arrancar."
+    local = os.environ.get("LOCALAPPDATA", "")
+    plug = Path(local) / "Skyrim Special Edition" / "plugins.txt" if local else None
+    names: list[str] = []
+    if plug is not None and plug.is_file():
+        for line in plug.read_text(encoding="cp1252", errors="replace").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                names.append(line.lstrip("*").lower())
+    if "update.esm" not in names:
+        return "Skyrim se cerró al arrancar. plugins.txt quedó vacío: faltan Update.esm y las creaciones, y el juego recarga y sale."
+    log = Path.home() / "Documents" / "My Games" / "Skyrim Special Edition" / "SKSE" / "skse64.log"
+    tail = ""
+    if log.is_file():
+        lines = [ln.strip() for ln in log.read_text(encoding="utf-8", errors="replace").splitlines() if ln.strip()]
+        tail = lines[-1] if lines else ""
+    return "Skyrim se cerró al arrancar." + (f" Último SKSE: {tail}" if tail else "")
+
+
+def launch_path(path: str) -> str:
     target = str(path or "").strip()
     if not target:
         raise ValueError("No hay ruta de lanzador.")
     if target.lower().startswith("steam://"):
         os.startfile(target)  # type: ignore[attr-defined]
-        return
+        return ""
     file = Path(target)
     if not file.exists():
         raise ValueError("El lanzador ya no está en esa ruta.")
@@ -465,16 +522,22 @@ def launch_path(path: str) -> None:
         file = exe
     if _MOJANG_LAUNCHER.match(file.name):
         raise ValueError("No abro el launcher de Mojang. Elige una instancia de wi-mod.")
-    loader = _with_script_extender(file)
+    game_exe = file
+    if file.name.lower() not in _SCRIPT_EXTENDER:
+        for name in _SCRIPT_EXTENDER:
+            if (file.parent / name).is_file():
+                game_exe = file.parent / name
+                break
+    _prime_plugins(game_exe)
+    loader = _with_script_extender(game_exe if game_exe.name.lower() in _SCRIPT_EXTENDER else file)
     if loader is not None:
         file = loader
     cwd = str(file.parent)
     try:
-        os.startfile(str(file))  # type: ignore[attr-defined]
-    except AttributeError:
         subprocess.Popen([str(file)], cwd=cwd, close_fds=True)
     except OSError as exc:
         raise ValueError(f"No se pudo abrir: {exc}") from exc
+    return game_exe.name
 
 
 def steam_run_url(steam_app_id: int | str | None) -> str:

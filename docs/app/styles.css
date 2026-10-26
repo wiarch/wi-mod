@@ -527,11 +527,6 @@ a:hover { color: var(--copper-hot); }
 .sysbar .log-count.error { color: #ff8d84; }
 .sysbar .log-count.warn { color: #ffe14a; }
 .sysbar .log-count.req { color: #8fbf8a; }
-.sys-running {
-  color: var(--muted);
-  font-size: 12px;
-  white-space: nowrap;
-}
 .sys-wins { display: flex; align-items: stretch; align-self: stretch; height: auto; margin-left: 4px; }
 .sys-win {
   width: 46px;
@@ -550,10 +545,6 @@ a:hover { color: var(--copper-hot); }
 .sys-win:hover { background: color-mix(in srgb, var(--text) 10%, transparent); }
 .sys-win:active { transform: none; }
 .sys-close:hover { background: #e81123; color: #fff; }
-@media (max-width: 900px) {
-  .sys-running { display: none; }
-}
-
 .side .brand-row {
   display: flex;
   flex-direction: column;
@@ -3187,7 +3178,7 @@ main:has(.bulk:not([hidden])) { padding-bottom: 68px; }
   max-height: none;
 }
 .grid.list .shot span,
-.grid.list .shot::after { display: none; }
+.grid.list .card:not(.downloading) .shot::after { display: none; }
 .conflict { display: none; }
 .grid.list .conflict {
   display: inline-flex;
@@ -3390,16 +3381,21 @@ main:has(.bulk:not([hidden])) { padding-bottom: 68px; }
 .card.downloading .shot { position: relative; }
 .card.downloading .shot::after {
   content: "Descargando…";
-  position: absolute;
-  left: 10px;
-  bottom: 10px;
+  inset: 8px auto auto 8px;
+  width: max-content;
+  max-width: calc(100% - 16px);
+  height: auto;
   z-index: 2;
   padding: 3px 8px;
   border-radius: 999px;
-  background: rgba(20, 14, 8, 0.82);
+  background: rgba(20, 14, 8, 0.88);
   color: var(--copper-hot);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .card.downloading::after,
 .mod-table tr.card.downloading {

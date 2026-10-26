@@ -419,6 +419,14 @@ class App:
             return list(self._notes)
 
 
+def _report_early_exit(app: App, exe_name: str) -> None:
+    from wi_mod.launch import early_exit_reason
+
+    reason = early_exit_reason(exe_name)
+    if reason:
+        app.note(reason, ok=False)
+
+
 class QuietServer(ThreadingHTTPServer):
     def handle_error(self, request, client_address) -> None:
         # El visor cierra el socket a medias. No es un fallo del programa.
@@ -916,7 +924,14 @@ def make_handler(app: App):
                 if not path_value:
                     self._json(409, {"error": "missing_launch", "game": game})
                     return
-                launch_path(path_value)
+                watched = launch_path(path_value)
+                if watched:
+                    threading.Thread(
+                        target=_report_early_exit,
+                        args=(app, watched),
+                        name="wi-mod-game",
+                        daemon=True,
+                    ).start()
                 if path_value != str(game.get("launchPath") or "") and not path_value.lower().startswith("steam://"):
                     catalog = app.library.set_game_launch(domain, path_value)
                     game = _catalog_game(app, domain) or game
@@ -2530,9 +2545,12 @@ def _rawg_resolve(app: App, domain: str, name: str) -> dict | None:
             if game.get("descriptionEs"):
                 app.library.add_catalog_item("game", game)
         return game
+    key = str(app.library.settings().get("rawgApiKey") or "").strip()
+    if not key:
+        return existing
     if existing and existing.get("rawgId"):
         try:
-            game = get_game(_rawg_key(app), existing["rawgId"])
+            game = get_game(key, existing["rawgId"])
             if domain:
                 game["gameDomain"] = domain
             game = _localize_game(app, game)
@@ -2542,7 +2560,7 @@ def _rawg_resolve(app: App, domain: str, name: str) -> dict | None:
             raise ValueError(str(exc)) from exc
     try:
         game = resolve_game(
-            _rawg_key(app),
+            key,
             domain=domain,
             name=name or str((existing or {}).get("gameName") or ""),
         )
