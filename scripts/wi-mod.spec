@@ -45,6 +45,7 @@ exe = EXE(
     upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
+    icon=str(ROOT / "src-tauri" / "icons" / "icon.ico"),
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,

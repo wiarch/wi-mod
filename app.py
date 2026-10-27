@@ -487,22 +487,7 @@ def _on_ui(fn) -> None:
     fn()
 
 
-_THEMES = {
-    "nexus": ("#141210", "#2e2a24", "#f6efe6", "#e08a2c", "#1a1208"),
-    "modrinth": ("#16181c", "#2c3036", "#e8eef2", "#1bd96a", "#06210f"),
-    "curseforge": ("#121212", "#2a2a2a", "#f4ece8", "#f16436", "#2a100a"),
-    "steam": ("#171a21", "#243447", "#e8f4fc", "#66c0f4", "#0b1b28"),
-    "moddb": ("#140c0c", "#301818", "#f8f1f1", "#e10600", "#1a0808"),
-    "rawg": ("#151515", "#2a2a2a", "#ffffff", "#f4f4f4", "#151515"),
-}
-
-
-def _theme_key() -> str:
-    raw = "nexus"
-    if _app is not None:
-        raw = str(_app.library.settings().get("theme") or "nexus")
-    key = raw.strip().lower()
-    return key if key in _THEMES else "nexus"
+_SHELL = ("#151b26", "#1c2433", "#f3f4f6", "#22d3ee", "#151b26")
 
 
 def _argb(hex_color: str):
@@ -512,44 +497,57 @@ def _argb(hex_color: str):
     return Color.FromArgb(int(text[0:2], 16), int(text[2:4], 16), int(text[4:6], 16))
 
 
+_MARK = (
+    ((6, 16), (24, 6), (42, 16), (42, 32), (24, 42), (6, 32), (6, 16)),
+    ((6, 16), (16, 34), (24, 20), (32, 34), (42, 16)),
+    ((16, 34), (24, 42), (32, 34)),
+    ((14, 11), (24, 28), (34, 11)),
+)
+
+
 def _brand_icon():
     global _mark
     if _mark is not None:
         return _mark
-    from System.Drawing import Bitmap, Color, Font, FontStyle, Graphics, Icon, Rectangle, RectangleF, SolidBrush, StringAlignment, StringFormat
-    from System.Drawing.Drawing2D import GraphicsPath, LinearGradientBrush, LinearGradientMode, SmoothingMode
+    from System.Drawing import Bitmap, Color, Graphics, Icon, Pen, PointF, SolidBrush
+    from System.Drawing.Drawing2D import GraphicsPath, LineJoin, SmoothingMode
 
-    size = 64
+    size = 128
+    scale = size / 48.0
     bitmap = Bitmap(size, size)
     draw = Graphics.FromImage(bitmap)
     draw.SmoothingMode = SmoothingMode.AntiAlias
     draw.Clear(Color.Transparent)
-    path = GraphicsPath()
-    radius = 14
-    box = size - 1
-    path.AddArc(0, 0, radius, radius, 180, 90)
-    path.AddArc(box - radius, 0, radius, radius, 270, 90)
-    path.AddArc(box - radius, box - radius, radius, radius, 0, 90)
-    path.AddArc(0, box - radius, radius, radius, 90, 90)
-    path.CloseFigure()
-    fill = LinearGradientBrush(
-        Rectangle(0, 0, size, size),
-        _argb("#f0a04a"),
-        _argb("#c45c26"),
-        LinearGradientMode.ForwardDiagonal,
-    )
-    draw.FillPath(fill, path)
-    layout = StringFormat()
-    layout.Alignment = StringAlignment.Center
-    layout.LineAlignment = StringAlignment.Center
-    draw.DrawString(
-        "wi",
-        Font("Segoe UI", 26, FontStyle.Bold),
-        SolidBrush(_argb("#1a1208")),
-        RectangleF(0, 2, float(size), float(size)),
-        layout,
-    )
+    radius = size * 0.22
+    box = float(size - 1)
+    tile = GraphicsPath()
+    tile.AddArc(0, 0, radius * 2, radius * 2, 180, 90)
+    tile.AddArc(box - radius * 2, 0, radius * 2, radius * 2, 270, 90)
+    tile.AddArc(box - radius * 2, box - radius * 2, radius * 2, radius * 2, 0, 90)
+    tile.AddArc(0, box - radius * 2, radius * 2, radius * 2, 90, 90)
+    tile.CloseFigure()
+    draw.FillPath(SolidBrush(Color.FromArgb(255, 21, 27, 38)), tile)
+    edge = Pen(Color.FromArgb(90, 34, 211, 238), max(2.0, size * 0.012))
+    draw.DrawPath(edge, tile)
+    edge.Dispose()
+
+    def stroke(width, alpha):
+        pen = Pen(Color.FromArgb(alpha, 34, 211, 238), width)
+        pen.LineJoin = LineJoin.Round
+        for mark in _MARK:
+            path = GraphicsPath()
+            x0, y0 = mark[0]
+            for x, y in mark[1:]:
+                path.AddLine(PointF(x0 * scale, y0 * scale), PointF(x * scale, y * scale))
+                x0, y0 = x, y
+            draw.DrawPath(pen, path)
+            path.Dispose()
+        pen.Dispose()
+
+    stroke(max(2.0, 6.0 * scale), 80)
+    stroke(max(1.75, 2.5 * scale), 255)
     draw.Dispose()
+    tile.Dispose()
     _mark = (bitmap, Icon.FromHandle(bitmap.GetHicon()))
     return _mark
 
@@ -624,7 +622,7 @@ def _tray_renderer(bg, panel, text, accent, ink):
 def _style_tray_menu(menu) -> None:
     from System.Windows.Forms import Padding, ToolStripRenderMode
 
-    bg, panel, text, accent, ink = (_argb(item) for item in _THEMES[_theme_key()])
+    bg, panel, text, accent, ink = (_argb(item) for item in _SHELL)
     menu.RenderMode = ToolStripRenderMode.Professional
     menu.Renderer = _tray_renderer(bg, panel, text, accent, ink)
     menu.BackColor = bg

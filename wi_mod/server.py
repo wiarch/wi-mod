@@ -87,7 +87,17 @@ def _machine_names() -> dict[str, str]:
 
 def _locations() -> tuple[Path, Path]:
     if getattr(sys, "frozen", False):
-        return Path(sys._MEIPASS), Path(sys.executable).resolve().parent
+        bundle = Path(sys._MEIPASS)
+        here = Path(sys.executable).resolve().parent
+        # dist/wi-mod.exe en el repo: data/, mods/, instances/ viven un nivel arriba
+        parent = here.parent
+        if (
+            here.name.lower() == "dist"
+            and (parent / "data" / "wi-mod.sqlite").is_file()
+            and (parent / "mods").is_dir()
+        ):
+            return bundle, parent
+        return bundle, here
     here = Path(__file__).resolve().parent.parent
     return here, here
 

@@ -7,10 +7,28 @@
 </head>
 <body>
   <div class="splash">
-    <div class="glow"></div>
-    <img class="logo" src="/brand/wi-mod.svg" alt="wi-mod">
-    <p class="word">wi-mod</p>
-    <p class="loading">Cargando biblioteca<span class="dots"></span></p>
+    <div class="glow" aria-hidden="true"></div>
+    <div class="watermark" aria-hidden="true">
+      <svg viewBox="0 0 48 48" fill="none">
+        <path d="M6 16L24 6L42 16V32L24 42L6 32V16Z" stroke="currentColor" stroke-width="1"/>
+        <path d="M6 16L16 34L24 20L32 34L42 16" stroke="currentColor" stroke-width="1"/>
+        <path d="M16 34L24 42L32 34" stroke="currentColor" stroke-width="1"/>
+        <path d="M14 11L24 28L34 11" stroke="currentColor" stroke-width="1"/>
+      </svg>
+    </div>
+    <div class="stack">
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M6 16L24 6L42 16V32L24 42L6 32V16Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+          <path d="M6 16L16 34L24 20L32 34L42 16" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+          <path d="M16 34L24 42L32 34" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+          <path d="M14 11L24 28L34 11" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        </svg>
+        <h1 class="title"><span class="wi">wi-</span><span class="mod">mod</span></h1>
+      </div>
+      <div class="bar" aria-hidden="true"><span class="fill"></span></div>
+      <p class="loading">contando escamas…</p>
+    </div>
   </div>
   <script type="module" src="./splashscreen.js"></script>
 </body>

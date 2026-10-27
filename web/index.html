@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>wi-mod</title>
   <link rel="icon" href="/brand/wi-mod.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css?v=0.24.1">
+  <link rel="stylesheet" href="/styles.css?v=0.25.0">
 </head>
 <body>
   <div id="login" class="login" hidden>
     <form id="login-form" class="login-card">
-      <div class="brand">wi-mod</div>
+      <div class="brand"><span class="brand-wi">wi-</span><span class="brand-mod">mod</span></div>
       <p class="hint" id="login-hint" data-i18n="loginHint">Escribe tu usuario.</p>
       <label class="login-field"><span data-i18n="loginUser">Usuario</span>
         <span class="login-input">
@@ -37,17 +37,40 @@
   </div>
 
   <div id="boot" class="boot" aria-hidden="true">
+    <div class="boot-glow" aria-hidden="true"></div>
+    <div class="boot-watermark" aria-hidden="true">
+      <svg viewBox="0 0 48 48" fill="none">
+        <path d="M6 16L24 6L42 16V32L24 42L6 32V16Z" stroke="currentColor" stroke-width="1"/>
+        <path d="M6 16L16 34L24 20L32 34L42 16" stroke="currentColor" stroke-width="1"/>
+        <path d="M16 34L24 42L32 34" stroke="currentColor" stroke-width="1"/>
+        <path d="M14 11L24 28L34 11" stroke="currentColor" stroke-width="1"/>
+      </svg>
+    </div>
     <div class="boot-stack">
-      <div class="boot-mark">wi-mod<small id="boot-line" data-i18n="bootLine">olfateando la guarida…</small></div>
-      <span class="boot-loader" aria-hidden="true"></span>
+      <div class="boot-brand">
+        <svg class="boot-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M6 16L24 6L42 16V32L24 42L6 32V16Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+          <path d="M6 16L16 34L24 20L32 34L42 16" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+          <path d="M16 34L24 42L32 34" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+          <path d="M14 11L24 28L34 11" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+        </svg>
+        <h1 class="boot-title"><span class="boot-wi">wi-</span><span class="boot-mod">mod</span></h1>
+      </div>
+      <div class="boot-bar" aria-hidden="true"><span class="boot-bar-fill" style="width:8%"></span></div>
+      <p id="boot-line" class="boot-line" data-i18n="bootLine">contando escamas…</p>
     </div>
   </div>
 
   <header class="sysbar" id="sysbar">
-    <img class="sysbar-logo pywebview-drag-region" src="/brand/wi-mod.svg" alt="" width="18" height="18">
+    <svg class="sysbar-logo brand-iso pywebview-drag-region" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="22" height="22">
+      <path d="M6 16L24 6L42 16V32L24 42L6 32V16Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M6 16L16 34L24 20L32 34L42 16" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M16 34L24 42L32 34" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M14 11L24 28L34 11" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+    </svg>
     <div class="sysbar-id">
-      <div class="brand pywebview-drag-region">wi-mod</div>
-      <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.24.1</a>
+      <div class="brand pywebview-drag-region"><span class="brand-wi">wi-</span><span class="brand-mod">mod</span></div>
+      <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.25.0</a>
     </div>
     <button type="button" id="sys-back" class="sys-ico" disabled aria-label="Atrás" data-i18n-aria="sysBack" title="Atrás" data-i18n-title="sysBack">
       <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M14 6 8 12l6 6"/></svg>
@@ -96,6 +119,96 @@
             <button type="button" id="tasks-clear" data-i18n="tasksClear">Limpiar</button>
           </div>
           <ul id="tasks-done" class="tasks-done" hidden></ul>
+        </div>
+      </div>
+    </div>
+    <div class="prefs-switch" id="prefs-switch">
+      <button type="button" id="prefs-summary" class="sys-ico prefs-toggle" title="Ajustes" aria-label="Ajustes" data-i18n-title="settings" data-i18n-aria="settings" aria-expanded="false" aria-controls="prefs-panel">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+      <div class="prefs-panel" id="prefs-panel" role="dialog" aria-label="Ajustes">
+        <p class="theme-panel-title" data-i18n="settings">Ajustes</p>
+        <div class="prefs-list">
+          <div class="dock-keys more-keys" id="dock-keys">
+            <button type="button" id="keys-summary" class="prefs-row keys-summary" title="Claves API" aria-label="Claves API" data-i18n-title="keys" data-i18n-aria="keys" aria-expanded="false">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M7 6a5 5 0 0 1 4.9 4H21v2.2h-2V16h-2.2v-3.8H14.9A5 5 0 1 1 7 6zm0 2.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6zm0 1.7a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2z"/></svg>
+              <span data-i18n="keys">Claves</span>
+              <b id="keys-missing">1/5</b>
+            </button>
+            <div class="keys-panel" id="keys-panel">
+              <button type="button" class="key-pill" data-key="nexus" title="Clave Nexus Mods">
+                <img src="/brand/nexus.ico" alt="" width="14" height="14">
+                <span>Nexus</span>
+                <em>falta</em>
+              </button>
+              <button type="button" class="key-pill on" data-key="modrinth" title="Modrinth no pide clave">
+                <img src="/brand/modrinth.png" alt="" width="14" height="14">
+                <span>Modrinth</span>
+                <em>activa</em>
+              </button>
+              <button type="button" class="key-pill" data-key="curseforge" title="Clave CurseForge">
+                <img src="/brand/curseforge.ico" alt="" width="14" height="14">
+                <span>CurseForge</span>
+                <em>falta</em>
+              </button>
+              <button type="button" class="key-pill" data-key="steam" title="Clave Steam Web API">
+                <img src="/brand/steam.ico" alt="" width="14" height="14">
+                <span>Steam</span>
+                <em>falta</em>
+              </button>
+              <button type="button" class="key-pill" data-key="rawg" title="Clave RAWG, para buscar juegos">
+                <img src="/brand/rawg.png" alt="" width="14" height="14">
+                <span>RAWG</span>
+                <em>falta</em>
+              </button>
+            </div>
+          </div>
+          <button type="button" id="mute" class="prefs-row mute-btn" title="Sonido" data-i18n-title="sound">
+            <svg id="mute-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M11 5 6 9H3v6h3l5 4V5zM15.5 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"/></svg>
+            <span data-i18n="sound">Sonido</span>
+          </button>
+          <button type="button" id="lang-toggle" class="prefs-row mute-btn" title="Cambiar a inglés">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3.6 9h16.8M3.6 15h16.8M12 3c3 3.6 3 14.4 0 18M12 3c-3 3.6-3 14.4 0 18"/></svg>
+            <span id="lang-label">Inglés</span>
+          </button>
+          <button type="button" id="cover-bg" class="prefs-row mute-btn" title="Usar portada del juego">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 16l5-5 4 4 3-3 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="8.5" cy="9" r="1.2" fill="currentColor"/></svg>
+            <span id="cover-bg-label" data-i18n="coverBgUse">Portada</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="theme-switch" id="theme-switch">
+      <button type="button" id="theme-summary" class="sys-ico theme-toggle" title="Tema" aria-label="Tema" data-i18n-title="theme" data-i18n-aria="theme" aria-expanded="false" aria-controls="theme-panel">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3v2M12 19v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M3 12h2M19 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path fill="currentColor" d="M12 8a4 4 0 0 0 0 8V8z"/></svg>
+      </button>
+      <div class="theme-panel" id="theme-panel" role="dialog" aria-label="Temas">
+        <p class="theme-panel-title" data-i18n="themes">Temas</p>
+        <div class="theme-grid">
+          <button type="button" class="theme-card" data-theme="nexus" title="Nexus Mods" aria-label="Nexus Mods">
+            <span class="theme-preview" aria-hidden="true"><span class="tp-side"></span><span class="tp-main"><span class="tp-bar"></span><span class="tp-bar short"></span></span></span>
+            <span class="theme-card-meta"><img src="/brand/nexus.ico" alt="" width="14" height="14"><span>Nexus</span></span>
+          </button>
+          <button type="button" class="theme-card" data-theme="modrinth" title="Modrinth" aria-label="Modrinth">
+            <span class="theme-preview" aria-hidden="true"><span class="tp-side"></span><span class="tp-main"><span class="tp-bar"></span><span class="tp-bar short"></span></span></span>
+            <span class="theme-card-meta"><img src="/brand/modrinth.png" alt="" width="14" height="14"><span>Modrinth</span></span>
+          </button>
+          <button type="button" class="theme-card" data-theme="curseforge" title="CurseForge" aria-label="CurseForge">
+            <span class="theme-preview" aria-hidden="true"><span class="tp-side"></span><span class="tp-main"><span class="tp-bar"></span><span class="tp-bar short"></span></span></span>
+            <span class="theme-card-meta"><img src="/brand/curseforge.ico" alt="" width="14" height="14"><span>CurseForge</span></span>
+          </button>
+          <button type="button" class="theme-card" data-theme="steam" title="Steam Workshop" aria-label="Steam Workshop">
+            <span class="theme-preview" aria-hidden="true"><span class="tp-side"></span><span class="tp-main"><span class="tp-bar"></span><span class="tp-bar short"></span></span></span>
+            <span class="theme-card-meta"><img src="/brand/steam.ico" alt="" width="14" height="14"><span>Steam</span></span>
+          </button>
+          <button type="button" class="theme-card" data-theme="moddb" title="ModDB" aria-label="ModDB">
+            <span class="theme-preview" aria-hidden="true"><span class="tp-side"></span><span class="tp-main"><span class="tp-bar"></span><span class="tp-bar short"></span></span></span>
+            <span class="theme-card-meta"><img src="/brand/moddb.png" alt="" width="14" height="14"><span>ModDB</span></span>
+          </button>
+          <button type="button" class="theme-card" data-theme="rawg" title="RAWG" aria-label="RAWG">
+            <span class="theme-preview" aria-hidden="true"><span class="tp-side"></span><span class="tp-main"><span class="tp-bar"></span><span class="tp-bar short"></span></span></span>
+            <span class="theme-card-meta"><img src="/brand/rawg.png" alt="" width="14" height="14"><span>RAWG</span></span>
+          </button>
         </div>
       </div>
     </div>
@@ -803,93 +916,6 @@
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v6M12 7.5h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       <span data-i18n="tutorial">Tutorial</span>
     </button>
-    <div class="more-settings" id="more-settings">
-      <button type="button" id="settings-toggle" class="settings-toggle" aria-expanded="false" aria-controls="settings-panel">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
-        <span data-i18n="settings">Ajustes</span>
-        <span class="settings-caret" aria-hidden="true"></span>
-      </button>
-      <div class="settings-panel" id="settings-panel" hidden>
-      <div class="dock-keys more-keys" id="dock-keys">
-        <button type="button" id="keys-summary" class="keys-summary" title="Claves API" aria-label="Claves API" data-i18n-title="keys" data-i18n-aria="keys" aria-expanded="false">
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M7 6a5 5 0 0 1 4.9 4H21v2.2h-2V16h-2.2v-3.8H14.9A5 5 0 1 1 7 6zm0 2.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6zm0 1.7a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2z"/></svg>
-          <span data-i18n="keys">Claves</span>
-          <b id="keys-missing">1/5</b>
-        </button>
-        <div class="keys-panel" id="keys-panel">
-          <button type="button" class="key-pill" data-key="nexus" title="Clave Nexus Mods">
-            <img src="/brand/nexus.ico" alt="" width="14" height="14">
-            <span>Nexus</span>
-            <em>falta</em>
-          </button>
-          <button type="button" class="key-pill on" data-key="modrinth" title="Modrinth no pide clave">
-            <img src="/brand/modrinth.png" alt="" width="14" height="14">
-            <span>Modrinth</span>
-            <em>activa</em>
-          </button>
-          <button type="button" class="key-pill" data-key="curseforge" title="Clave CurseForge">
-            <img src="/brand/curseforge.ico" alt="" width="14" height="14">
-            <span>CurseForge</span>
-            <em>falta</em>
-          </button>
-          <button type="button" class="key-pill" data-key="steam" title="Clave Steam Web API">
-            <img src="/brand/steam.ico" alt="" width="14" height="14">
-            <span>Steam</span>
-            <em>falta</em>
-          </button>
-          <button type="button" class="key-pill" data-key="rawg" title="Clave RAWG, para buscar juegos">
-            <img src="/brand/rawg.png" alt="" width="14" height="14">
-            <span>RAWG</span>
-            <em>falta</em>
-          </button>
-        </div>
-      </div>
-      <button type="button" id="mute" class="mute-btn" title="Sonido" data-i18n-title="sound">
-        <svg id="mute-ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M11 5 6 9H3v6h3l5 4V5zM15.5 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"/></svg>
-        <span data-i18n="sound">Sonido</span>
-      </button>
-      <button type="button" id="lang-toggle" class="mute-btn" title="Cambiar a inglés">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3.6 9h16.8M3.6 15h16.8M12 3c3 3.6 3 14.4 0 18M12 3c-3 3.6-3 14.4 0 18"/></svg>
-        <span id="lang-label">Inglés</span>
-      </button>
-      <button type="button" id="cover-bg" class="mute-btn" title="Usar portada del juego">
-        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 16l5-5 4 4 3-3 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="8.5" cy="9" r="1.2" fill="currentColor"/></svg>
-        <span id="cover-bg-label">Portada</span>
-      </button>
-      <div class="more-theme" id="more-theme">
-        <button type="button" id="theme-summary" title="Tema" aria-label="Tema" data-i18n-title="theme" data-i18n-aria="theme" aria-expanded="false">
-          <img id="theme-summary-img" src="/brand/nexus.ico" alt="" width="18" height="18">
-          <span data-i18n="theme">Tema</span>
-        </button>
-        <div class="theme-panel" id="theme-panel">
-          <button type="button" data-theme="nexus" title="Nexus Mods" aria-label="Nexus Mods">
-            <img src="/brand/nexus.ico" alt="" width="18" height="18">
-            Nexus
-          </button>
-          <button type="button" data-theme="modrinth" title="Modrinth" aria-label="Modrinth">
-            <img src="/brand/modrinth.png" alt="" width="18" height="18">
-            Modrinth
-          </button>
-          <button type="button" data-theme="curseforge" title="CurseForge" aria-label="CurseForge">
-            <img src="/brand/curseforge.ico" alt="" width="18" height="18">
-            CurseForge
-          </button>
-          <button type="button" data-theme="steam" title="Steam Workshop" aria-label="Steam Workshop">
-            <img src="/brand/steam.ico" alt="" width="18" height="18">
-            Steam
-          </button>
-          <button type="button" data-theme="moddb" title="ModDB" aria-label="ModDB">
-            <img src="/brand/moddb.png" alt="" width="18" height="18">
-            ModDB
-          </button>
-          <button type="button" data-theme="rawg" title="RAWG" aria-label="RAWG">
-            <img src="/brand/rawg.png" alt="" width="18" height="18">
-            RAWG
-          </button>
-        </div>
-      </div>
-      </div>
-    </div>
     <button type="button" id="logout">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2M4 12h11M12 9l3 3-3 3"/></svg>
       <span data-i18n="quit">Salir</span>
@@ -929,6 +955,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=0.24.1"></script>
+  <script src="/app.js?v=0.25.0"></script>
 </body>
 </html>

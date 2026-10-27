@@ -194,6 +194,9 @@ const UI = {
     priorityTip: "Orden de carga. El número mayor se carga al final y pisa archivos de los anteriores.",
     conflicts: "Conflictos",
     conflictNone: "Sin archivos en común con otros mods activos.",
+    conflictNoneShort: "Sin conflictos",
+    conflictOne: "1 conflicto",
+    conflictMany: "{n} conflictos",
     conflictWins: "Pisa a: {names}",
     conflictLoses: "Lo pisan: {names}",
     mods: "Mods",
@@ -238,7 +241,7 @@ const UI = {
     edit: "Editar", select: "Seleccionar", moveToPack: "Mover a modpack", localFile: "Archivo local", quit: "Salir",
     quitAsk: "¿Cerrar wi-mod del todo o dejarlo en la bandeja?", remember: "Recordar opción",
     tray: "Bandeja", quitClose: "Cerrar", changeName: "Cambiar nombre", tutorial: "Tutorial",
-    settings: "Ajustes", keys: "Claves", sound: "Sonido", theme: "Tema", compress: "Comprimir", restore: "Restaurar",
+    settings: "Ajustes", keys: "Claves", sound: "Sonido", theme: "Tema", themes: "Temas", compress: "Comprimir", restore: "Restaurar",
     key: "Clave", pasteKey: "Pega la clave", docs: "Documentación",
     keyNeeded: "No tienes la clave de {name} instalada. Pégala aquí o sigue la guía.",
     keyNeededShort: "Falta la clave de {name}.",
@@ -299,10 +302,10 @@ const UI = {
     tour9t: "Lista", tour9d: "Cuadrícula o listado, tamaño de las fichas y el orden.",
     tour10t: "Mods", tour10d: "Aquí están los mods. Un clic abre la ficha. Arrastrar marca varios.",
     tour11t: "Tu usuario", tour11d: "Muestra el usuario de Windows. Desde aquí sales, importas y abres este tutorial.",
-    tour12t: "Claves", tour12d: "En el menú, arriba de Tema. Nexus, CurseForge, Steam y RAWG. Modrinth no pide clave.",
-    tour13t: "Tema", tour13d: "En el menú, abre Tema y haz clic en uno para aplicarlo.",
-    tour14t: "Sonido", tour14d: "En el menú. Activa o silencia los clics.",
-    tour15t: "Idioma", tour15d: "En el menú. Un clic cambia a inglés o español.",
+    tour12t: "Claves", tour12d: "Arriba a la derecha, engranaje → Claves. Nexus, CurseForge, Steam y RAWG. Modrinth no pide clave.",
+    tour13t: "Tema", tour13d: "Arriba a la derecha, el botón de paleta abre las tarjetas de tema.",
+    tour14t: "Sonido", tour14d: "Engranaje arriba a la derecha. Activa o silencia los clics.",
+    tour15t: "Idioma", tour15d: "Engranaje arriba a la derecha. Un clic cambia a inglés o español.",
     tour16t: "Avisos", tour16d: "Errores, alertas y peticiones del programa.",
   },
   en: {
@@ -359,6 +362,9 @@ const UI = {
     priorityTip: "Load order. A higher number loads last and overwrites files from lower ones.",
     conflicts: "Conflicts",
     conflictNone: "No shared files with other active mods.",
+    conflictNoneShort: "No conflicts",
+    conflictOne: "1 conflict",
+    conflictMany: "{n} conflicts",
     conflictWins: "Overwrites: {names}",
     conflictLoses: "Overwritten by: {names}",
     mods: "Mods",
@@ -403,7 +409,7 @@ const UI = {
     edit: "Edit", select: "Select", moveToPack: "Move to modpack", localFile: "Local file", quit: "Quit",
     quitAsk: "Close wi-mod fully or leave it in the tray?", remember: "Remember choice",
     tray: "Tray", quitClose: "Close", changeName: "Change name", tutorial: "Tutorial",
-    settings: "Settings", keys: "Keys", sound: "Sound", theme: "Theme", compress: "Compress", restore: "Restore",
+    settings: "Settings", keys: "Keys", sound: "Sound", theme: "Theme", themes: "Themes", compress: "Compress", restore: "Restore",
     key: "Key", pasteKey: "Paste the key", docs: "Docs",
     keyNeeded: "You do not have the {name} key installed. Paste it here or open the guide.",
     keyNeededShort: "Missing {name} key.",
@@ -464,10 +470,10 @@ const UI = {
     tour9t: "List", tour9d: "Grid or list, card size, and sort order.",
     tour10t: "Mods", tour10d: "Your mods live here. Click opens the card. Drag selects several.",
     tour11t: "Your user", tour11d: "Shows the Windows user. From here you quit, import, and open this tutorial.",
-    tour12t: "Keys", tour12d: "In the menu, above Theme. Nexus, CurseForge, Steam, and RAWG. Modrinth does not need a key.",
-    tour13t: "Theme", tour13d: "In the menu, open Theme and click one to apply it.",
-    tour14t: "Sound", tour14d: "In the menu. Turns click sounds on or off.",
-    tour15t: "Language", tour15d: "In the menu. One click switches English or Spanish.",
+    tour12t: "Keys", tour12d: "Top right, gear → Keys. Nexus, CurseForge, Steam, and RAWG. Modrinth does not need a key.",
+    tour13t: "Theme", tour13d: "Top right, the palette button opens the theme cards.",
+    tour14t: "Sound", tour14d: "Gear at the top right. Turns click sounds on or off.",
+    tour15t: "Language", tour15d: "Gear at the top right. One click switches English or Spanish.",
     tour16t: "Notices", tour16d: "Errors, alerts, and program requests.",
   },
 };
@@ -550,9 +556,27 @@ const sfx = {
   soft() { this.tone(240, 40, "sine", 0.02); },
 };
 
+function lockDetailFooter(on) {
+  const footer = document.querySelector("#detail footer");
+  if (!footer) return;
+  footer.classList.toggle("is-busy", on);
+  footer.querySelectorAll("button").forEach((btn) => {
+    if (on) {
+      if (btn.dataset.wasDisabled == null) btn.dataset.wasDisabled = btn.disabled ? "1" : "0";
+      btn.disabled = true;
+    } else if (btn.dataset.wasDisabled != null) {
+      btn.disabled = btn.dataset.wasDisabled === "1";
+      delete btn.dataset.wasDisabled;
+    }
+  });
+}
+
 function setLoading(button, on, label) {
   if (!button) return;
+  const footer = button.closest("#detail footer");
+  const liveFooter = footer?.isConnected ? footer : null;
   if (on) {
+    if (liveFooter) lockDetailFooter(true);
     beginLoad();
     if (!button.dataset.label) button.dataset.label = button.innerHTML;
     button.classList.add("btn-loading");
@@ -560,11 +584,13 @@ function setLoading(button, on, label) {
     button.setAttribute("aria-busy", "true");
     if (label) button.setAttribute("aria-label", label);
   } else {
+    const snap = button.dataset.wasDisabled;
     button.classList.remove("btn-loading");
-    button.disabled = false;
     button.removeAttribute("aria-busy");
     button.removeAttribute("aria-label");
     if (button.dataset.label) button.innerHTML = button.dataset.label;
+    if (liveFooter) lockDetailFooter(false);
+    if (!liveFooter || snap == null || snap === "0") button.disabled = false;
     endLoad();
   }
 }
@@ -965,9 +991,9 @@ function applyCoverBg() {
 function syncCoverToggle() {
   const btn = $("cover-bg");
   const label = $("cover-bg-label");
-  if (!btn || !label) return;
+  if (!btn) return;
   btn.classList.toggle("on", state.coverBg);
-  label.textContent = state.coverBg ? t("coverBgDefault") : t("coverBgUse");
+  if (label) label.textContent = t("coverBgUse");
   btn.title = state.coverBg ? t("coverBgTitleOff") : t("coverBgTitleUse");
   btn.setAttribute("aria-label", btn.title);
 }
@@ -1141,7 +1167,10 @@ function closeKeysStack() {
   if (!node) return;
   node.classList.remove("open");
   const summary = $("keys-summary");
-  if (summary) summary.setAttribute("aria-expanded", "false");
+  if (summary) {
+    summary.classList.remove("active");
+    summary.setAttribute("aria-expanded", "false");
+  }
 }
 
 function softChange(run) {
@@ -2500,23 +2529,43 @@ function applyTheme(theme) {
   const allowed = ["nexus", "modrinth", "curseforge", "steam", "moddb", "rawg"];
   state.theme = allowed.includes(theme) ? theme : "nexus";
   document.documentElement.dataset.theme = state.theme;
-  document.querySelectorAll(".theme-panel [data-theme]").forEach((button) => {
-    button.classList.toggle("on", button.dataset.theme === state.theme);
+  document.querySelectorAll(".theme-panel [data-theme], .theme-card[data-theme]").forEach((button) => {
+    const on = button.dataset.theme === state.theme;
+    button.classList.toggle("on", on);
+    button.setAttribute("aria-pressed", on ? "true" : "false");
   });
-  const img = $("theme-summary-img");
-  if (img) img.src = THEME_ICONS[state.theme] || THEME_ICONS.nexus;
   const summary = $("theme-summary");
-  if (summary) summary.title = summary.getAttribute("aria-label") || "Tema";
+  if (summary) {
+    summary.title = t("theme");
+    summary.setAttribute("aria-label", t("theme"));
+  }
   document.querySelectorAll('input[name="theme"]').forEach((input) => {
     input.checked = input.value === state.theme;
   });
 }
 
 function closeThemeSwitch() {
-  const node = $("more-theme") || $("theme-switch") || document.querySelector(".theme-switch");
+  const node = $("theme-switch") || document.querySelector(".theme-switch");
   if (node) node.classList.remove("open");
   const summary = $("theme-summary");
   if (summary) summary.setAttribute("aria-expanded", "false");
+}
+
+function closePrefsSwitch() {
+  const node = $("prefs-switch");
+  if (node) node.classList.remove("open");
+  const summary = $("prefs-summary");
+  if (summary) summary.setAttribute("aria-expanded", "false");
+  closeKeysStack();
+}
+
+function setPrefsOpen(on) {
+  const node = $("prefs-switch");
+  const summary = $("prefs-summary");
+  if (!node) return;
+  if (on) closeThemeSwitch();
+  node.classList.toggle("open", on);
+  if (summary) summary.setAttribute("aria-expanded", on ? "true" : "false");
 }
 
 async function setTheme(theme) {
@@ -3138,32 +3187,50 @@ function showDragGhost(card, count, x, y) {
   hideDragGhost(true);
   const rect = card.getBoundingClientRect();
   const copy = card.cloneNode(true);
-  copy.classList.remove("dragging", "drag-group", "on");
+  copy.classList.remove("dragging", "drag-group", "on", "drop-before", "drop-after");
+  copy.removeAttribute("draggable");
+  copy.querySelectorAll("[draggable]").forEach((node) => node.removeAttribute("draggable"));
   copy.style.animation = "none";
   copy.style.transition = "none";
   copy.style.transform = "none";
   copy.style.width = "100%";
-  copy.style.height = "100%";
+  copy.style.height = `${rect.height}px`;
   copy.style.minHeight = "0";
   copy.style.margin = "0";
+  copy.style.pointerEvents = "none";
   if (count > 1) {
     const mod = state.mods.find((item) => item.id === card.dataset.id);
     paintMultiShot(copy.querySelector(".shot"), mod?.gameDomain || state.game);
   }
   const wrap = document.createElement("div");
   wrap.id = "drag-ghost";
+  wrap.className = card.classList.contains("list-row") || card.tagName === "TR" ? "row-ghost" : "card-ghost";
   wrap.style.left = `${rect.left}px`;
   wrap.style.top = `${rect.top}px`;
-  wrap.style.width = `${rect.width}px`;
+  wrap.style.width = `${Math.max(rect.width, 280)}px`;
   wrap.style.height = `${rect.height}px`;
-  wrap.style.transform = "translate(0px, 0px) scale(1)";
-  const chip = document.createElement("span");
-  chip.className = "drag-count";
-  chip.textContent = count === 1 ? "1 mod" : t("modsN", { n: count });
-  wrap.append(copy, chip);
+  wrap.style.transform = "translate(0px, 0px) rotate(0deg)";
+  if (copy.tagName === "TR") {
+    const table = document.createElement("table");
+    table.className = "mod-table drag-ghost-table";
+    table.style.width = "100%";
+    table.style.tableLayout = "fixed";
+    const tbody = document.createElement("tbody");
+    tbody.appendChild(copy);
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+  } else {
+    wrap.appendChild(copy);
+  }
+  if (count > 1) {
+    const chip = document.createElement("span");
+    chip.className = "drag-count";
+    chip.textContent = t("modsN", { n: count });
+    wrap.appendChild(chip);
+  }
   document.body.appendChild(wrap);
   const pointerX = x || rect.left + rect.width / 2;
-  const pointerY = y || rect.top + rect.height / 2;
+  const pointerY = y || rect.top + 12;
   dragGhost = { node: wrap, left: rect.left, top: rect.top, w: rect.width, h: rect.height, follow: false };
   wrap.offsetWidth;
   wrap.classList.add("fly");
@@ -3177,9 +3244,9 @@ function showDragGhost(card, count, x, y) {
 
 function placeDragGhost(x, y) {
   if (!dragGhost || (!x && !y)) return;
-  const tx = x - dragGhost.left - dragGhost.w / 2;
-  const ty = y - dragGhost.top - dragGhost.h / 2;
-  dragGhost.node.style.transform = `translate(${tx}px, ${ty}px) scale(0.32)`;
+  const tx = x - dragGhost.left - Math.min(48, dragGhost.w * 0.12);
+  const ty = y - dragGhost.top - 14;
+  dragGhost.node.style.transform = `translate(${tx}px, ${ty}px) rotate(1.5deg)`;
 }
 
 function hideDragGhost(instant) {
@@ -3376,6 +3443,56 @@ function statusPicks(mod) {
   }).join("")}</span>`;
 }
 
+function cardStatusMark(mod) {
+  const hasFiles = modDownloaded(mod);
+  const on = statusOn(mod, "in");
+  if (!hasFiles) {
+    return `<span class="card-state muted" title="${esc(t("activeNeedFiles"))}"><span class="dot" aria-hidden="true"></span>${esc(t("noLocal"))}</span>`;
+  }
+  const tip = on ? t("activeTipOn") : t("activeTipOff");
+  return `<span class="card-state ${on ? "on" : "off"}" title="${esc(tip)}"><span class="dot" aria-hidden="true"></span>${esc(on ? t("activeOn") : t("activeOff"))}</span>`;
+}
+
+function cardActiveToggle(mod) {
+  const hasFiles = modDownloaded(mod);
+  const on = statusOn(mod, "in");
+  const tip = !hasFiles ? t("activeNeedFiles") : (on ? t("activeTipOn") : t("activeTipOff"));
+  return `<label class="mod-switch" title="${esc(tip)}"><input type="checkbox" data-active-toggle ${on ? "checked" : ""} ${hasFiles ? "" : "disabled"} aria-label="${esc(on ? t("activeOn") : t("activeOff"))}"><span class="mod-switch-track" aria-hidden="true"></span></label>`;
+}
+
+function cardIco(d) {
+  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="${d}"/></svg>`;
+}
+
+function cardQuickBar(mod) {
+  const nexus = String(mod.nexusUrl || "").trim();
+  const nexusBtn = nexus
+    ? `<a class="card-quick-btn" href="${esc(nexus)}" target="_blank" rel="noreferrer" data-card-act="nexus" title="${esc(mod.platform || "Nexus")}">${cardIco("M14 4h6v6M10 14L20 4M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5")}</a>`
+    : `<button type="button" class="card-quick-btn" data-card-act="nexus" disabled title="${esc(mod.platform || "Nexus")}">${cardIco("M14 4h6v6M10 14L20 4M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5")}</button>`;
+  return `<div class="card-quick" aria-hidden="true">
+    <button type="button" class="card-quick-btn" data-card-act="file" title="${esc(t("localFile"))}">${cardIco("M4 6h6l2 2h8v10H4z")}</button>
+    ${nexusBtn}
+    <button type="button" class="card-quick-btn" data-card-act="note" title="${esc(t("note"))}">${cardIco("M6 3h9l5 5v13H6zM14 3v6h6M8 13h8M8 17h6")}</button>
+    <button type="button" class="card-quick-btn danger" data-card-act="delete" title="${esc(t("delete"))}">${cardIco("M5 7h14M10 11v6M14 11v6M9 7V5h6v2M7 7l1 14h8l1-14")}</button>
+  </div>`;
+}
+
+function listQuickBar(mod) {
+  const nexus = String(mod.nexusUrl || "").trim();
+  const nexusBtn = nexus
+    ? `<a class="list-quick-btn" href="${esc(nexus)}" target="_blank" rel="noreferrer" data-card-act="nexus" title="${esc(mod.platform || "Nexus")}">${cardIco("M14 4h6v6M10 14L20 4M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5")}</a>`
+    : `<button type="button" class="list-quick-btn" data-card-act="nexus" disabled title="${esc(mod.platform || "Nexus")}">${cardIco("M14 4h6v6M10 14L20 4M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5")}</button>`;
+  return `<div class="list-quick">
+    <button type="button" class="list-quick-btn" data-card-act="file" title="${esc(t("localFile"))}">${cardIco("M4 6h6l2 2h8v10H4z")}</button>
+    ${nexusBtn}
+    <button type="button" class="list-quick-btn danger" data-card-act="delete" title="${esc(t("delete"))}">${cardIco("M5 7h14M10 11v6M14 11v6M9 7V5h6v2M7 7l1 14h8l1-14")}</button>
+  </div>`;
+}
+
+function dragHandle() {
+  return `<button type="button" class="drag-handle" title="${esc(t("priorityTip"))}" aria-label="${esc(t("priority"))}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.6" fill="currentColor"/><circle cx="9" cy="12" r="1.6" fill="currentColor"/><circle cx="9" cy="18" r="1.6" fill="currentColor"/><circle cx="15" cy="6" r="1.6" fill="currentColor"/><circle cx="15" cy="12" r="1.6" fill="currentColor"/><circle cx="15" cy="18" r="1.6" fill="currentColor"/></svg></button>`;
+}
+
 function conflictCell(mod) {
   const row = mod.conflict || {};
   const wins = Number(row.wins) || 0;
@@ -3392,9 +3509,95 @@ function conflictCell(mod) {
   return `<span class="conflict ${kind}" title="${esc(title)}"><span>${esc(t("conflicts"))}</span><b>${mark}${count ? ` ${count}` : ""}</b></span>`;
 }
 
+function listConflictBadge(mod) {
+  const row = mod.conflict || {};
+  const wins = Number(row.wins) || 0;
+  const loses = Number(row.loses) || 0;
+  const over = (row.overwrites || []).join(", ");
+  const under = (row.overwrittenBy || []).join(", ");
+  const bits = [];
+  if (wins) bits.push(t("conflictWins", { names: over || String(wins) }));
+  if (loses) bits.push(t("conflictLoses", { names: under || String(loses) }));
+  const n = wins + loses;
+  if (!n) {
+    return `<span class="list-conflict none" title="${esc(t("conflictNone"))}">${esc(t("conflictNoneShort"))}</span>`;
+  }
+  const label = n === 1 ? t("conflictOne") : t("conflictMany", { n });
+  return `<span class="list-conflict warn" title="${esc(bits.join(" · "))}">${cardIco("M12 9v4M12 17h.01M10.3 4.3 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z")}<span>${esc(label)}</span></span>`;
+}
+
+function listRowHtml(mod, index) {
+  const cat = categoryLabel(mod.category, mod);
+  const game = mod.gameName || mod.gameDomain || "";
+  const under = [cat, game].filter(Boolean).join(" · ");
+  return `<article class="card list-row ${state.selected.has(mod.id) ? "on" : ""} ${statusOn(mod, "in") ? "is-active" : ""} ${!statusOn(mod, "in") && modDownloaded(mod) ? "inactive" : ""} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 25}ms">
+    ${dragHandle()}
+    <div class="shot list-thumb" ${shot(mod)}></div>
+    <div class="card-body">
+      <h3>${esc(mod.name)}${mod.updateAvailable ? `<span class="ver-new">${esc(t("newTag"))}</span>` : ""}</h3>
+      <p class="meta">${esc(under || (mod.platform || "Nexus"))}</p>
+    </div>
+    <span class="list-ver">v${esc(mod.version || "?")}</span>
+    ${listConflictBadge(mod)}
+    ${priorityCell(mod)}
+    ${packMoves()}
+    ${listQuickBar(mod)}
+    ${cardActiveToggle(mod)}
+  </article>`;
+}
+
 function priorityCell(mod) {
   const n = Number(mod.priority) || 0;
   return `<label class="prio" title="${esc(t("priorityTip"))}"><span>${esc(t("priority"))}</span><input type="number" min="1" step="1" data-priority value="${n}" aria-label="${esc(t("priority"))}"></label>`;
+}
+
+function tableConflictCell(mod) {
+  const row = mod.conflict || {};
+  const wins = Number(row.wins) || 0;
+  const loses = Number(row.loses) || 0;
+  const over = (row.overwrites || []).join(", ");
+  const under = (row.overwrittenBy || []).join(", ");
+  const bits = [];
+  if (wins) bits.push(t("conflictWins", { names: over || String(wins) }));
+  if (loses) bits.push(t("conflictLoses", { names: under || String(loses) }));
+  if (!wins && !loses) {
+    return `<span class="table-conflict ok" title="${esc(t("conflictNone"))}">${cardIco("M20 6 9 17l-5-5")}</span>`;
+  }
+  const crit = loses > 0;
+  const ico = crit
+    ? cardIco("M13 2 4 14h7l-1 8 9-12h-7l1-8z")
+    : cardIco("M12 9v4M12 17h.01M10.3 4.3 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z");
+  return `<span class="table-conflict ${crit ? "crit" : "warn"}" title="${esc(bits.join(" · "))}">${ico}</span>`;
+}
+
+function tableFlags(mod) {
+  const hasFiles = modDownloaded(mod);
+  const diskTip = mod.installed ? t("installed") : t("gotOn");
+  const disk = hasFiles
+    ? `<span class="micro-pill got" title="${esc(diskTip)}">${cardIco("M4 6h6l2 2h8v10H4z")}</span>`
+    : `<span class="micro-pill empty" title="${esc(t("noLocal"))}">·</span>`;
+  return `<span class="table-flags">${disk}${cardActiveToggle(mod)}</span>`;
+}
+
+function tableNameCell(mod) {
+  return `<div class="table-name">
+    <div class="table-thumb shot" ${shot(mod)}></div>
+    <span class="table-name-text">${esc(mod.name)}${mod.updateAvailable ? `<span class="ver-new">${esc(t("newTag"))}</span>` : ""}</span>
+  </div>`;
+}
+
+function tableRowHtml(mod) {
+  const inactive = !statusOn(mod, "in") && modDownloaded(mod);
+  return `<tr class="card ${state.selected.has(mod.id) ? "on" : ""} ${statusOn(mod, "in") ? "is-active" : ""} ${inactive ? "inactive" : ""} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}">
+    <td class="col-grip">${dragHandle()}</td>
+    <td class="col-prio">${priorityCell(mod)}</td>
+    <td class="col-conflict">${tableConflictCell(mod)}</td>
+    <td class="col-flags">${tableFlags(mod)}</td>
+    <td class="col-name">${tableNameCell(mod)}</td>
+    <td class="col-cat">${esc(categoryLabel(mod.category, mod))}</td>
+    <td class="col-ver"><span class="table-ver">v${esc(mod.version || "?")}</span></td>
+    <td class="col-acts">${listQuickBar(mod)}</td>
+  </tr>`;
 }
 
 async function placePriority(ids, targetId, after) {
@@ -3486,7 +3689,13 @@ async function setModStatus(id, status) {
   const prev = mod.status;
   mod.status = next;
   paintSelection();
-  document.querySelector(`.card[data-id="${id}"]`)?.classList.toggle("inactive", !statusOn(mod, "in") && modDownloaded(mod));
+  const cardEl = document.querySelector(`.card[data-id="${id}"]`);
+  if (cardEl) {
+    cardEl.classList.toggle("inactive", !statusOn(mod, "in") && modDownloaded(mod));
+    cardEl.classList.toggle("is-active", statusOn(mod, "in"));
+  }
+  const detailOpen = $("detail")?.dataset.id === id;
+  if (detailOpen) lockDetailFooter(true);
   try {
     const data = await api(`/api/mods/${id}`, {
       method: "PATCH",
@@ -3497,12 +3706,14 @@ async function setModStatus(id, status) {
     if (status === "in") {
       toast(statusOn(mod, "in") ? t("activeOk", { n: 1 }) : t("inactiveOk", { n: 1 }));
     }
-    paintDetailActive(mod);
     render();
   } catch (error) {
     mod.status = prev;
     toast(error.message, "bad");
     render();
+  } finally {
+    if (detailOpen && $("detail")?.dataset.id === id) lockDetailFooter(false);
+    paintDetailActive(mod);
   }
 }
 
@@ -3562,40 +3773,47 @@ function render() {
   }
   if (state.view === "table") {
     $("grid").innerHTML = `<table class="mod-table"><thead><tr>
-      <th>${esc(t("priority"))}</th>
-      <th>${esc(t("conflicts"))}</th>
-      <th>${esc(t("flags"))}</th>
-      <th>${esc(t("name"))}</th>
-      <th>${esc(t("category"))}</th>
-      <th>${esc(t("version"))}</th>
-    </tr></thead><tbody>${mods.map((mod) => `
-      <tr class="card ${state.selected.has(mod.id) ? "on" : ""} ${!statusOn(mod, "in") && (mod.files || []).length ? "inactive" : ""} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}">
-        <td>${priorityCell(mod)}</td>
-        <td>${conflictCell(mod)}</td>
-        <td class="flags">${statusPicks(mod)}</td>
-        <td class="mod-name">${esc(mod.name)}${mod.updateAvailable ? `<span class="ver-new">${esc(t("newTag"))}</span>` : ""} <span class="meta">${esc(fileState(mod))}</span></td>
-        <td>${esc(categoryLabel(mod.category, mod))}</td>
-        <td>${esc(mod.version || "?")}</td>
-      </tr>`).join("")}</tbody></table>`;
+      <th class="col-grip"></th>
+      <th class="col-prio">${esc(t("priority"))}</th>
+      <th class="col-conflict">${esc(t("conflicts"))}</th>
+      <th class="col-flags">${esc(t("flags"))}</th>
+      <th class="col-name">${esc(t("name"))}</th>
+      <th class="col-cat">${esc(t("category"))}</th>
+      <th class="col-ver">${esc(t("version"))}</th>
+      <th class="col-acts"></th>
+    </tr></thead><tbody>${mods.map((mod) => tableRowHtml(mod)).join("")}</tbody></table>`;
+  } else if (state.view === "list") {
+    $("grid").innerHTML = mods.map((mod, index) => listRowHtml(mod, index)).join("");
   } else $("grid").innerHTML = mods.map((mod, index) => `
-    <article class="card ${state.selected.has(mod.id) ? "on" : ""} ${!statusOn(mod, "in") && (mod.files || []).length ? "inactive" : ""} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 35}ms">
-      <div class="shot" ${shot(mod)}><span>${esc(mod.gameName || mod.gameDomain || "Juego")}</span></div>
+    <article class="card ${state.selected.has(mod.id) ? "on" : ""} ${statusOn(mod, "in") ? "is-active" : ""} ${!statusOn(mod, "in") && modDownloaded(mod) ? "inactive" : ""} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 35}ms">
+      <div class="shot" ${shot(mod)}>
+        <span class="ver-badge">v${esc(mod.version || "?")}</span>
+        <span class="shot-game">${esc(mod.gameName || mod.gameDomain || "Juego")}</span>
+        ${cardQuickBar(mod)}
+      </div>
       <div class="card-body">
         <h3>${esc(mod.name)}${mod.updateAvailable ? `<span class="ver-new">${esc(t("newTag"))}</span>` : ""}</h3>
-        <p class="meta">${esc(mod.platform || "Nexus")}${packLabel(mod) ? ` · ${esc(packLabel(mod))}` : ""} · ${esc(categoryLabel(mod.category, mod))} · v${esc(mod.version || "?")}</p>
+        <p class="meta">${esc(mod.platform || "Nexus")}${packLabel(mod) ? ` · ${esc(packLabel(mod))}` : ""} · ${esc(categoryLabel(mod.category, mod))}</p>
         <p class="sub">${esc(displaySummary(mod))}${mod.summaryEs ? ` <span class="meta">${state.showEs ? "ES" : "EN"}</span>` : ""}</p>
       </div>
       <footer>
+        ${cardStatusMark(mod)}
         ${conflictCell(mod)}
         ${priorityCell(mod)}
-        ${statusPicks(mod)}
         ${packMoves()}
-        <span class="meta">${esc(fileState(mod))} · ${esc(fmtDate(mod.updatedAt))}</span>
+        <span class="meta card-date">${esc(fmtDate(mod.updatedAt))}</span>
+        ${cardActiveToggle(mod)}
       </footer>
     </article>
   `).join("");
   document.querySelectorAll(".card").forEach((card) => {
-    card.ondragstart = (event) => {
+    const grip = card.querySelector(".drag-handle");
+    const dragSource = grip || card;
+    const startDrag = (event) => {
+      if (grip && !event.target.closest(".drag-handle")) {
+        event.preventDefault();
+        return;
+      }
       const ids = dragIdsFor(card.dataset.id);
       event.dataTransfer.setData("application/x-wimod", JSON.stringify(ids));
       event.dataTransfer.setData("text/plain", ids.length === 1 ? "1 mod" : `${ids.length} mods`);
@@ -3608,23 +3826,38 @@ function render() {
       showDragGhost(card, ids.length, event.clientX, event.clientY);
       state.dragged = true;
     };
-    card.ondragend = () => {
-      card.classList.remove("dragging");
+    const endDrag = () => {
+      card.classList.remove("dragging", "drop-before", "drop-after");
       hideDragGhost();
       setTimeout(() => { state.dragged = false; }, 0);
     };
-    card.draggable = true;
+    card.draggable = !grip;
+    if (grip) {
+      grip.draggable = true;
+      grip.ondragstart = startDrag;
+      grip.ondragend = endDrag;
+    } else {
+      card.ondragstart = startDrag;
+      card.ondragend = endDrag;
+    }
     card.ondragover = (event) => {
       if (!state.dragged) return;
       event.preventDefault();
       event.stopPropagation();
+      document.querySelectorAll(".card.drop-before, .card.drop-after").forEach((node) => {
+        if (node !== card) node.classList.remove("drop-before", "drop-after");
+      });
       const rect = card.getBoundingClientRect();
       const after = event.clientY > rect.top + rect.height / 2;
       card.classList.toggle("drop-after", after);
       card.classList.toggle("drop-before", !after);
       event.dataTransfer.dropEffect = "move";
     };
-    card.ondragleave = () => card.classList.remove("drop-before", "drop-after");
+    card.ondragleave = (event) => {
+      const next = event.relatedTarget;
+      if (next && card.contains(next)) return;
+      card.classList.remove("drop-before", "drop-after");
+    };
     card.ondrop = (event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -3640,7 +3873,12 @@ function render() {
       placePriority(ids, card.dataset.id, after);
     };
     card.onmousedown = (event) => {
-      if (event.target.closest("input, label, button, a")) {
+      if (grip) {
+        if (event.target.closest(".drag-handle")) return;
+        if (event.shiftKey || event.ctrlKey || event.metaKey) event.preventDefault();
+        return;
+      }
+      if (event.target.closest("input, label, button, a, .mod-switch, .card-quick")) {
         card.draggable = false;
         return;
       }
@@ -3657,9 +3895,29 @@ function render() {
         setPriority(card.dataset.id, event.target.value);
       };
     }
+    const activeToggle = card.querySelector("[data-active-toggle]");
+    if (activeToggle) {
+      activeToggle.onclick = (event) => event.stopPropagation();
+      activeToggle.onchange = (event) => {
+        event.stopPropagation();
+        setModStatus(card.dataset.id, "in");
+      };
+    }
     card.onclick = (event) => {
       if (state.dragged) return;
-      if (event.target.closest("input, button, a, .prio")) return;
+      const quick = event.target.closest("[data-card-act]");
+      if (quick) {
+        event.stopPropagation();
+        const act = quick.dataset.cardAct;
+        if (act === "nexus") return;
+        event.preventDefault();
+        const id = card.dataset.id;
+        if (act === "file") revealMod(id);
+        else if (act === "note") openNote(id);
+        else if (act === "delete") removeMod(id);
+        return;
+      }
+      if (event.target.closest("input, button, a, .prio, .mod-switch, label")) return;
       const status = event.target.closest("[data-status]");
       if (status) {
         event.preventDefault();
@@ -3933,14 +4191,14 @@ async function saveMod(event) {
   }
 }
 
-function openDetail(id) {
-  const mod = state.mods.find((item) => item.id === id);
-  if (!mod) return;
+let detailPaintToken = 0;
+
+function detailMarkup(mod) {
   const image = mod.pictureFile
     ? `/media/${encodeURI(mod.pictureFile)}`
     : (mod.pictureUrl || "");
   const summaryText = displaySummary(mod);
-  $("detail").innerHTML = `
+  return `
     <header>
       <h2>${esc(mod.name)}</h2>
       <button class="icon" type="button" id="detail-close">✕</button>
@@ -3983,6 +4241,52 @@ function openDetail(id) {
         <button class="solid" type="button" id="detail-save">Guardar</button>
       </span>
     </footer>`;
+}
+
+function detailSkeletonHtml() {
+  return `
+    <header>
+      <div class="sk-copy">
+        <div class="sk sk-title"></div>
+        <div class="sk sk-author"></div>
+      </div>
+      <button class="icon" type="button" id="detail-close">✕</button>
+    </header>
+    <div class="detail-head">
+      <div class="sk sk-thumb" aria-hidden="true"></div>
+      <div class="detail-side">
+        <div class="stat-row">
+          <div class="sk sk-pill"></div>
+          <div class="sk sk-pill"></div>
+          <div class="sk sk-pill"></div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <label style="flex:1">Modpack
+        <span class="sk sk-field"></span>
+      </label>
+      <label style="flex:1">Categoría
+        <span class="sk sk-field"></span>
+      </label>
+    </div>
+    <label>Nota
+      <span class="sk sk-note"></span>
+    </label>
+    <footer class="is-busy">
+      <button class="danger" type="button" id="detail-delete" disabled>Eliminar</button>
+      <span class="row">
+        <span id="detail-refresh-slot"></span>
+        <button class="ghost" type="button" id="detail-active" disabled>Desactivar</button>
+        <button class="ghost" type="button" id="detail-file" hidden disabled>Archivo local</button>
+        <button class="ghost" type="button" id="detail-download" disabled>Descargar</button>
+        <button class="ghost" type="button" id="detail-install" disabled>Instalar</button>
+        <button class="solid" type="button" id="detail-save" disabled>Guardar</button>
+      </span>
+    </footer>`;
+}
+
+function wireDetail(mod, probe = true) {
   fillModpackSelects(
     $("detail-modpack"),
     $("detail-pack-cat"),
@@ -3990,7 +4294,6 @@ function openDetail(id) {
     mod.modpackCategoryId || "",
     mod.gameDomain || ""
   );
-  $("detail-dialog").showModal();
   $("detail-close").onclick = () => $("detail-dialog").close();
   $("detail-pack-new").onclick = async () => {
     const pack = await createModpackInline(mod.gameDomain, mod.gameName);
@@ -4015,7 +4318,46 @@ function openDetail(id) {
   $("detail-delete").onclick = () => removeMod(mod.id);
   $("detail").dataset.id = mod.id;
   paintDetailActive(mod);
-  probeUpdate(mod.id);
+  if (probe) probeUpdate(mod.id);
+}
+
+function paintDetail(mod, probe = true) {
+  const root = $("detail");
+  root.classList.remove("is-loading");
+  root.setAttribute("aria-busy", "false");
+  root.innerHTML = detailMarkup(mod);
+  root.dataset.id = mod.id;
+  wireDetail(mod, probe);
+}
+
+function openDetail(id) {
+  const mod = state.mods.find((item) => item.id === id);
+  if (!mod) return;
+  const token = ++detailPaintToken;
+  const root = $("detail");
+  root.dataset.id = mod.id;
+  $("detail-dialog").showModal();
+  if (!modTracked(mod)) {
+    paintDetail(mod, true);
+    return;
+  }
+  root.classList.add("is-loading");
+  root.setAttribute("aria-busy", "true");
+  root.innerHTML = detailSkeletonHtml();
+  $("detail-close").onclick = () => $("detail-dialog").close();
+  probeUpdate(id).then((check) => {
+    if (token !== detailPaintToken) return;
+    if (!$("detail-dialog")?.open || root.dataset.id !== id) return;
+    const current = state.mods.find((item) => item.id === id) || mod;
+    const view = check?.changed
+      ? {
+          ...current,
+          updateAvailable: true,
+          remoteVersion: check.remote?.version || current.remoteVersion || "",
+        }
+      : current;
+    paintDetail(view, false);
+  });
 }
 
 function paintDetailActive(mod) {
@@ -4264,13 +4606,16 @@ async function saveDetail(id) {
 
 let probeToken = 0;
 
-async function probeUpdate(id) {
-  const mod = state.mods.find((item) => item.id === id);
+function modTracked(mod) {
   const page = String(mod?.nexusUrl || "");
-  const tracked = /nexusmods\.com\/[^/]+\/mods\/\d+/i.test(page)
+  return /nexusmods\.com\/[^/]+\/mods\/\d+/i.test(page)
     || /modrinth\.com\/(?:mod|modpack|resourcepack|datapack|shader|plugin|project)\//i.test(page)
     || /curseforge\.com\/[^/]+\/[^/]+\/[^/?#]+/i.test(page);
-  if (!mod || !tracked) return;
+}
+
+async function probeUpdate(id) {
+  const mod = state.mods.find((item) => item.id === id);
+  if (!mod || !modTracked(mod)) return null;
   const token = ++probeToken;
   try {
     const check = await api(`/api/mods/${id}/refresh`, {
@@ -4278,16 +4623,17 @@ async function probeUpdate(id) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ apply: false }),
     });
-    if (token !== probeToken || $("detail")?.dataset.id !== id) return;
+    if (token !== probeToken || $("detail")?.dataset.id !== id) return null;
     if (check.mod) {
       const index = state.mods.findIndex((item) => item.id === id);
       if (index >= 0) state.mods[index] = check.mod;
     }
+    if ($("detail")?.classList.contains("is-loading")) return check;
     const slot = $("detail-refresh-slot");
-    if (!slot) return;
+    if (!slot) return check;
     if (!check.changed) {
       slot.innerHTML = "";
-      return;
+      return check;
     }
     const current = state.mods.find((item) => item.id === id) || mod;
     slot.innerHTML = refreshButton({
@@ -4297,8 +4643,10 @@ async function probeUpdate(id) {
     });
     const button = $("detail-refresh");
     if (button) button.onclick = () => refreshOne(id);
+    return check;
   } catch (_) {
     /* sin aviso si Nexus no responde */
+    return null;
   }
 }
 
@@ -4350,9 +4698,15 @@ function closeOpenDialogs() {
 
 async function removeMod(id) {
   if (!(await askConfirm("¿Eliminar este mod y sus archivos?"))) return;
-  await api(`/api/mods/${id}`, { method: "DELETE" });
-  closeOpenDialogs();
-  await load();
+  const detailOpen = $("detail")?.dataset.id === id;
+  if (detailOpen) lockDetailFooter(true);
+  try {
+    await api(`/api/mods/${id}`, { method: "DELETE" });
+    closeOpenDialogs();
+    await load();
+  } finally {
+    if (detailOpen && $("detail-dialog")?.open && $("detail")?.dataset.id === id) lockDetailFooter(false);
+  }
 }
 
 async function upload(id, files) {
@@ -4516,27 +4870,49 @@ $("cover-bg").onclick = () => {
   applyCoverBg();
   sfx.click();
 };
-document.querySelectorAll(".theme-panel [data-theme]").forEach((button) => {
-  const pick = () => setTheme(button.dataset.theme);
-  button.onclick = pick;
+document.querySelectorAll(".theme-panel [data-theme], .theme-card[data-theme]").forEach((button) => {
+  button.onclick = (event) => {
+    event.stopPropagation();
+    setTheme(button.dataset.theme);
+    closeThemeSwitch();
+  };
 });
 if ($("theme-summary")) {
   $("theme-summary").onclick = (event) => {
     event.stopPropagation();
-    const node = $("more-theme");
+    const node = $("theme-switch");
     if (!node) return;
     const open = !node.classList.contains("open");
-    if (open) closeKeysStack();
+    if (open) {
+      closePrefsSwitch();
+      closeKeysStack();
+    }
     node.classList.toggle("open", open);
     event.currentTarget.setAttribute("aria-expanded", open ? "true" : "false");
     if (open) sfx.open();
   };
 }
+if ($("prefs-summary")) {
+  $("prefs-summary").onclick = (event) => {
+    event.stopPropagation();
+    const node = $("prefs-switch");
+    if (!node) return;
+    const open = !node.classList.contains("open");
+    setPrefsOpen(open);
+    if (open) sfx.open();
+    else sfx.soft();
+  };
+}
 document.addEventListener("pointerdown", (event) => {
-  const node = $("more-theme");
-  if (!node || !node.classList.contains("open")) return;
-  if (node.contains(event.target)) return;
-  closeThemeSwitch();
+  const theme = $("theme-switch");
+  if (theme?.classList.contains("open") && !theme.contains(event.target)) closeThemeSwitch();
+  const prefs = $("prefs-switch");
+  const keyPop = $("key-pop");
+  if (prefs?.classList.contains("open")
+    && !prefs.contains(event.target)
+    && !(keyPop && !keyPop.hidden && keyPop.contains(event.target))) {
+    closePrefsSwitch();
+  }
 });
 if ($("translate-open")) $("translate-open").onclick = () => {
   sfx.open();
@@ -4560,24 +4936,6 @@ function placePop(pop, anchor) {
   pop.style.left = `${left}px`;
   pop.style.top = `${top}px`;
 }
-function setSettingsOpen(on) {
-  const wrap = $("more-settings");
-  const panel = $("settings-panel");
-  const toggle = $("settings-toggle");
-  if (!wrap || !panel || !toggle) return;
-  wrap.classList.toggle("open", on);
-  panel.hidden = !on;
-  toggle.setAttribute("aria-expanded", on ? "true" : "false");
-}
-if ($("settings-toggle")) {
-  $("settings-toggle").onclick = (event) => {
-    event.stopPropagation();
-    const open = $("settings-panel")?.hidden !== false;
-    setSettingsOpen(open);
-    if (open) sfx.click();
-    else sfx.soft();
-  };
-}
 $("more-open").onclick = (event) => {
   event.stopPropagation();
   rollAvatar();
@@ -4586,10 +4944,7 @@ $("more-open").onclick = (event) => {
   pop.hidden = !open;
   $("tape-pop").hidden = true;
   event.currentTarget.setAttribute("aria-expanded", open ? "true" : "false");
-  if (!open) {
-    setSettingsOpen(false);
-    return;
-  }
+  if (!open) return;
   sfx.open();
   placePop(pop, event.currentTarget);
 };
@@ -4598,7 +4953,6 @@ $("tape-open").onclick = (event) => {
   $("more-pop").hidden = true;
   $("tape-pop").hidden = true;
   $("more-open").setAttribute("aria-expanded", "false");
-  setSettingsOpen(false);
   openPackDialog();
 };
 document.addEventListener("pointerdown", (event) => {
@@ -4609,7 +4963,6 @@ document.addEventListener("pointerdown", (event) => {
   if (more && !more.hidden && !inMore && !inTape) {
     more.hidden = true;
     $("more-open").setAttribute("aria-expanded", "false");
-    setSettingsOpen(false);
   }
   if (tape && !tape.hidden && !inTape) tape.hidden = true;
 });
@@ -4650,16 +5003,13 @@ function hideModMenu() {
 }
 
 function parkAppSettings() {
-  const panel = $("settings-panel");
-  const home = $("more-settings");
   const slot = $("app-settings");
   const menu = $("app-menu");
-  if (panel && home && panel.parentElement !== home) home.append(panel);
   if (slot) slot.hidden = true;
   if (menu) menu.classList.remove("open");
   const toggle = menu?.querySelector('[data-act="settings"]');
   if (toggle) toggle.setAttribute("aria-expanded", "false");
-  setSettingsOpen(false);
+  closePrefsSwitch();
 }
 
 function hideAppMenu() {
@@ -4670,25 +5020,13 @@ function hideAppMenu() {
 
 function toggleAppSettings() {
   const menu = $("app-menu");
-  const panel = $("settings-panel");
-  const slot = $("app-settings");
   const toggle = menu?.querySelector('[data-act="settings"]');
-  if (!menu || !panel || !slot) return;
-  if (!slot.hidden) {
-    parkAppSettings();
-    return;
-  }
-  slot.append(panel);
-  setSettingsOpen(false);
-  panel.hidden = false;
-  slot.hidden = false;
-  menu.classList.add("open");
-  if (toggle) toggle.setAttribute("aria-expanded", "true");
-  const pad = 8;
-  const left = parseFloat(menu.style.left) || 0;
-  const top = parseFloat(menu.style.top) || 0;
-  menu.style.left = `${Math.max(pad, Math.min(left, window.innerWidth - menu.offsetWidth - pad))}px`;
-  menu.style.top = `${Math.max(pad, Math.min(top, window.innerHeight - menu.offsetHeight - pad))}px`;
+  const open = !$("prefs-switch")?.classList.contains("open");
+  if (menu) menu.hidden = true;
+  if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  setPrefsOpen(open);
+  if (open) sfx.open();
+  else sfx.soft();
 }
 
 function plainSurface(target) {
@@ -5114,8 +5452,8 @@ $("dock-keys").onclick = (event) => {
     event.stopPropagation();
     const node = $("dock-keys");
     const open = !node.classList.contains("open");
-    if (open) closeThemeSwitch();
     node.classList.toggle("open", open);
+    summary.classList.toggle("active", open);
     summary.setAttribute("aria-expanded", open ? "true" : "false");
     if (open) sfx.open();
     return;
@@ -5130,16 +5468,13 @@ document.addEventListener("pointerdown", (event) => {
   if (pop && !pop.hidden) {
     if (!(pop.contains(event.target) || event.target.closest("#dock-keys [data-key]"))) closeKeyPop();
   }
-  const keys = $("dock-keys");
-  if (keys && keys.classList.contains("open") && !keys.contains(event.target) && !(pop && pop.contains(event.target))) {
-    closeKeysStack();
-  }
 });
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   closeKeyPop();
   closeKeysStack();
   closeThemeSwitch();
+  closePrefsSwitch();
   const more = $("more-pop");
   const tape = $("tape-pop");
   if (more) more.hidden = true;
@@ -7812,10 +8147,10 @@ const TOUR_STEPS = [
   { sel: ".view-dock", title: "tour9t", text: "tour9d" },
   { sel: "#grid", title: "tour10t", text: "tour10d" },
   { sel: "#more-open", title: "tour11t", text: "tour11d" },
-  { sel: "#dock-keys", title: "tour12t", text: "tour12d" },
-  { sel: "#more-theme", title: "tour13t", text: "tour13d" },
-  { sel: "#mute", title: "tour14t", text: "tour14d" },
-  { sel: "#lang-toggle", title: "tour15t", text: "tour15d" },
+  { sel: "#prefs-switch", title: "tour12t", text: "tour12d" },
+  { sel: "#theme-switch", title: "tour13t", text: "tour13d" },
+  { sel: "#prefs-switch", title: "tour14t", text: "tour14d" },
+  { sel: "#prefs-switch", title: "tour15t", text: "tour15d" },
   { sel: "#log-open", title: "tour16t", text: "tour16d" },
 ];
 

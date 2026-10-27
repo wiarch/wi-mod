@@ -1,11 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="wi-mod">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" role="img" aria-label="wi-mod">
   <defs>
-    <linearGradient id="g" x1="4" y1="2" x2="28" y2="30" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#f0a04a"/>
-      <stop offset="1" stop-color="#c45c26"/>
-    </linearGradient>
+    <filter id="neon" x="-60%" y="-60%" width="220%" height="220%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.4" result="blur"/>
+      <feFlood flood-color="#22D3EE" flood-opacity="0.55" result="color"/>
+      <feComposite in="color" in2="blur" operator="in" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
-  <rect width="32" height="32" rx="8" fill="#1a1208"/>
-  <rect x="2" y="2" width="28" height="28" rx="7" fill="url(#g)"/>
-  <text x="16" y="22" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="800" fill="#1a1208" letter-spacing="-0.5">wi</text>
+  <g filter="url(#neon)" stroke="#22D3EE" fill="none">
+    <path d="M6 16L24 6L42 16V32L24 42L6 32V16Z" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M6 16L16 34L24 20L32 34L42 16" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M16 34L24 42L32 34" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M14 11L24 28L34 11" stroke-width="2.5" stroke-linejoin="round"/>
+  </g>
 </svg>
