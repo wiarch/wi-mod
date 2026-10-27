@@ -178,7 +178,7 @@ const UI = {
     launchBrowseHint: "Elige la carpeta del juego o pega la ruta.",
     launchPathLabel: "Ruta",
     browse: "Examinar",
-    detectGames: "Detectar",
+    detectGames: "Detectar juego", nexusLinked: "Vinculado a Nexus", nexusMissing: "Sin clave de Nexus",
     detectGamesTip: "Busca la carpeta del juego activo en todos los discos",
     searchMods: "Buscar mods", searchIn: "Buscar en {name}", listSearch: "Filtrar lista", menu: "Menú",
     platform: "Plataforma", platforms: "Plataformas", tags: "Etiquetas", modpack: "Modpack", category: "Categoría",
@@ -240,8 +240,10 @@ const UI = {
     add: "Añadir", confirm: "Confirmar", yes: "Sí", useImage: "Usar imagen", view: "Ver",
     edit: "Editar", select: "Seleccionar", moveToPack: "Mover a modpack", localFile: "Archivo local", quit: "Salir",
     quitAsk: "¿Cerrar wi-mod del todo o dejarlo en la bandeja?", remember: "Recordar opción",
-    tray: "Bandeja", quitClose: "Cerrar", changeName: "Cambiar nombre", tutorial: "Tutorial",
-    settings: "Ajustes", keys: "Claves", sound: "Sonido", theme: "Tema", themes: "Temas", compress: "Comprimir", restore: "Restaurar",
+    tray: "Bandeja", quitClose: "Cerrar", changeName: "Cambiar nombre", tutorial: "Tutorial / Ayuda",
+    settings: "Ajustes", keys: "Claves", apiKeys: "Claves API", quickSettings: "Ajustes rápidos",
+    allSettings: "Todos los ajustes...", coverChange: "Cambiar", language: "Idioma",
+    sound: "Sonido", theme: "Tema", themes: "Temas", compress: "Comprimir", restore: "Restaurar",
     key: "Clave", pasteKey: "Pega la clave", docs: "Documentación",
     keyNeeded: "No tienes la clave de {name} instalada. Pégala aquí o sigue la guía.",
     keyNeededShort: "Falta la clave de {name}.",
@@ -255,11 +257,12 @@ const UI = {
     favOff: "Abrir siempre este juego", keyOn: "activa", keyOff: "falta",
     keysReady: "Todos los servicios activos", keysSome: "{ready} de {total} servicios activos",
     unmute: "Activar sonido", muteOn: "Silenciar", switchEn: "Cambiar a inglés", switchEs: "Cambiar a español",
-    online: "Online", offline: "Local", diskFree: "{n} libres",
+    online: "Online", offline: "Local", diskFree: "{n} libres", diskUsed: "{n} usados",
     diskUsedFree: "{used} · {free} libres",
     dockMods: "Mods {n}", dockFree: "Libre {n}", ramUse: "RAM {n}",
     dockGameTip: "Juego activo",
-    diskModsTip: "Tamaño de los archivos de mods de este juego",
+    diskModsTip: "Tamaño de los mods de todos los juegos", diskByGame: "Por juego", diskMore: "Ver más",
+    diskEmpty: "Sin mods", noGame: "Sin juego",
     diskTip: "Espacio libre en el disco", ramTip: "Memoria RAM de wi-mod",
     qRawg: "🔄 Sincronizando RAWG…",
     qExtract: "📦 Extrayendo archivo…", qDown: "⬇️ Descargando mods…", qSync: "🔄 Sincronizando…",
@@ -346,7 +349,7 @@ const UI = {
     launchBrowseHint: "Pick the game folder or paste the path.",
     launchPathLabel: "Path",
     browse: "Browse",
-    detectGames: "Detect",
+    detectGames: "Detect game", nexusLinked: "Linked to Nexus", nexusMissing: "No Nexus key",
     detectGamesTip: "Find the active game folder across all disks",
     searchMods: "Search mods", searchIn: "Search {name}", listSearch: "Filter list", menu: "Menu",
     platform: "Platform", platforms: "Platforms", tags: "Tags", modpack: "Modpack", category: "Category",
@@ -408,8 +411,10 @@ const UI = {
     add: "Add", confirm: "Confirm", yes: "Yes", useImage: "Use image", view: "View",
     edit: "Edit", select: "Select", moveToPack: "Move to modpack", localFile: "Local file", quit: "Quit",
     quitAsk: "Close wi-mod fully or leave it in the tray?", remember: "Remember choice",
-    tray: "Tray", quitClose: "Close", changeName: "Change name", tutorial: "Tutorial",
-    settings: "Settings", keys: "Keys", sound: "Sound", theme: "Theme", themes: "Themes", compress: "Compress", restore: "Restore",
+    tray: "Tray", quitClose: "Close", changeName: "Change name", tutorial: "Tutorial / Help",
+    settings: "Settings", keys: "Keys", apiKeys: "API keys", quickSettings: "Quick settings",
+    allSettings: "All settings...", coverChange: "Change", language: "Language",
+    sound: "Sound", theme: "Theme", themes: "Themes", compress: "Compress", restore: "Restore",
     key: "Key", pasteKey: "Paste the key", docs: "Docs",
     keyNeeded: "You do not have the {name} key installed. Paste it here or open the guide.",
     keyNeededShort: "Missing {name} key.",
@@ -423,11 +428,12 @@ const UI = {
     favOff: "Always open this game", keyOn: "on", keyOff: "off",
     keysReady: "All services active", keysSome: "{ready} of {total} services active",
     unmute: "Unmute", muteOn: "Mute", switchEn: "Switch to English", switchEs: "Switch to Spanish",
-    online: "Online", offline: "Local", diskFree: "{n} free",
+    online: "Online", offline: "Local", diskFree: "{n} free", diskUsed: "{n} used",
     diskUsedFree: "{used} · {free} free",
     dockMods: "Mods {n}", dockFree: "Free {n}", ramUse: "RAM {n}",
     dockGameTip: "Active game",
-    diskModsTip: "Size of this game's mod files",
+    diskModsTip: "Size of mod files across all games", diskByGame: "By game", diskMore: "See more",
+    diskEmpty: "No mods", noGame: "No game",
     diskTip: "Free disk space", ramTip: "wi-mod RAM usage",
     qRawg: "🔄 Syncing RAWG…",
     qExtract: "📦 Extracting archive…", qDown: "⬇️ Downloading mods…", qSync: "🔄 Syncing…",
@@ -506,8 +512,9 @@ function paintChrome() {
   const layout = document.querySelector(".layout");
   if (rail && layout) {
     const icons = layout.classList.contains("side-icons");
-    rail.title = icons ? t("showNames") : t("hideNames");
-    rail.textContent = icons ? t("show") : t("hide");
+    const label = icons ? t("showNames") : t("hideNames");
+    rail.title = label;
+    rail.setAttribute("aria-label", label);
   }
   const add = $("game-add");
   if (add) {
@@ -737,12 +744,22 @@ function fmtSize(bytes) {
 function refreshButton(mod) {
   if (!mod?.updateAvailable) return "";
   const next = mod.remoteVersion ? `v${mod.remoteVersion}` : "Versión nueva";
-  return `<button class="ghost refresh-btn" type="button" id="detail-refresh">Actualizar<small>${esc(next)}</small></button>`;
+  return `<button type="button" id="detail-refresh" role="menuitem">Actualizar <small>${esc(next)}</small></button>`;
 }
 
 function fmtCount(value) {
   const n = Number(value) || 0;
   return n.toLocaleString("es");
+}
+
+function fmtCompact(value) {
+  const n = Number(value) || 0;
+  const abs = Math.abs(n);
+  const unit = abs >= 1e6 ? "M" : abs >= 1e3 ? "k" : "";
+  if (!unit) return n.toLocaleString("es");
+  const scaled = n / (unit === "M" ? 1e6 : 1e3);
+  const digits = Math.abs(scaled) >= 10 ? 0 : 1;
+  return `${scaled.toFixed(digits).replace(/\.0$/, "")}${unit}`;
 }
 
 function statIcon(kind) {
@@ -757,9 +774,9 @@ function statIcon(kind) {
 
 function statRow(mod) {
   const items = [
-    ["trophy", "Apoyos", fmtCount(mod.endorsements)],
-    ["down", "Únicos", fmtCount(mod.uniqueDownloads)],
-    ["chart", "Descargas", fmtCount(mod.downloads)],
+    ["trophy", "Apoyos", fmtCompact(mod.endorsements)],
+    ["down", "Únicos", fmtCompact(mod.uniqueDownloads)],
+    ["chart", "Descargas", fmtCompact(mod.downloads)],
     ["tag", "Versión", mod.version || "?"],
   ];
   return `<div class="stat-row">${items.map(([kind, label, value]) => `
@@ -919,11 +936,15 @@ function rollAvatar() {
     : `<path d="M40 64h16" stroke="#a15c48" stroke-width="2.2" stroke-linecap="round"/>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><circle cx="48" cy="48" r="48" fill="${shirt}"/><circle cx="48" cy="46" r="22" fill="${skin}"/>${pick(cuts)}${eyes}${mouth}</svg>`;
   img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  const copy = $("more-avatar");
+  if (copy) copy.src = img.src;
 }
 
 function setDockName(name) {
   const node = $("dock-name");
   if (node && name) node.textContent = name;
+  const copy = $("more-name");
+  if (copy && name) copy.textContent = name;
 }
 
 function applyDockName() {
@@ -969,7 +990,7 @@ function syncLangToggle() {
   const label = $("lang-label");
   if (!btn || !label) return;
   const toEn = state.lang !== "en";
-  label.textContent = toEn ? t("english") : t("spanish");
+  label.textContent = state.lang === "en" ? t("english") : t("spanish");
   btn.title = toEn ? t("switchEn") : t("switchEs");
   btn.setAttribute("aria-label", btn.title);
 }
@@ -993,7 +1014,13 @@ function syncCoverToggle() {
   const label = $("cover-bg-label");
   if (!btn) return;
   btn.classList.toggle("on", state.coverBg);
-  if (label) label.textContent = t("coverBgUse");
+  if (label) label.textContent = t("coverChange");
+  const preview = $("cover-bg-preview");
+  if (preview) {
+    const shot = state.game ? wallpaperCover(state.game) : "";
+    preview.style.backgroundImage = shot ? `url("${String(shot).replace(/"/g, "")}")` : "";
+    preview.classList.toggle("on", !!shot && state.coverBg);
+  }
   btn.title = state.coverBg ? t("coverBgTitleOff") : t("coverBgTitleUse");
   btn.setAttribute("aria-label", btn.title);
 }
@@ -1007,35 +1034,86 @@ function fmtDisk(bytes) {
   return `${Math.max(0, Math.round(bytes / (1024 ** 2)))} MB`;
 }
 
-function gameModsBytes() {
-  return scopedMods().reduce((sum, mod) => {
-    for (const file of mod.files || []) sum += Number(file.size) || 0;
-    return sum;
-  }, 0);
+function modFilesBytes(mod) {
+  return (mod.files || []).reduce((sum, file) => sum + (Number(file.size) || 0), 0);
+}
+
+const DEFAULT_DISK_GAMES = new Set(["stardewvalley", "minecraft", "gtasa", "skyrimspecialedition", "projectzomboid"]);
+
+function diskRowHtml(row, total) {
+  const pct = Math.max(2, Math.round((row.bytes / (total || 1)) * 100));
+  const on = row.id && row.id === state.game ? " on" : "";
+  return `<li class="${on.trim()}"><span>${esc(row.name)}</span><i style="width:${pct}%"></i><b>${esc(fmtDisk(row.bytes))}</b></li>`;
+}
+
+function openDiskGames() {
+  const rows = diskByGame();
+  const used = rows.reduce((sum, row) => sum + row.bytes, 0);
+  const list = $("disk-all-list");
+  const sum = $("disk-all-sum");
+  if (list) {
+    list.innerHTML = rows.map((row) => diskRowHtml(row, used || 1)).join("") || `<li><span>${esc(t("diskEmpty"))}</span></li>`;
+  }
+  if (sum) sum.textContent = t("diskUsed", { n: fmtDisk(used) });
+  const dialog = $("disk-games-dialog");
+  if (dialog && !dialog.open) dialog.showModal();
+}
+
+function diskByGame() {
+  const map = new Map();
+  for (const mod of state.mods || []) {
+    const id = String(mod.gameDomain || "");
+    const key = id || "_none";
+    let row = map.get(key);
+    if (!row) {
+      row = { id, name: id ? gameLabel(id) : t("noGame"), bytes: 0 };
+      map.set(key, row);
+    }
+    row.bytes += modFilesBytes(mod);
+  }
+  return [...map.values()].sort((a, b) => b.bytes - a.bytes || a.name.localeCompare(b.name, "es"));
 }
 
 function paintDockStats(data) {
   if (data) lastStatus = data;
   const info = lastStatus || {};
+  const rows = diskByGame();
+  const usedMods = rows.reduce((sum, row) => sum + row.bytes, 0);
+  const breakdown = $("disk-games");
+  if (breakdown) {
+    const defaults = rows.filter((row) => DEFAULT_DISK_GAMES.has(row.id));
+    const shown = defaults.length ? defaults : rows.slice(0, 5);
+    const more = rows.length > shown.length;
+    breakdown.innerHTML = `<p>${esc(t("diskByGame"))}</p><ul>${shown.map((row) => diskRowHtml(row, usedMods || 1)).join("") || `<li><span>${esc(t("diskEmpty"))}</span></li>`}</ul>${more ? `<button type="button" class="disk-more">${esc(t("diskMore"))}</button>` : ""}`;
+  }
   const mods = $("dock-mods");
   if (mods) {
     mods.dataset.tip = t("diskModsTip");
-    mods.textContent = t("dockMods", { n: fmtDisk(gameModsBytes()) });
+    mods.textContent = t("diskUsed", { n: fmtDisk(usedMods) });
   }
   const disk = $("dock-disk");
+  const fill = $("dock-disk-fill");
   if (disk) {
     disk.dataset.tip = t("diskTip");
     const free = Number(info.diskFreeBytes) || 0;
     if (free > 0) {
       const gb = free / (1024 ** 3);
-      disk.textContent = t("dockFree", { n: fmtDisk(free) });
+      disk.textContent = t("diskFree", { n: fmtDisk(free) });
       disk.hidden = false;
       disk.classList.toggle("warn", gb < 5 && gb >= 2);
       disk.classList.toggle("bad", gb < 2);
+      if (fill) {
+        const span = usedMods + free;
+        const pct = span > 0 ? Math.min(100, (usedMods / span) * 100) : 0;
+        fill.style.width = `${pct}%`;
+        fill.classList.toggle("warn", gb < 5 && gb >= 2);
+        fill.classList.toggle("bad", gb < 2);
+      }
     } else {
       disk.textContent = "—";
       disk.hidden = true;
       disk.classList.remove("warn", "bad");
+      if (fill) fill.style.width = "0";
     }
   }
   const ram = $("dock-ram");
@@ -1159,6 +1237,13 @@ function paintKeys() {
       ? t("keysSome", { ready, total })
       : t("keysReady");
     summary.setAttribute("aria-label", summary.title);
+  }
+  const nexus = $("more-nexus");
+  if (nexus) {
+    const on = !!keys.nexus;
+    nexus.classList.toggle("on", on);
+    const label = nexus.querySelector("span");
+    if (label) label.textContent = on ? t("nexusLinked") : t("nexusMissing");
   }
 }
 
@@ -2466,6 +2551,7 @@ function sideModsHtml(mods) {
 
 function sideEntry(label, value, current, kind, mods, markFallback) {
   const on = String(value) === String(current) ? "on" : "";
+  const empty = value && Array.isArray(mods) && mods.length === 0 ? " is-empty" : "";
   const markKind = kind === "packCat" ? "packcat" : kind;
   const icon = value ? markIcon(markKind, value, markFallback) : "";
   const pencil = (kind === "modpack" || kind === "category") && on && value
@@ -2474,7 +2560,7 @@ function sideEntry(label, value, current, kind, mods, markFallback) {
   const chipClass = kind === "packCat" ? `pack-cat-chip ${on}` : on;
   const chip = `<button type="button" class="${chipClass}" data-kind="${kind}" data-value="${encodeURIComponent(value)}" title="${esc(label)}">${icon}<span class="side-initial">${esc(sideInitial(label))}</span><span>${esc(label)}</span>${pencil}</button>`;
   if (!value || kind === "modpack" || kind === "platform") {
-    return `<div class="side-entry${on ? " is-on" : ""}"><div class="side-entry-row"><span class="side-twist-spacer" aria-hidden="true"></span>${chip}</div></div>`;
+    return `<div class="side-entry${on ? " is-on" : ""}${empty}"><div class="side-entry-row"><span class="side-twist-spacer" aria-hidden="true"></span>${chip}</div></div>`;
   }
   const list = Array.isArray(mods) ? mods : modsForSide(kind, value);
   const visible = sideModsVisible(list, label);
@@ -2486,7 +2572,7 @@ function sideEntry(label, value, current, kind, mods, markFallback) {
   const open = matchQ || sideGroupOpen(kind, value, current);
   const key = sideOpenKey(kind, value);
   const twist = `<button type="button" class="side-twist${open ? " open" : ""}" data-side-twist="${esc(key)}" aria-expanded="${open ? "true" : "false"}" title="▸">▸</button>`;
-  return `<div class="side-entry${on ? " is-on" : ""}${open ? " is-open" : ""}">
+  return `<div class="side-entry${on ? " is-on" : ""}${empty}${open ? " is-open" : ""}">
     <div class="side-entry-row">${twist}${chip}</div>
     ${open ? sideModsHtml(visible) : ""}
   </div>`;
@@ -2615,10 +2701,6 @@ function paintSearchPlatform() {
   if ($("search")) {
     $("search").placeholder = names.length > 1 ? t("searchMods") : t("searchIn", { name: names[0] });
   }
-  const node = $("search-platform");
-  if (!node) return;
-  node.innerHTML = names.map((name) => `<span>${esc(name)}</span>`).join("");
-  if ($("search")) $("search").style.paddingRight = `${node.offsetWidth + 22}px`;
 }
 
 function remoteTarget() {
@@ -3202,14 +3284,15 @@ function showDragGhost(card, count, x, y) {
     const mod = state.mods.find((item) => item.id === card.dataset.id);
     paintMultiShot(copy.querySelector(".shot"), mod?.gameDomain || state.game);
   }
+  const row = card.classList.contains("list-row") || card.tagName === "TR";
   const wrap = document.createElement("div");
   wrap.id = "drag-ghost";
-  wrap.className = card.classList.contains("list-row") || card.tagName === "TR" ? "row-ghost" : "card-ghost";
+  wrap.className = row ? "row-ghost" : "card-ghost";
   wrap.style.left = `${rect.left}px`;
   wrap.style.top = `${rect.top}px`;
-  wrap.style.width = `${Math.max(rect.width, 280)}px`;
+  wrap.style.width = `${row ? rect.width : Math.max(rect.width, 280)}px`;
   wrap.style.height = `${rect.height}px`;
-  wrap.style.transform = "translate(0px, 0px) rotate(0deg)";
+  wrap.style.transform = "translate(0px, 0px)";
   if (copy.tagName === "TR") {
     const table = document.createElement("table");
     table.className = "mod-table drag-ghost-table";
@@ -3219,6 +3302,11 @@ function showDragGhost(card, count, x, y) {
     tbody.appendChild(copy);
     table.appendChild(tbody);
     wrap.appendChild(table);
+  } else if (row) {
+    const frame = document.createElement("div");
+    frame.className = "grid list";
+    wrap.appendChild(frame);
+    frame.appendChild(copy);
   } else {
     wrap.appendChild(copy);
   }
@@ -3231,7 +3319,7 @@ function showDragGhost(card, count, x, y) {
   document.body.appendChild(wrap);
   const pointerX = x || rect.left + rect.width / 2;
   const pointerY = y || rect.top + 12;
-  dragGhost = { node: wrap, left: rect.left, top: rect.top, w: rect.width, h: rect.height, follow: false };
+  dragGhost = { node: wrap, left: rect.left, top: rect.top, w: rect.width, h: rect.height, follow: false, row };
   wrap.offsetWidth;
   wrap.classList.add("fly");
   placeDragGhost(pointerX, pointerY);
@@ -3244,6 +3332,11 @@ function showDragGhost(card, count, x, y) {
 
 function placeDragGhost(x, y) {
   if (!dragGhost || (!x && !y)) return;
+  if (dragGhost.row) {
+    const ty = y - dragGhost.top - dragGhost.h / 2;
+    dragGhost.node.style.transform = `translate(0px, ${ty}px)`;
+    return;
+  }
   const tx = x - dragGhost.left - Math.min(48, dragGhost.w * 0.12);
   const ty = y - dragGhost.top - 14;
   dragGhost.node.style.transform = `translate(${tx}px, ${ty}px) rotate(1.5deg)`;
@@ -3807,10 +3900,9 @@ function render() {
     </article>
   `).join("");
   document.querySelectorAll(".card").forEach((card) => {
-    const grip = card.querySelector(".drag-handle");
-    const dragSource = grip || card;
+    const dragBlocked = (target) => target.closest("input, a, label, .mod-switch, .card-quick, .list-quick, .prio, button:not(.drag-handle)");
     const startDrag = (event) => {
-      if (grip && !event.target.closest(".drag-handle")) {
+      if (dragBlocked(event.target)) {
         event.preventDefault();
         return;
       }
@@ -3831,15 +3923,9 @@ function render() {
       hideDragGhost();
       setTimeout(() => { state.dragged = false; }, 0);
     };
-    card.draggable = !grip;
-    if (grip) {
-      grip.draggable = true;
-      grip.ondragstart = startDrag;
-      grip.ondragend = endDrag;
-    } else {
-      card.ondragstart = startDrag;
-      card.ondragend = endDrag;
-    }
+    card.draggable = true;
+    card.ondragstart = startDrag;
+    card.ondragend = endDrag;
     card.ondragover = (event) => {
       if (!state.dragged) return;
       event.preventDefault();
@@ -3873,19 +3959,12 @@ function render() {
       placePriority(ids, card.dataset.id, after);
     };
     card.onmousedown = (event) => {
-      if (grip) {
-        if (event.target.closest(".drag-handle")) return;
-        if (event.shiftKey || event.ctrlKey || event.metaKey) event.preventDefault();
-        return;
-      }
-      if (event.target.closest("input, label, button, a, .mod-switch, .card-quick")) {
+      if (dragBlocked(event.target)) {
         card.draggable = false;
         return;
       }
       card.draggable = true;
-      if (event.shiftKey || event.ctrlKey || event.metaKey) {
-        event.preventDefault();
-      }
+      if (event.shiftKey || event.ctrlKey || event.metaKey) event.preventDefault();
     };
     const prio = card.querySelector("[data-priority]");
     if (prio) {
@@ -4212,33 +4291,39 @@ function detailMarkup(mod) {
         <p class="summary" id="detail-summary" title="${esc(mod.summary || "")}">${esc(summaryText || "Sin descripción.")}</p>
       </div>
     </div>
-    <div class="row">
-      <label style="flex:1">Modpack
-        <span class="pick-add">
-          <select id="detail-modpack"></select>
-          <button type="button" class="side-add" id="detail-pack-new" title="Crear modpack">+</button>
-        </span>
+    <div class="detail-picks">
+      <label>Modpack
+        <select id="detail-modpack"></select>
       </label>
-      <label style="flex:1">Categoría
-        <span class="pick-add">
-          <select id="detail-pack-cat"></select>
-          <button type="button" class="side-add" id="detail-cat-new" title="Crear categoría">+</button>
-        </span>
+      <label>Categoría
+        <select id="detail-pack-cat"></select>
       </label>
+      <div class="detail-add">
+        <button type="button" class="detail-add-btn" id="detail-add" aria-expanded="false" aria-haspopup="menu">+ Agregar</button>
+        <div class="detail-pop" id="detail-add-pop" hidden role="menu">
+          <button type="button" id="detail-pack-new" role="menuitem">Modpack</button>
+          <button type="button" id="detail-cat-new" role="menuitem">Categoría</button>
+        </div>
+      </div>
     </div>
     <label>Nota
       <textarea id="detail-note" rows="3" placeholder="Nota de este mod">${esc(mod.notes || "")}</textarea>
     </label>
     <p class="hint" id="detail-files">${esc(filesHint(mod))}</p>
     <footer>
-      <button class="danger" type="button" id="detail-delete">Eliminar</button>
-      <span class="row">
-        <span id="detail-refresh-slot">${refreshButton(mod)}</span>
-        <button class="ghost" type="button" id="detail-active"></button>
-        <button class="ghost" type="button" id="detail-file" hidden>Archivo local</button>
-        <button class="ghost" type="button" id="detail-download" data-i18n="download">Descargar</button>
-        <button class="ghost" type="button" id="detail-install">Instalar</button>
-        <button class="solid" type="button" id="detail-save">Guardar</button>
+      <button type="button" id="detail-delete">Eliminar</button>
+      <span class="detail-actions">
+        <button type="button" id="detail-active"></button>
+        <span class="detail-menu">
+          <button type="button" id="detail-more" aria-expanded="false" aria-haspopup="menu">Acciones <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+          <div class="detail-pop" id="detail-pop" hidden role="menu">
+            <span id="detail-refresh-slot">${refreshButton(mod)}</span>
+            <button type="button" id="detail-file" hidden role="menuitem">Archivo local</button>
+            <button type="button" id="detail-download" data-i18n="download" role="menuitem">Descargar</button>
+            <button type="button" id="detail-install" role="menuitem">Instalar</button>
+          </div>
+        </span>
+        <button type="button" id="detail-save">Guardar</button>
       </span>
     </footer>`;
 }
@@ -4274,16 +4359,46 @@ function detailSkeletonHtml() {
       <span class="sk sk-note"></span>
     </label>
     <footer class="is-busy">
-      <button class="danger" type="button" id="detail-delete" disabled>Eliminar</button>
-      <span class="row">
-        <span id="detail-refresh-slot"></span>
-        <button class="ghost" type="button" id="detail-active" disabled>Desactivar</button>
-        <button class="ghost" type="button" id="detail-file" hidden disabled>Archivo local</button>
-        <button class="ghost" type="button" id="detail-download" disabled>Descargar</button>
-        <button class="ghost" type="button" id="detail-install" disabled>Instalar</button>
-        <button class="solid" type="button" id="detail-save" disabled>Guardar</button>
+      <button type="button" id="detail-delete" disabled>Eliminar</button>
+      <span class="detail-actions">
+        <button type="button" id="detail-active" disabled>Desactivar</button>
+        <button type="button" id="detail-more" disabled>Acciones</button>
+        <button type="button" id="detail-save" disabled>Guardar</button>
       </span>
     </footer>`;
+}
+
+let detailPopWatch = false;
+
+function watchDetailPops() {
+  if (detailPopWatch) return;
+  detailPopWatch = true;
+  document.addEventListener("click", () => {
+    document.querySelectorAll("#detail .detail-pop").forEach((node) => {
+      node.hidden = true;
+    });
+    document.querySelectorAll("#detail [aria-expanded='true']").forEach((node) => {
+      node.setAttribute("aria-expanded", "false");
+    });
+  });
+}
+
+function bindDetailPop(buttonId, popId) {
+  const button = $(buttonId);
+  const pop = $(popId);
+  if (!button || !pop) return;
+  button.onclick = (event) => {
+    event.stopPropagation();
+    const open = pop.hidden;
+    document.querySelectorAll("#detail .detail-pop").forEach((node) => {
+      node.hidden = true;
+    });
+    document.querySelectorAll("#detail [aria-expanded]").forEach((node) => {
+      node.setAttribute("aria-expanded", "false");
+    });
+    pop.hidden = !open;
+    button.setAttribute("aria-expanded", open ? "true" : "false");
+  };
 }
 
 function wireDetail(mod, probe = true) {
@@ -4295,6 +4410,9 @@ function wireDetail(mod, probe = true) {
     mod.gameDomain || ""
   );
   $("detail-close").onclick = () => $("detail-dialog").close();
+  watchDetailPops();
+  bindDetailPop("detail-add", "detail-add-pop");
+  bindDetailPop("detail-more", "detail-pop");
   $("detail-pack-new").onclick = async () => {
     const pack = await createModpackInline(mod.gameDomain, mod.gameName);
     if (!pack?.id) return;
@@ -6170,6 +6288,15 @@ async function addRemoteMod(hit, button) {
   }
 }
 
+window.addEventListener("keydown", (event) => {
+  if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "k") return;
+  if (event.altKey || event.target?.closest?.("dialog[open]")) return;
+  event.preventDefault();
+  const input = $("search");
+  if (!input) return;
+  input.focus();
+  input.select();
+});
 $("search").oninput = (event) => {
   state.query = event.target.value;
   render();
@@ -8068,7 +8195,7 @@ function bindSideSize() {
   const layout = document.querySelector(".layout");
   const handle = $("side-resize");
   const rail = $("side-rail");
-  if (!layout || !handle || !rail) return;
+  if (!layout || !handle) return;
   const normalWidth = () => {
     const saved = Number(localStorage.getItem("wi-mod-side-w"));
     return saved >= 180 && saved <= 480 ? saved : 230;
@@ -8081,14 +8208,21 @@ function bindSideSize() {
   };
   const paintRail = (icons) => {
     layout.classList.toggle("side-icons", icons);
-    rail.setAttribute("aria-pressed", icons ? "true" : "false");
-    rail.title = icons ? t("showNames") : t("hideNames");
-    rail.textContent = icons ? t("show") : t("hide");
+    if (rail) {
+      rail.setAttribute("aria-pressed", icons ? "true" : "false");
+      const label = icons ? t("showNames") : t("hideNames");
+      rail.title = label;
+      rail.setAttribute("aria-label", label);
+    }
     if (icons) layout.style.removeProperty("--side-w");
-    else layout.style.setProperty("--side-w", `${normalWidth()}px`);
+    else {
+      const width = `${normalWidth()}px`;
+      layout.style.setProperty("--side-w", width);
+      document.documentElement.style.setProperty("--side-w", width);
+    }
   };
   paintRail(localStorage.getItem("wi-mod-side-icons") === "1");
-  rail.onclick = () => {
+  if (rail) rail.onclick = () => {
     const icons = !layout.classList.contains("side-icons");
     if (icons) rememberWidth();
     paintRail(icons);
@@ -8103,9 +8237,11 @@ function bindSideSize() {
       if (width < 150) {
         if (!layout.classList.contains("side-icons")) {
           layout.classList.add("side-icons");
-          rail.setAttribute("aria-pressed", "true");
-          rail.title = t("showNames");
-          rail.textContent = t("show");
+          if (rail) {
+            rail.setAttribute("aria-pressed", "true");
+            rail.title = t("showNames");
+            rail.setAttribute("aria-label", rail.title);
+          }
           layout.style.removeProperty("--side-w");
           localStorage.setItem("wi-mod-side-icons", "1");
         }
@@ -8113,12 +8249,16 @@ function bindSideSize() {
       }
       if (layout.classList.contains("side-icons")) {
         layout.classList.remove("side-icons");
-        rail.setAttribute("aria-pressed", "false");
-        rail.title = t("hideNames");
-        rail.textContent = t("hide");
+        if (rail) {
+          rail.setAttribute("aria-pressed", "false");
+          rail.title = t("hideNames");
+          rail.setAttribute("aria-label", rail.title);
+        }
         localStorage.setItem("wi-mod-side-icons", "0");
       }
-      layout.style.setProperty("--side-w", `${width}px`);
+      const side = `${width}px`;
+      layout.style.setProperty("--side-w", side);
+      document.documentElement.style.setProperty("--side-w", side);
     };
     const up = () => {
       handle.classList.remove("on");
@@ -8134,6 +8274,21 @@ function bindSideSize() {
   });
 }
 bindSideSize();
+{
+  const disk = $("dock-stats");
+  if (disk) {
+    disk.addEventListener("click", (event) => {
+      if (event.target.closest(".disk-more")) {
+        openDiskGames();
+        return;
+      }
+      disk.classList.toggle("open");
+    });
+    document.addEventListener("pointerdown", (event) => {
+      if (!disk.contains(event.target)) disk.classList.remove("open");
+    });
+  }
+}
 
 const TOUR_STEPS = [
   { sel: "#game-picker", title: "tour1t", text: "tour1d" },
