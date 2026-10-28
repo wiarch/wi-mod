@@ -150,6 +150,9 @@ const UI = {
     loginKeep: "Guardar sesión 60 días", loginForgot: "Olvidé la clave", loginGo: "Entrar",
     bootLine: "olfateando la guarida…", pickGame: "Elegir juego", addGame: "Añadir juego",
     download: "Descargar", downloadWait: "Pediendo descarga a Nexus…",
+    verPick: "Elige la versión", verExternal: "Fuera de Nexus",
+    mo2Ask: "wi-mod y Mod Organizer 2 están instalados. ¿Dónde lo descargo?",
+    installAsk: "Instalar {name} {ver} en {where}?",
     downloadOk: "Archivo guardado en mods/ del programa.",
     downloadManual: "No se pudo bajar por API.",
     downloadNone: "Sin archivo local. Descarga para guardarlo en mods/{juego}/…",
@@ -187,6 +190,9 @@ const UI = {
     detectGamesTip: "Busca la carpeta del juego activo en todos los discos",
     searchMods: "Buscar mods", searchIn: "Buscar en {name}", listSearch: "Filtrar lista", menu: "Menú",
     platform: "Plataforma", platforms: "Plataformas", tags: "Etiquetas", modpack: "Instancia", category: "Categoría",
+    dragCat: "Suelta para cambiar la categoría",
+    otherCategory: "Otra categoría",
+    otherCategoryPh: "Si no está en la lista",
     createPack: "Crear instancia", addCategory: "Añadir categoría",
     hideNames: "Ocultar nombres", showNames: "Mostrar nombres", hide: "Ocultar", show: "Mostrar",
     dragWidth: "Arrastra el ancho", newVersion: "Versión nueva", selectAll: "Seleccionar todo",
@@ -231,6 +237,7 @@ const UI = {
     export: "Exportar", import: "Importar",
     exportHint: "Todo, o solo un juego, una instancia, una plataforma o los marcados.",
     exportElsewhere: "Otra ruta",
+    exportFiles: "Incluir descargas", exportFilesHint: "Sin marcar, solo las fichas.",
     packsFolder: "Carpeta: {path}",
     zipFilePh: "Elige un .zip…",
     whatExport: "Qué exportar", all: "Todo", oneGame: "Un juego", onePack: "Una instancia",
@@ -280,6 +287,7 @@ const UI = {
     coverBgTitleUse: "Usar portada del juego", coverBgTitleOff: "Usar fondo plano",
     noDate: "sin fecha", newTag: "nueva", emptyFiltered: "Hay {n} mod(s) ocultos por el filtro.",
     clearFilters: "Quitar filtros", emptyGame: "Sin mods en este juego.", emptyInstance: "Esta instancia no tiene mods.",
+    installedGame: "Instalados del juego", addToInstance: "Añadir",
     createInstance: "Instancia", instanceTitle: "Crear perfil", instanceName: "Nombre",
     instanceNamePh: "Nombre del perfil", instanceMc: "Versión de Minecraft",
     instanceLoader: "Modloader", instanceLoaderVer: "Versión del modloader",
@@ -294,7 +302,8 @@ const UI = {
     sysBack: "Atrás", sysFwd: "Adelante", sysNone: "Sin instancia", play: "Jugar",
     searchInstance: "Buscar instancia", addInstance: "Añadir instancia",
     sysDownloads: "Descargas",
-    tasks: "Tareas", tasksDone: "Completadas", tasksClear: "Limpiar",
+    tasks: "Tareas", tasksDone: "Completadas", tasksClear: "Limpiar", tasksEmpty: "Sin tareas",
+    dlDone: "Completado", dlError: "Error", dlPaused: "Pausado",
     sysMin: "Minimizar", sysMax: "Maximizar", sysRestore: "Restaurar", sysClose: "Cerrar",
     emptyAll: "Pega un enlace de Nexus con Añadir mod. La ficha trae imagen, resumen, categoría, versión y última actualización.",
     picked: "{n} marcados", pickFirst: "Marca mods primero.", noResults: "Sin resultados",
@@ -325,6 +334,9 @@ const UI = {
     loginKeep: "Stay signed in 60 days", loginForgot: "Forgot password", loginGo: "Sign in",
     bootLine: "sniffing the den…", pickGame: "Choose game", addGame: "Add game",
     download: "Download", downloadWait: "Asking Nexus for the download…",
+    verPick: "Pick a version", verExternal: "Outside Nexus",
+    mo2Ask: "wi-mod and Mod Organizer 2 are both installed. Where should this download go?",
+    installAsk: "Install {name} {ver} into {where}?",
     downloadOk: "File saved under the app mods/ folder.",
     downloadManual: "The API could not download this file.",
     downloadNone: "No local file. Download to save under mods/{game}/…",
@@ -362,6 +374,9 @@ const UI = {
     detectGamesTip: "Find the active game folder across all disks",
     searchMods: "Search mods", searchIn: "Search {name}", listSearch: "Filter list", menu: "Menu",
     platform: "Platform", platforms: "Platforms", tags: "Tags", modpack: "Instance", category: "Category",
+    dragCat: "Drop to change the category",
+    otherCategory: "Other category",
+    otherCategoryPh: "If it is not in the list",
     createPack: "Create instance", addCategory: "Add category",
     hideNames: "Hide names", showNames: "Show names", hide: "Hide", show: "Show",
     dragWidth: "Drag to resize", newVersion: "New version", selectAll: "Select all",
@@ -406,6 +421,7 @@ const UI = {
     export: "Export", import: "Import",
     exportHint: "Everything, or one game, one instance, one platform, or the selected mods.",
     exportElsewhere: "Other path",
+    exportFiles: "Include downloads", exportFilesHint: "Unchecked, cards only.",
     packsFolder: "Folder: {path}",
     zipFilePh: "Pick a .zip…",
     whatExport: "What to export", all: "All", oneGame: "One game", onePack: "One instance",
@@ -455,6 +471,7 @@ const UI = {
     coverBgTitleUse: "Use game cover as background", coverBgTitleOff: "Use flat background",
     noDate: "no date", newTag: "new", emptyFiltered: "{n} mod(s) hidden by the filter.",
     clearFilters: "Clear filters", emptyGame: "No mods in this game.", emptyInstance: "This instance has no mods.",
+    installedGame: "Installed for this game", addToInstance: "Add",
     createInstance: "Instance", instanceTitle: "Create profile", instanceName: "Name",
     instanceNamePh: "Profile name", instanceMc: "Minecraft version",
     instanceLoader: "Modloader", instanceLoaderVer: "Modloader version",
@@ -469,7 +486,8 @@ const UI = {
     sysBack: "Back", sysFwd: "Forward", sysNone: "No instance", play: "Play",
     searchInstance: "Search instance", addInstance: "Add instance",
     sysDownloads: "Downloads",
-    tasks: "Tasks", tasksDone: "Complete", tasksClear: "Clear all",
+    tasks: "Tasks", tasksDone: "Complete", tasksClear: "Clear all", tasksEmpty: "No tasks",
+    dlDone: "Done", dlError: "Error", dlPaused: "Paused",
     sysMin: "Minimize", sysMax: "Maximize", sysRestore: "Restore", sysClose: "Close",
     emptyAll: "Paste a Nexus link with Add mod. The card brings image, summary, category, version, and last update.",
     picked: "{n} selected", pickFirst: "Select mods first.", noResults: "No results",
@@ -624,12 +642,58 @@ function taskModName(id) {
   return mod?.name || "";
 }
 
+function taskName(label) {
+  return String(label || "").replace(/^(?:⬇️|📦|🔄)\s*/u, "").trim() || String(label || "");
+}
+
 function taskPct(task) {
+  if (task.status === "done" || task.status === "error") return 100;
+  const total = Number(task.size) || 0;
+  const got = Number(task.bytes) || 0;
+  if (total > 0 && got > 0) return Math.max(1, Math.min(99, Math.round((got / total) * 100)));
   const elapsed = performance.now() - task.started;
   const tau = 2400;
   const goal = -tau * Math.log(0.08);
   if (elapsed < goal) return Math.max(4, Math.min(92, Math.round((1 - Math.exp(-elapsed / tau)) * 100)));
   return Math.min(97, 92 + Math.floor((elapsed - goal) / 700));
+}
+
+function taskBytes(bytes) {
+  const n = Number(bytes) || 0;
+  if (!n) return "—";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(2)} KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(2)} MB`;
+  return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function taskSpeed(bps) {
+  const n = Number(bps) || 0;
+  if (n < 1) return "";
+  if (n >= 1024 * 1024) return `- ${(n / 1024 / 1024).toFixed(2)} MB/s -`;
+  if (n >= 1024) return `- ${Math.round(n / 1024)} KB/s -`;
+  return `- ${Math.round(n)} B/s -`;
+}
+
+function taskStamp(at) {
+  const date = new Date(at || Date.now());
+  if (Number.isNaN(date.getTime())) return "—";
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(date.getMonth() + 1)}/${p(date.getDate())}/${date.getFullYear()} ${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`;
+}
+
+function taskBarText(task, pct) {
+  if (task.status === "error") return t("dlError");
+  if (task.status === "pause") return t("dlPaused");
+  if (task.status === "done") return t("dlDone");
+  const speed = taskSpeed(task.speed);
+  if (speed) return speed;
+  return `${pct}%`;
+}
+
+function markTask(id, status) {
+  const task = liveTasks.find((item) => item.id === id);
+  if (task) task.status = status;
 }
 
 function queueHint(path) {
@@ -655,34 +719,112 @@ function queueHint(path) {
   return "";
 }
 
-function paintLiveTasks(freshId) {
-  const list = $("tasks-live");
-  if (!list) return;
-  const want = new Set(liveTasks.map((task) => String(task.id)));
-  list.querySelectorAll("[data-live]").forEach((node) => {
-    if (!want.has(node.dataset.live)) node.remove();
+let dlPollAt = 0;
+
+function paintTaskTable(freshId) {
+  const body = $("tasks-body");
+  if (!body) return;
+  const rows = [
+    ...liveTasks.map((task) => ({ key: `l${task.id}`, task })),
+    ...doneTasks.map((task) => ({ key: `d${task.id}`, task: { ...task, status: task.status || "done" } })),
+  ];
+  if (!rows.length) {
+    body.innerHTML = `<tr class="dl-empty"><td colspan="5">${esc(t("tasksEmpty"))}</td></tr>`;
+    return;
+  }
+  const want = new Set(rows.map((row) => row.key));
+  body.querySelectorAll("[data-row]").forEach((node) => {
+    if (!want.has(node.dataset.row)) node.remove();
   });
-  liveTasks.forEach((task, index) => {
-    let node = list.querySelector(`[data-live="${task.id}"]`);
+  body.querySelectorAll(".dl-empty").forEach((node) => node.remove());
+  rows.forEach((row, index) => {
+    let node = body.querySelector(`[data-row="${row.key}"]`);
     if (!node) {
-      node = document.createElement("li");
-      node.dataset.live = String(task.id);
-      node.className = "tasks-item" + (task.id === freshId ? " tasks-in" : "");
-      node.innerHTML = `<span class="tasks-mark" aria-hidden="true">↓</span><span><b></b><small class="tasks-pct"></small></span><span></span><div class="tasks-bar"><span></span></div>`;
-      list.insertBefore(node, list.children[index] || null);
+      node = document.createElement("tr");
+      node.dataset.row = row.key;
+      node.innerHTML = `<td class="dl-name"></td><td class="dl-status"><div class="dl-bar"><span></span><b></b></div></td><td class="dl-size"></td><td class="dl-time"></td><td class="dl-act"><button type="button" class="dl-x" aria-label="Quitar">✕</button></td>`;
+      node.querySelector(".dl-x").onclick = (event) => {
+        event.stopPropagation();
+        dropTaskRow(node.dataset.row);
+      };
+      body.insertBefore(node, body.children[index] || null);
+    } else if (body.children[index] !== node) {
+      body.insertBefore(node, body.children[index] || null);
     }
-    const pct = taskPct(task);
-    node.querySelector("b").textContent = task.label;
-    node.querySelector(".tasks-pct").textContent = `${pct}%`;
-    node.querySelector(".tasks-bar span").style.width = `${pct}%`;
+    const task = row.task;
+    const pct = task.status === "done" || task.status === "error" ? 100 : taskPct(task);
+    node.classList.toggle("is-bad", task.status === "error");
+    node.classList.toggle("tasks-in", freshId && (task.id === freshId));
+    node.querySelector(".dl-name").textContent = task.name || taskName(task.label);
+    node.querySelector(".dl-name").title = task.name || taskName(task.label);
+    const fill = node.querySelector(".dl-bar span");
+    fill.style.width = `${pct}%`;
+    node.querySelector(".dl-bar b").textContent = taskBarText(task, pct);
+    node.querySelector(".dl-size").textContent = taskBytes(task.size);
+    node.querySelector(".dl-time").textContent = taskStamp(task.at);
+    node.querySelector(".dl-time").title = taskStamp(task.at);
   });
-  list.hidden = !liveTasks.length;
+}
+
+function dropTaskRow(key) {
+  const id = Number(String(key || "").slice(1));
+  if (String(key || "").startsWith("l")) {
+    const task = liveTasks.find((item) => item.id === id);
+    if (task) task.cancelled = true;
+    const index = liveTasks.findIndex((item) => item.id === id);
+    if (index >= 0) liveTasks.splice(index, 1);
+    paintTaskTable();
+    paintSysActivity();
+    return;
+  }
+  const index = doneTasks.findIndex((item) => item.id === id);
+  if (index >= 0) doneTasks.splice(index, 1);
+  try { sessionStorage.setItem(TASK_KEY, JSON.stringify(doneTasks)); } catch (_) { /* ignore */ }
+  paintTaskTable();
+}
+
+function pollDlProgress() {
+  const now = performance.now();
+  if (now - dlPollAt < 400) return;
+  const pending = liveTasks.filter((task) => task.token && !task.cancelled);
+  if (!pending.length) return;
+  dlPollAt = now;
+  const headers = {};
+  const session = sessionToken();
+  if (session) headers["X-Session"] = session;
+  pending.forEach((task) => {
+    fetch(`/api/dl-progress?token=${encodeURIComponent(task.token)}`, { credentials: "same-origin", headers })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return;
+        if (Number(data.total) > 0) task.size = Number(data.total);
+        if (Number(data.bytes) > 0) task.bytes = Number(data.bytes);
+        if (Number(data.speed) > 0) task.speed = Number(data.speed);
+      })
+      .catch(() => {});
+  });
+}
+
+function paintLiveTasks(freshId) {
+  pollDlProgress();
+  paintTaskTable(freshId);
 }
 
 function beginLoad(label) {
   const text = String(label || "").trim();
   if (!text) return 0;
-  const task = { id: taskSeq++, label: text, started: performance.now() };
+  const task = {
+    id: taskSeq++,
+    label: text,
+    name: taskName(text),
+    started: performance.now(),
+    at: Date.now(),
+    status: "run",
+    size: 0,
+    bytes: 0,
+    speed: 0,
+    token: "",
+  };
   liveTasks.unshift(task);
   paintLiveTasks(task.id);
   paintSysActivity();
@@ -705,7 +847,7 @@ function endLoad(id) {
   const index = liveTasks.findIndex((task) => task.id === id);
   if (index < 0) return;
   const [task] = liveTasks.splice(index, 1);
-  pushDoneTask(task.label);
+  if (!task.cancelled) pushDoneTask(task);
   paintLiveTasks();
   paintSysActivity();
 }
@@ -873,10 +1015,18 @@ async function api(path, options = {}) {
   const headers = new Headers(options.headers || {});
   const token = sessionToken();
   if (token && !headers.has("X-Session")) headers.set("X-Session", token);
+  if (dl && job) {
+    const task = liveTasks.find((item) => item.id === job);
+    if (task) {
+      task.token = `d${job}`;
+      headers.set("X-Dl-Token", task.token);
+    }
+  }
   let res;
   try {
     res = await fetch(path, { ...options, headers, credentials: "same-origin" });
   } catch (error) {
+    markTask(job, "error");
     pushLog("error", `${options.method || "GET"} ${path} · ${error.message || "sin conexión"}`);
     throw error;
   }
@@ -884,16 +1034,25 @@ async function api(path, options = {}) {
   if (type.includes("application/json")) {
     const data = await res.json();
     if (!res.ok) {
+      markTask(job, "error");
       const error = new Error(data.error || "No se pudo completar.");
       error.status = res.status;
       error.payload = data;
       pushLog("error", `${options.method || "GET"} ${path} · ${error.message}`);
       throw error;
     }
+    if (dl && data && data.mod) {
+      const files = data.mod.files || [];
+      const last = [...files].reverse().find((file) => file && Number(file.size));
+      const task = liveTasks.find((item) => item.id === job);
+      if (task && last) task.size = Number(last.size) || task.size;
+      if (data.ok === false) markTask(job, "error");
+    }
     pushLog("req", `${options.method || "GET"} ${path} · ${res.status}`);
     return data;
   }
   if (!res.ok) {
+    markTask(job, "error");
     pushLog("error", `${options.method || "GET"} ${path} · ${res.status}`);
     throw new Error("No se pudo completar.");
   }
@@ -1957,13 +2116,21 @@ function packLabel(mod) {
   return `${pack.name} · ${cat.name}`;
 }
 
+function inOpenInstance(mod) {
+  if (!state.modpack) return true;
+  if (String(mod.modpackId || "") !== state.modpack) return false;
+  if (state.packCat && String(mod.modpackCategoryId || "") !== state.packCat) return false;
+  return true;
+}
+
 function visible() {
   const q = state.query.trim().toLowerCase();
   const listQ = String(state.listQuery || "").trim().toLowerCase();
   let mods = scopedMods().filter((mod) => {
     if (state.platform && String(mod.platform || "Nexus") !== state.platform) return false;
-    if (state.modpack && String(mod.modpackId || "") !== state.modpack) return false;
-    if (state.packCat && String(mod.modpackCategoryId || "") !== state.packCat) return false;
+    const here = inOpenInstance(mod);
+    if (!here && !modDownloaded(mod)) return false;
+    if (here && state.packCat && String(mod.modpackCategoryId || "") !== state.packCat) return false;
     if (state.category && String(mod.category || "General") !== state.category) return false;
     const hasFiles = (mod.files || []).length > 0;
     if (state.files === "with" && !hasFiles) return false;
@@ -1987,7 +2154,13 @@ function visible() {
     priority: (a, b) => (Number(a.priority) || 0) - (Number(b.priority) || 0) || String(a.name).localeCompare(String(b.name), "es"),
   };
   if (state.modpack) {
-    mods.sort((a, b) => (Number(a.packOrder) || 0) - (Number(b.packOrder) || 0) || String(a.name).localeCompare(String(b.name), "es"));
+    mods.sort((a, b) => {
+      const ao = inOpenInstance(a) ? 0 : 1;
+      const bo = inOpenInstance(b) ? 0 : 1;
+      if (ao !== bo) return ao - bo;
+      if (ao === 0) return (Number(a.packOrder) || 0) - (Number(b.packOrder) || 0) || String(a.name).localeCompare(String(b.name), "es");
+      return String(a.name).localeCompare(String(b.name), "es");
+    });
   } else {
     mods.sort(by[state.sort] || by.added);
   }
@@ -2339,26 +2512,23 @@ function renderFilters() {
         <p class="side-label">Dentro del pack</p>
         <button type="button" class="side-add" data-add="packcat" title="Añadir categoría">+</button>
       </div>
-      ${catPage.navHtml}${sideEntry(t("allF"), "", state.packCat, "packCat")}${rows}
+      ${catPage.navHtml}${rows}
     </div>`;
   }
-  $("modpacks").innerHTML = packPage.navHtml + sideEntry(t("allM"), "", state.modpack, "modpack") + packChips.join("") + inside;
+  const packsBox = $("modpacks");
+  if (packsBox) packsBox.innerHTML = packPage.navHtml + packChips.join("") + inside;
 
-  const cats = counts((mod) => mod.category || "General");
-  (state.catalog.categories || []).forEach((name) => {
-    if (!cats.some((row) => row.id === name)) cats.push({ id: name, label: name, count: 0 });
-  });
+  const cats = counts((mod) => mod.category || "General").filter((row) => row.count > 0);
+  if (state.category && !cats.some((row) => row.id === state.category)) state.category = "";
   cats.sort((a, b) => a.label.localeCompare(b.label, "es"));
-  const catsPage = sidePaged(
-    "categories",
-    cats,
-    (row) => `${categoryLabel(row.id)} ${row.label}`,
-    (row) => modsForSide("category", row.id),
-  );
-  $("categories").innerHTML = catsPage.navHtml
-    + catsPage.shown.map((row) => (
-      sideEntry(`${categoryLabel(row.id)} (${row.count})`, row.id, state.category, "category", modsForSide("category", row.id))
-    )).join("");
+  const catQ = String(state.sideQuery || "").trim().toLowerCase();
+  const shownCats = !catQ ? cats : cats.filter((row) => {
+    if (`${categoryLabel(row.id)} ${row.label}`.toLowerCase().includes(catQ)) return true;
+    return modsForSide("category", row.id).some((mod) => String(mod.name || "").toLowerCase().includes(catQ));
+  });
+  $("categories").innerHTML = shownCats.map((row) => (
+    sideEntry(`${categoryLabel(row.id)} (${row.count})`, row.id, state.category, "category", modsForSide("category", row.id))
+  )).join("");
 
   const sideMods = visible().slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "es"));
   const modsPage = sidePaged("mods", sideMods, (mod) => mod.name);
@@ -2412,6 +2582,12 @@ function renderFilters() {
         sfx.click();
         render();
         scheduleRemoteSearch();
+        return;
+      }
+      if (kind === "packCat" && value && String(state.packCat) === value) {
+        state.packCat = "";
+        sfx.click();
+        render();
         return;
       }
       if (kind === "category" && value && String(state.category) === value) {
@@ -2688,6 +2864,56 @@ function fillCategorySelect(node, preferred) {
   node.innerHTML = categoryOptions(current).map((name) => (
     `<option value="${esc(name)}" ${name === current ? "selected" : ""}>${esc(categoryLabel(name))}</option>`
   )).join("");
+}
+
+let dragCatsWasShut = false;
+
+function showDragCats() {
+  const block = document.querySelector(".side-block[data-fold='categories']");
+  if (block?.classList.contains("is-shut")) {
+    dragCatsWasShut = true;
+    block.classList.remove("is-shut");
+    block.querySelector(".side-fold")?.setAttribute("aria-expanded", "true");
+  }
+  const bar = $("drag-cats");
+  const list = $("drag-cats-list");
+  if (!bar || !list) return;
+  list.innerHTML = categoryOptions().map((name) => (
+    `<button type="button" class="drag-cat" data-cat="${esc(name)}">${esc(categoryLabel(name))}</button>`
+  )).join("");
+  list.querySelectorAll("[data-cat]").forEach((button) => {
+    button.ondragover = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      button.classList.add("drop");
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    };
+    button.ondragleave = () => button.classList.remove("drop");
+    button.ondrop = async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      button.classList.remove("drop");
+      let ids = [];
+      try { ids = JSON.parse(event.dataTransfer.getData("application/x-wimod") || "[]"); } catch (_) { ids = []; }
+      if (!Array.isArray(ids) || !ids.length) return;
+      try {
+        await dropMarked("category", button.dataset.cat, ids.filter((id) => typeof id === "string"));
+      } catch (error) {
+        toast(error.message, "bad");
+      }
+    };
+  });
+  bar.hidden = false;
+}
+
+function hideDragCats() {
+  const bar = $("drag-cats");
+  if (bar) bar.hidden = true;
+  if (!dragCatsWasShut) return;
+  dragCatsWasShut = false;
+  const block = document.querySelector(".side-block[data-fold='categories']");
+  block?.classList.add("is-shut");
+  block?.querySelector(".side-fold")?.setAttribute("aria-expanded", "false");
 }
 
 const THEME_ICONS = {
@@ -3732,7 +3958,8 @@ function listRowHtml(mod, index) {
   const cat = categoryLabel(mod.category, mod);
   const game = mod.gameName || mod.gameDomain || "";
   const under = [cat, game].filter(Boolean).join(" · ");
-  return `<article class="card list-row ${state.selected.has(mod.id) ? "on" : ""} ${statusOn(mod, "in") ? "is-active" : ""} ${!statusOn(mod, "in") && modDownloaded(mod) ? "inactive" : ""} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 25}ms">
+  const pool = !inOpenInstance(mod);
+  return `<article class="card list-row${pool ? " pool" : ""} ${state.selected.has(mod.id) ? "on" : ""} ${statusOn(mod, "in") ? "is-active" : ""} ${!statusOn(mod, "in") && modDownloaded(mod) ? "inactive" : ""} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 25}ms">
     ${dragHandle()}
     <div class="shot list-thumb" ${shot(mod)}></div>
     <div class="card-body">
@@ -3742,7 +3969,7 @@ function listRowHtml(mod, index) {
     <span class="list-ver">v${esc(mod.version || "?")}</span>
     ${listConflictBadge(mod)}
     ${priorityCell(mod)}
-    ${packMoves()}
+    ${pool ? addPackBtn(mod) : packMoves()}
     ${listQuickBar(mod)}
     ${cardActiveToggle(mod)}
   </article>`;
@@ -3790,7 +4017,8 @@ function tableNameCell(mod) {
 
 function tableRowHtml(mod) {
   const inactive = !statusOn(mod, "in") && modDownloaded(mod);
-  return `<tr class="card ${state.selected.has(mod.id) ? "on" : ""} ${statusOn(mod, "in") ? "is-active" : ""} ${inactive ? "inactive" : ""} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}">
+  const pool = !inOpenInstance(mod);
+  return `<tr class="card${pool ? " pool" : ""} ${state.selected.has(mod.id) ? "on" : ""} ${statusOn(mod, "in") ? "is-active" : ""} ${inactive ? "inactive" : ""} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}">
     <td class="col-grip">${dragHandle()}</td>
     <td class="col-prio">${priorityCell(mod)}</td>
     <td class="col-conflict">${tableConflictCell(mod)}</td>
@@ -3798,7 +4026,7 @@ function tableRowHtml(mod) {
     <td class="col-name">${tableNameCell(mod)}</td>
     <td class="col-cat">${esc(categoryLabel(mod.category, mod))}</td>
     <td class="col-ver"><span class="table-ver">v${esc(mod.version || "?")}</span></td>
-    <td class="col-acts">${listQuickBar(mod)}</td>
+    <td class="col-acts">${pool ? addPackBtn(mod) : ""}${listQuickBar(mod)}</td>
   </tr>`;
 }
 
@@ -3862,6 +4090,15 @@ function packMoves() {
   return `<span class="pack-moves"><button type="button" data-pack-move="-1" title="Subir en el pack">↑</button><button type="button" data-pack-move="1" title="Bajar en el pack">↓</button></span>`;
 }
 
+function addPackBtn(mod) {
+  return `<button type="button" class="solid add-pack" data-add-pack="${esc(mod.id)}">${esc(t("addToInstance"))}</button>`;
+}
+
+function poolHead(mod, prev) {
+  if (inOpenInstance(mod) || (prev && !inOpenInstance(prev))) return "";
+  return `<p class="pool-head">${esc(t("installedGame"))}</p>`;
+}
+
 function paintUpdateBanner() {
   const banner = $("update-banner");
   if (!banner) return;
@@ -3919,9 +4156,27 @@ async function setModStatus(id, status) {
   }
 }
 
+async function addToInstance(id) {
+  if (!state.modpack) return;
+  try {
+    await api(`/api/mods/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        modpackId: state.modpack,
+        modpackCategoryId: state.packCat || "",
+      }),
+    });
+    toast(t("addToInstance"));
+    await load();
+  } catch (error) {
+    toast(error.message, "bad");
+  }
+}
+
 async function moveInPack(id, dir) {
   if (!state.modpack) return;
-  const shown = visible();
+  const shown = visible().filter((mod) => inOpenInstance(mod));
   const index = shown.findIndex((mod) => mod.id === id);
   const target = index + dir;
   if (index < 0 || target < 0 || target >= shown.length) return;
@@ -3985,9 +4240,11 @@ function render() {
       <th class="col-acts"></th>
     </tr></thead><tbody>${mods.map((mod) => tableRowHtml(mod)).join("")}</tbody></table>`;
   } else if (state.view === "list") {
-    $("grid").innerHTML = mods.map((mod, index) => listRowHtml(mod, index)).join("");
-  } else $("grid").innerHTML = mods.map((mod, index) => `
-    <article class="card ${state.selected.has(mod.id) ? "on" : ""} ${statusOn(mod, "in") ? "is-active" : ""} ${!statusOn(mod, "in") && modDownloaded(mod) ? "inactive" : ""} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 35}ms">
+    $("grid").innerHTML = mods.map((mod, index) => `${poolHead(mod, mods[index - 1])}${listRowHtml(mod, index)}`).join("");
+  } else $("grid").innerHTML = mods.map((mod, index) => {
+    const pool = !inOpenInstance(mod);
+    return `${poolHead(mod, mods[index - 1])}
+    <article class="card${pool ? " pool" : ""} ${state.selected.has(mod.id) ? "on" : ""} ${statusOn(mod, "in") ? "is-active" : ""} ${!statusOn(mod, "in") && modDownloaded(mod) ? "inactive" : ""} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 35}ms">
       <div class="shot" ${shot(mod)}>
         <span class="ver-badge">v${esc(mod.version || "?")}</span>
         <span class="shot-game">${esc(mod.gameName || mod.gameDomain || "Juego")}</span>
@@ -4002,12 +4259,12 @@ function render() {
         ${cardStatusMark(mod)}
         ${conflictCell(mod)}
         ${priorityCell(mod)}
-        ${packMoves()}
+        ${pool ? addPackBtn(mod) : packMoves()}
         <span class="meta card-date">${esc(fmtDate(mod.updatedAt))}</span>
         ${cardActiveToggle(mod)}
       </footer>
-    </article>
-  `).join("");
+    </article>`;
+  }).join("");
   document.querySelectorAll(".card").forEach((card) => {
     const dragBlocked = (target) => target.closest("input, a, label, .mod-switch, .card-quick, .list-quick, .prio, button:not(.drag-handle)");
     const startDrag = (event) => {
@@ -4025,11 +4282,13 @@ function render() {
       ids.forEach((id) => document.querySelector(`.card[data-id="${id}"]`)?.classList.add("drag-group"));
       card.classList.add("dragging");
       showDragGhost(card, ids.length, event.clientX, event.clientY);
+      showDragCats();
       state.dragged = true;
     };
     const endDrag = () => {
       card.classList.remove("dragging", "drop-before", "drop-after");
       hideDragGhost();
+      hideDragCats();
       setTimeout(() => { state.dragged = false; }, 0);
     };
     card.draggable = true;
@@ -4105,12 +4364,11 @@ function render() {
         else if (act === "delete") removeMod(id);
         return;
       }
-      if (event.target.closest("input, button, a, .prio, .mod-switch, label")) return;
-      const status = event.target.closest("[data-status]");
-      if (status) {
+      const add = event.target.closest("[data-add-pack]");
+      if (add) {
         event.preventDefault();
         event.stopPropagation();
-        setModStatus(card.dataset.id, status.dataset.status);
+        addToInstance(card.dataset.id);
         return;
       }
       const move = event.target.closest("[data-pack-move]");
@@ -4118,6 +4376,14 @@ function render() {
         event.preventDefault();
         event.stopPropagation();
         moveInPack(card.dataset.id, Number(move.dataset.packMove));
+        return;
+      }
+      if (event.target.closest("input, button, a, .prio, .mod-switch, label")) return;
+      const status = event.target.closest("[data-status]");
+      if (status) {
+        event.preventDefault();
+        event.stopPropagation();
+        setModStatus(card.dataset.id, status.dataset.status);
         return;
       }
       if (event.ctrlKey || event.metaKey || event.shiftKey || state.picking) {
@@ -4637,18 +4903,68 @@ function askFomod(plan) {
   });
 }
 
+function fileKind(cat) {
+  const es = { MAIN: "Principal", UPDATE: "Actualización", OPTIONAL: "Opcional", OLD_VERSION: "Anterior", MISCELLANEOUS: "Varios" };
+  const en = { MAIN: "Main", UPDATE: "Update", OPTIONAL: "Optional", OLD_VERSION: "Older", MISCELLANEOUS: "Misc" };
+  return (state.lang === "en" ? en : es)[cat] || cat || "";
+}
+
+function fileSizeLabel(kb) {
+  const n = Number(kb) || 0;
+  if (!n) return "";
+  if (n >= 1024) return `${(n / 1024).toFixed(1)} MB`;
+  return `${n} KB`;
+}
+
+function installWhere(mod) {
+  const id = state.modpack || mod.modpackId || "";
+  const pack = (state.modpacks || []).find((item) => item.id === id);
+  return (pack && pack.name) || mod.gameName || mod.gameDomain || (state.lang === "en" ? "the game" : "el juego");
+}
+
+function askVersion(listed) {
+  return new Promise((resolve) => {
+    const host = $("detail");
+    const box = document.createElement("div");
+    box.className = "fomod-steps ver-pick";
+    const files = listed.files || [];
+    const external = listed.external || [];
+    const fileRows = files.map((file, index) => {
+      const bits = [file.version, file.date, fileKind(file.category), fileSizeLabel(file.size)].filter(Boolean).join(" · ");
+      return `<button type="button" class="ghost ver-row" data-file="${index}"><b>${esc(file.name || file.fileName || file.version || "?")}</b><small>${esc(bits)}</small></button>`;
+    }).join("");
+    const extRows = external.map((item, index) => `
+      <button type="button" class="ghost ver-row ext" data-ext="${index}"><b>${esc(item.name)}</b><small>${esc(item.detail || "")} · ${esc(t("verExternal"))}</small><small>${esc(item.note || "")}</small></button>`).join("");
+    box.innerHTML = `<p class="hint">${esc(t("verPick"))}</p>${extRows}${fileRows}<span class="row"><button type="button" class="ghost" id="ver-cancel">${esc(t("cancel"))}</button></span>`;
+    host.append(box);
+    const done = (value) => { box.remove(); resolve(value); };
+    box.querySelector("#ver-cancel").onclick = () => done(null);
+    box.querySelectorAll("[data-file]").forEach((button) => {
+      button.onclick = () => {
+        const file = files[Number(button.dataset.file)];
+        done({ fileId: file.id, fileName: file.fileName || file.name || "", url: file.url || "" });
+      };
+    });
+    box.querySelectorAll("[data-ext]").forEach((button) => {
+      button.onclick = () => done({ external: true, ...(external[Number(button.dataset.ext)] || {}) });
+    });
+  });
+}
+
 async function installMod(mod, retried) {
   const button = $("detail-install");
   setLoading(button, true, "…");
   try {
-    const data = await api(`/api/mods/${mod.id}/install`, {
+    const peek = await api(`/api/mods/${mod.id}/install`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ inspect: true }),
     });
-    if (data.kind === "FOMOD" && data.plan && !data.deployed) {
-      const picks = await askFomod(data.plan);
+    if (peek.kind === "FOMOD" && peek.plan && !peek.deployed) {
+      setLoading(button, false);
+      const picks = await askFomod(peek.plan);
       if (!picks) return;
+      setLoading(button, true, "…");
       const done = await api(`/api/mods/${mod.id}/install`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -4659,6 +4975,19 @@ async function installMod(mod, retried) {
       render();
       return;
     }
+    setLoading(button, false);
+    const ok = await askConfirm(t("installAsk", {
+      name: mod.name || "",
+      ver: mod.version ? `v${mod.version}` : (mod.primaryFileName || ""),
+      where: installWhere(mod),
+    }));
+    if (!ok) return;
+    setLoading(button, true, "…");
+    const data = await api(`/api/mods/${mod.id}/install`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
     mod.installed = true;
     toast(`Enlazados ${data.linked || 0} en Data. Saltados ${data.skipped || 0}.`);
     render();
@@ -4681,15 +5010,82 @@ async function revealMod(id) {
   }
 }
 
+function askWhere() {
+  return new Promise((resolve) => {
+    const dialog = $("confirm-dialog");
+    const ok = $("confirm-ok");
+    const cancel = $("confirm-cancel");
+    const prevOk = ok.textContent;
+    const prevCancel = cancel.textContent;
+    $("confirm-msg").textContent = t("mo2Ask");
+    ok.textContent = "wi-mod";
+    cancel.textContent = "Mod Organizer 2";
+    const finish = (value) => {
+      cleanup();
+      ok.textContent = prevOk;
+      cancel.textContent = prevCancel;
+      dialog.close();
+      resolve(value);
+    };
+    const onSubmit = (event) => { event.preventDefault(); finish("wimod"); };
+    const onCancel = () => finish("mo2");
+    const onX = () => finish(null);
+    const cleanup = () => {
+      $("confirm-form").removeEventListener("submit", onSubmit);
+      cancel.removeEventListener("click", onCancel);
+      $("confirm-x").removeEventListener("click", onX);
+    };
+    $("confirm-form").addEventListener("submit", onSubmit);
+    cancel.addEventListener("click", onCancel);
+    $("confirm-x").addEventListener("click", onX);
+    sfx.open();
+    dialog.showModal();
+  });
+}
+
 async function downloadMod(id) {
   const button = $("detail-download");
   setLoading(button, true, "Descargando");
   sfx.sniff();
-  toast(t("downloadWait"), "warn");
   try {
-    const data = await api(`/api/mods/${id}/download`, { method: "POST" });
+    let choice = null;
+    try {
+      const listed = await api(`/api/mods/${id}/versions`, { method: "POST" });
+      const many = (listed.files || []).length > 1;
+      const outside = (listed.external || []).length > 0;
+      if (many || outside) {
+        setLoading(button, false);
+        choice = await askVersion(listed);
+        if (!choice) return;
+        if (choice.external) {
+          if (choice.url) window.open(choice.url, "_blank", "noopener");
+          toast(choice.note || t("verExternal"), "warn");
+          return;
+        }
+        setLoading(button, true, "Descargando");
+      }
+    } catch (_) { /* sin lista: sigue el archivo principal */ }
+    let target = "wimod";
+    try {
+      const mo2 = await api("/api/mo2");
+      if (mo2 && mo2.installed) {
+        setLoading(button, false);
+        target = await askWhere();
+        if (!target) return;
+        setLoading(button, true, "Descargando");
+      }
+    } catch (_) { /* sin MO2 */ }
+    toast(t("downloadWait"), "warn");
+    const body = choice && !choice.external
+      ? { fileId: choice.fileId, fileName: choice.fileName || "", url: choice.url || "", target }
+      : { target };
+    const data = await api(`/api/mods/${id}/download`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
     if (data.ok) {
-      toast(data.savedAs ? `Guardado en ${data.savedAs}` : t("downloadOk"));
+      toast(data.reason === "mo2" ? `En Mod Organizer 2: ${data.savedAs}` : (data.savedAs ? `Guardado en ${data.savedAs}` : t("downloadOk")));
       sfx.ok();
       await load();
       openDetail(id);
@@ -5328,6 +5724,7 @@ function openEdit(id) {
   $("edit-name").value = mod.name || "";
   $("edit-note").value = mod.notes || "";
   fillCategorySelect($("edit-category"), mod.category || "General");
+  if ($("edit-category-new")) $("edit-category-new").value = "";
   $("edit-dialog").showModal();
   $("edit-name").focus();
 }
@@ -5459,7 +5856,7 @@ $("edit-form").onsubmit = async (event) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: $("edit-name").value.trim(),
-        category: $("edit-category").value || "General",
+        category: ($("edit-category-new")?.value || "").trim() || $("edit-category").value || "General",
         notes: $("edit-note").value || "",
       }),
     });
@@ -7036,6 +7433,8 @@ function packFilter() {
   if (scope === "game") filt.game = value;
   if (scope === "modpack") filt.modpack = value;
   if (scope === "selected") filt.ids = [...state.selected];
+  const filesBox = $("pack-files");
+  filt.files = filesBox ? filesBox.checked : true;
   return filt;
 }
 
@@ -8092,41 +8491,23 @@ const doneTasks = (() => {
   }
 })();
 
-function taskAgo(at) {
-  const min = Math.max(0, Math.round((Date.now() - at) / 60000));
-  if (min < 1) return "ahora";
-  if (min < 60) return `${min} min`;
-  return `${Math.round(min / 60)} h`;
-}
-
 function paintDoneTasks(freshId) {
-  const list = $("tasks-done");
-  if (!list) return;
-  list.hidden = !doneTasks.length;
-  list.innerHTML = doneTasks.map((task) => `
-    <li class="${task.id === freshId ? "tasks-in" : ""}">
-      <span class="tasks-mark" aria-hidden="true">↓</span>
-      <span><b>${esc(task.label)}</b><small>${esc(taskAgo(task.at))}</small></span>
-      <button type="button" class="tasks-x" data-task="${task.id}" aria-label="Quitar">✕</button>
-    </li>
-  `).join("");
-  list.querySelectorAll("[data-task]").forEach((button) => {
-    button.onclick = (event) => {
-      event.stopPropagation();
-      const id = Number(button.dataset.task);
-      const index = doneTasks.findIndex((task) => task.id === id);
-      if (index >= 0) doneTasks.splice(index, 1);
-      try { sessionStorage.setItem(TASK_KEY, JSON.stringify(doneTasks)); } catch (_) { /* ignore */ }
-      paintDoneTasks();
-    };
-  });
+  paintTaskTable(freshId);
 }
 
-function pushDoneTask(label) {
-  const text = String(label || "").trim();
+function pushDoneTask(taskOrLabel) {
+  const task = typeof taskOrLabel === "string" ? { label: taskOrLabel } : (taskOrLabel || {});
+  const text = String(task.label || "").trim();
   if (!text) return;
   const id = Date.now() + Math.floor(Math.random() * 1000);
-  doneTasks.unshift({ id, label: text, at: Date.now() });
+  doneTasks.unshift({
+    id,
+    label: text,
+    name: task.name || taskName(text),
+    at: Date.now(),
+    size: Number(task.size) || 0,
+    status: task.status === "error" ? "error" : "done",
+  });
   if (doneTasks.length > 30) doneTasks.pop();
   try { sessionStorage.setItem(TASK_KEY, JSON.stringify(doneTasks)); } catch (_) { /* ignore */ }
   paintDoneTasks(id);
@@ -8167,15 +8548,6 @@ function bindTasks() {
     doneTasks.splice(0, doneTasks.length);
     try { sessionStorage.removeItem(TASK_KEY); } catch (_) { /* ignore */ }
     paintDoneTasks();
-  };
-  const fold = $("tasks-fold");
-  if (fold) fold.onclick = (event) => {
-    event.stopPropagation();
-    const list = $("tasks-done");
-    if (!list) return;
-    const shut = fold.getAttribute("aria-expanded") !== "false";
-    fold.setAttribute("aria-expanded", shut ? "false" : "true");
-    list.style.display = shut ? "none" : "";
   };
 }
 
@@ -8507,7 +8879,7 @@ const TOUR_STEPS = [
   { sel: "#game-add", title: "tour2t", text: "tour2d" },
   { sel: "#search", title: "tour3t", text: "tour3d" },
   { sel: "[data-fold='platforms']", title: "tour4t", text: "tour4d" },
-  { sel: "[data-fold='modpacks']", title: "tour5t", text: "tour5d" },
+  { sel: "#sys-instance", title: "tour5t", text: "tour5d" },
   { sel: "[data-fold='categories']", title: "tour6t", text: "tour6d" },
   { sel: "#side-rail", title: "tour7t", text: "tour7d" },
   { sel: "#game-hero", title: "tour8t", text: "tour8d" },

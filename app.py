@@ -27,6 +27,7 @@ def main() -> None:
 
 
 def _run() -> None:
+    _hide_nxm_console()
     if "--restart-wait" in sys.argv:
         time.sleep(1.2)
     pending = _nxm_arg()
@@ -59,6 +60,20 @@ def _run() -> None:
         server.shutdown()
         server.server_close()
         thread.join(timeout=3)
+
+
+def _hide_nxm_console() -> None:
+    """nxm:// abre un python.exe nuevo. Sin esto sale una consola en cada descarga."""
+    if sys.platform != "win32":
+        return
+    if not _nxm_arg():
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.kernel32.FreeConsole()
+    except OSError:
+        return
 
 
 def _nxm_arg() -> str:

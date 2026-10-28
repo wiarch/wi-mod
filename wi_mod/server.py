@@ -39,7 +39,7 @@ from wi_mod.curseforge import (
 from wi_mod.images import download_picture
 from wi_mod.launcher import LauncherError, launch_game, stage_mods
 from wi_mod.loader_installer import LoaderInstallError, find_java, install_java, install_loader
-from wi_mod.modrinth import ModrinthError, ModrinthNoMatch, fetch_project, project_slug, search_projects
+from wi_mod.modrinth import ModrinthError, ModrinthNoMatch, compatible_files, fetch_project, project_slug, search_projects
 from wi_mod.profile_creator import (
     ProfileError,
     ProfileExistsError,
@@ -56,9 +56,12 @@ from wi_mod.nexus import (
     NexusError,
     canonical_url,
     download_links,
+    external_sources,
     fetch_mod,
     last_limits,
+    list_files,
     parse_mod_url,
+    request_json,
     search_mods,
     validate_key,
 )
@@ -560,6 +563,21 @@ def make_handler(app: App):
                     "quitMode": str(app.library.settings().get("quitMode") or ""),
                     "appVersion": __version__,
                 })
+                return
+            if path == "/api/dl-progress":
+                if not self._open():
+                    return
+                query = parse_qs(urlparse(self.path).query)
+                token = _dl_token((query.get("token") or [""])[0])
+                self._json(200, _dl_get(token))
+                return
+            if path == "/api/mo2":
+                if not self._open():
+                    return
+                from wi_mod.mo2 import find_mo2
+
+                exe = find_mo2()
+                self._json(200, {"installed": bool(exe), "path": str(exe or "")})
                 return
             if path == "/api/status":
                 self._json(200, _status_payload(app))
@@ -1063,7 +1081,16 @@ def make_handler(app: App):
                 self._json(200, _refresh_one(app, mod_id, apply=bool(body.get("apply"))))
                 return
             if mod_id and action == "download":
-                self._json(200, _download_mod(app, mod_id))
+                length = int(self.headers.get("Content-Length") or 0)
+                body = self._json_body() if length else {}
+                token = _dl_token(self.headers.get("X-Dl-Token") or "")
+                try:
+                    self._json(200, _download_mod(app, mod_id, body, token))
+                finally:
+                    _dl_drop(token)
+                return
+            if mod_id and action == "versions":
+                self._json(200, _mod_versions(app, mod_id))
                 return
             if mod_id and action == "reveal":
                 self._json(200, _reveal_mod(app, mod_id))
@@ -1237,6 +1264,7 @@ def make_handler(app: App):
                     platform=filt.get("platform"),
                     game=filt.get("game"),
                     modpack=filt.get("modpack"),
+                    include_files=bool(filt.get("files", True)),
                 )
                 self._json(200, {"ok": True, "path": str(dest), "name": dest.name})
                 return
@@ -1250,6 +1278,7 @@ def make_handler(app: App):
                     platform=filt.get("platform"),
                     game=filt.get("game"),
                     modpack=filt.get("modpack"),
+                    include_files=bool(filt.get("files", True)),
                 )
                 self._file(dest, "application/zip", download_name)
             finally:
@@ -1459,7 +1488,7 @@ def _loader_ready(instance: Path, config: dict) -> bool:
 
 
 def _mod_action(path: str) -> tuple[str | None, str | None]:
-    match = re.fullmatch(r"/api/mods/([0-9a-f]{32})/(refresh|files|download|translate|install|reveal)", path)
+    match = re.fullmatch(r"/api/mods/([0-9a-f]{32})/(refresh|files|download|translate|install|reveal|versions)", path)
     if not match:
         return None, None
     return match.group(1), match.group(2)
@@ -2154,12 +2183,13 @@ def _with_picture(app: App, mod: dict | None) -> dict:
     return app.library.get(mod["id"]) or mod
 
 
-def _download_mod(app: App, mod_id: str) -> dict:
+def _download_mod(app: App, mod_id: str, body: dict | None = None, token: str = "") -> dict:
     mod = app.library.get(mod_id)
     if not mod:
         raise ValueError("Mod no encontrado.")
+    chosen = body if isinstance(body, dict) else {}
     try:
-        uri, file_name = _resolve_download(app, mod)
+        uri, file_name = _resolve_download(app, mod, chosen)
     except ValueError as exc:
         return {
             "ok": False,
@@ -2168,8 +2198,25 @@ def _download_mod(app: App, mod_id: str) -> dict:
             "mod": _public_mod(app.library.get(mod_id) or mod),
         }
     dest = app.tmp / f"dl-{uuid.uuid4().hex}-{safe_name(file_name)}"
+    if str(chosen.get("target") or "") == "mo2":
+        from wi_mod.mo2 import downloads_dir, find_mo2
+
+        exe = find_mo2()
+        if not exe:
+            return {"ok": False, "reason": "error", "error": "Mod Organizer 2 no está instalado.", "mod": _public_mod(mod)}
+        folder = downloads_dir(exe)
+        folder.mkdir(parents=True, exist_ok=True)
+        target = folder / (safe_name(file_name) or "mod.zip")
+        if target.exists():
+            target = folder / f"{target.stem}-{uuid.uuid4().hex[:6]}{target.suffix}"
+        try:
+            _fetch_binary(uri, target, token)
+        except Exception as exc:  # noqa: BLE001
+            target.unlink(missing_ok=True)
+            return {"ok": False, "reason": "error", "error": str(exc), "mod": _public_mod(mod)}
+        return {"ok": True, "reason": "mo2", "savedAs": str(target), "mod": _public_mod(mod)}
     try:
-        _fetch_binary(uri, dest)
+        _fetch_binary(uri, dest, token)
         record = app.library.add_file(mod_id, file_name, dest)
     finally:
         dest.unlink(missing_ok=True)
@@ -2211,13 +2258,55 @@ def _show_file(path: Path) -> None:
     subprocess.Popen(["xdg-open", str(path.parent)])
 
 
-def _resolve_download(app: App, mod: dict) -> tuple[str, str]:
+def _mod_versions(app: App, mod_id: str) -> dict:
+    mod = app.library.get(mod_id)
+    if not mod:
+        raise ValueError("Mod no encontrado.")
+    page = str(mod.get("nexusUrl") or "")
+    platform = str(mod.get("platform") or "").lower()
+    mc, loader = _pack_compat(app, str(mod.get("modpackId") or ""))
+    files: list[dict] = []
+    external: list[dict] = []
+    nexus = parse_mod_url(page)
+    if nexus:
+        game, nexus_id = nexus
+        try:
+            key = _api_key(app)
+            files = list_files(key, game, nexus_id)
+            remote, _headers = request_json(f"/games/{game}/mods/{nexus_id}.json", key)
+        except NexusError as exc:
+            raise ValueError(str(exc)) from exc
+        text = " ".join(
+            str(part or "")
+            for part in (
+                mod.get("name"),
+                mod.get("summary"),
+                remote.get("description") if isinstance(remote, dict) else "",
+                remote.get("summary") if isinstance(remote, dict) else "",
+            )
+        )
+        external = external_sources(game, text)
+    else:
+        slug = project_slug(page)
+        if slug or "modrinth" in platform:
+            try:
+                files = compatible_files(slug or "", mc, loader)
+            except ModrinthError:
+                files = []
+    return {"files": files, "external": external}
+
+
+def _resolve_download(app: App, mod: dict, chosen: dict | None = None) -> tuple[str, str]:
     page = str(mod.get("nexusUrl") or "")
     platform = str(mod.get("platform") or "").lower()
     file_name = str(mod.get("primaryFileName") or "").strip()
+    picked = chosen if isinstance(chosen, dict) else {}
+    direct = str(picked.get("url") or "").strip()
+    if direct.startswith("https://") and _is_file_url(direct):
+        return direct, str(picked.get("fileName") or file_name) or _name_from_url(direct)
     nexus = parse_mod_url(page)
     if nexus:
-        return _nexus_download(app, mod, nexus, file_name)
+        return _nexus_download(app, mod, nexus, file_name, picked)
     slug = project_slug(page)
     if slug or "modrinth" in platform:
         mc, loader = _pack_compat(app, str(mod.get("modpackId") or ""))
@@ -2231,10 +2320,13 @@ def _resolve_download(app: App, mod: dict) -> tuple[str, str]:
     raise ValueError("Este mod no tiene enlace de API para bajar el archivo.")
 
 
-def _nexus_download(app: App, mod: dict, parsed: tuple[str, int], file_name: str) -> tuple[str, str]:
+def _nexus_download(app: App, mod: dict, parsed: tuple[str, int], file_name: str, chosen: dict | None = None) -> tuple[str, str]:
     game, nexus_id = parsed
     key = _api_key(app)
-    file_id = mod.get("primaryFileId")
+    picked = chosen if isinstance(chosen, dict) else {}
+    file_id = picked.get("fileId") or mod.get("primaryFileId")
+    if picked.get("fileName"):
+        file_name = str(picked.get("fileName") or file_name)
     if not file_id:
         try:
             remote = fetch_mod(key, game, nexus_id, app.cache)
@@ -2322,18 +2414,61 @@ def _name_from_url(url: str) -> str:
     return name or "mod.zip"
 
 
-def _fetch_binary(url: str, dest: Path) -> None:
+_DL_LOCK = threading.Lock()
+_DL_PROGRESS: dict[str, dict] = {}
+
+
+def _dl_token(raw: str) -> str:
+    token = str(raw or "").strip()[:40]
+    return token if re.fullmatch(r"[A-Za-z0-9_-]+", token) else ""
+
+
+def _dl_note(token: str, **fields: object) -> None:
+    if not token:
+        return
+    with _DL_LOCK:
+        row = _DL_PROGRESS.setdefault(token, {})
+        row.update(fields)
+
+
+def _dl_get(token: str) -> dict:
+    if not token:
+        return {"bytes": 0, "total": 0, "speed": 0}
+    with _DL_LOCK:
+        row = _DL_PROGRESS.get(token) or {}
+        return {
+            "bytes": int(row.get("bytes") or 0),
+            "total": int(row.get("total") or 0),
+            "speed": float(row.get("speed") or 0),
+        }
+
+
+def _dl_drop(token: str) -> None:
+    if not token:
+        return
+    with _DL_LOCK:
+        _DL_PROGRESS.pop(token, None)
+
+
+def _fetch_binary(url: str, dest: Path, token: str = "") -> None:
     req = urllib.request.Request(
         http_url(url),
         headers={"User-Agent": f"wi-mod/{__version__}", "Accept": "*/*"},
         method="GET",
     )
+    got = 0
+    started = time.monotonic()
     with urllib.request.urlopen(req, timeout=120) as res, dest.open("wb") as handle:
+        total = int(res.headers.get("Content-Length") or 0)
+        _dl_note(token, bytes=0, total=total, speed=0)
         while True:
-            chunk = res.read(1024 * 1024)
+            chunk = res.read(256 * 1024)
             if not chunk:
                 break
             handle.write(chunk)
+            got += len(chunk)
+            elapsed = time.monotonic() - started
+            _dl_note(token, bytes=got, total=total, speed=(got / elapsed) if elapsed > 0 else 0)
 
 
 def _save_image(app: App, handler: BaseHTTPRequestHandler) -> dict:
@@ -2384,6 +2519,14 @@ def _upload(app: App, handler: BaseHTTPRequestHandler, mod_id: str) -> dict:
     return mod
 
 
+def _want_files(value: object) -> bool:
+    if value is None or value is True:
+        return True
+    if value is False:
+        return False
+    return str(value).strip().lower() not in {"0", "false", "no", "off"}
+
+
 def _pack_filter(body: dict) -> dict:
     scope = str(body.get("scope") or "all").strip().lower() or "all"
     if scope not in {"all", "platform", "game", "modpack", "selected"}:
@@ -2398,6 +2541,7 @@ def _pack_filter(body: dict) -> dict:
         "modpack": str(body.get("modpack") or "").strip() or None,
         "ids": ids,
         "dest": str(body.get("dest") or "").strip() or None,
+        "files": _want_files(body.get("files")),
     }
 
 

@@ -75,6 +75,20 @@ def ingest_nxm(app: Any, url: str) -> dict[str, Any]:
     if not api_key:
         app.note("Agrega tu clave API de Nexus en Ajustes.", ok=False, reload=False)
         return {"ok": False, "error": "Agrega tu clave API de Nexus en Ajustes."}
+    from wi_mod.mo2 import ask_target, find_mo2, handoff
+
+    mo2 = find_mo2()
+    if mo2:
+        known = app.library.find_nexus(parsed["game"], parsed["mod_id"])
+        label = str((known or {}).get("name") or "Esta descarga de Nexus")
+        if ask_target(label) == "mo2":
+            try:
+                handoff(mo2, url)
+            except OSError as exc:
+                app.note(f"No pude abrir Mod Organizer 2: {exc}", ok=False, reload=False)
+                return {"ok": False, "error": str(exc)}
+            app.note(f"Enviado a Mod Organizer 2: {label}", ok=True, reload=False)
+            return {"ok": True, "target": "mo2", "name": label}
     try:
         if parsed.get("key") and parsed.get("expires"):
             links = nxm_links(api_key, parsed)
@@ -270,9 +284,23 @@ def notify_windows(title: str, body: str) -> None:
         env["WI_TOAST_APP"] = str(app)
         env["WI_TOAST_CWD"] = str(Path(sys.executable).parent if getattr(sys, "frozen", False) else app.parent)
         env["WI_TOAST_FROZEN"] = "1" if getattr(sys, "frozen", False) else "0"
+        startup = subprocess.STARTUPINFO()
+        startup.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startup.wShowWindow = 0
         subprocess.Popen(
-            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script)],
+            [
+                "powershell",
+                "-NoProfile",
+                "-NonInteractive",
+                "-WindowStyle",
+                "Hidden",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(script),
+            ],
             creationflags=0x08000000,
+            startupinfo=startup,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -282,17 +310,29 @@ def notify_windows(title: str, body: str) -> None:
         return
 
 
+def _windowless_python() -> str:
+    exe = Path(sys.executable)
+    if exe.name.lower() == "python.exe":
+        sibling = exe.with_name("pythonw.exe")
+        if sibling.is_file():
+            return str(sibling)
+    return str(exe)
+
+
 def register_protocol() -> None:
     """HKCU, sin admin. Nexus abre wi-mod con el enlace nxm://."""
     if sys.platform != "win32":
         return
     import winreg
 
+    from wi_mod.mo2 import capture_nxm_handler
+
+    capture_nxm_handler()
     if getattr(sys, "frozen", False):
         command = f'"{sys.executable}" "%1"'
     else:
         app = Path(__file__).resolve().parent.parent / "app.py"
-        command = f'"{sys.executable}" "{app}" "%1"'
+        command = f'"{_windowless_python()}" "{app}" "%1"'
     try:
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\Classes\nxm") as key:
             winreg.SetValueEx(key, "", 0, winreg.REG_SZ, "URL:NXM Protocol")

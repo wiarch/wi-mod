@@ -102,6 +102,46 @@ def _pick_version(versions: Any, slug: str, mc_version: str, loader: str) -> dic
     return max(matches, key=lambda row: str(row.get("date_published") or ""))
 
 
+def compatible_files(slug: str, mc_version: str, loader: str) -> list[dict[str, Any]]:
+    """Jars que coinciden exacto con la instancia. Vacío si no hay MC+loader."""
+    wanted_mc = str(mc_version or "").strip()
+    wanted_loader = str(loader or "").strip().lower()
+    if not wanted_mc or wanted_loader not in {"forge", "fabric", "quilt", "neoforge"}:
+        return []
+    project = _get(f"/project/{urllib.parse.quote(slug)}")
+    if not isinstance(project, dict):
+        return []
+    real = str(project.get("slug") or slug).strip()
+    versions = _get(f"/project/{urllib.parse.quote(real)}/version")
+    rows = [row for row in versions if isinstance(row, dict)] if isinstance(versions, list) else []
+    picked: list[dict[str, Any]] = []
+    for row in rows:
+        games = {str(item).strip() for item in (row.get("game_versions") or [])}
+        loaders = {str(item).strip().lower() for item in (row.get("loaders") or [])}
+        files = [item for item in (row.get("files") or []) if isinstance(item, dict)]
+        jar = next((item for item in files if str(item.get("filename") or "").lower().endswith(".jar") and item.get("primary")), None)
+        if jar is None:
+            jar = next((item for item in files if str(item.get("filename") or "").lower().endswith(".jar")), None)
+        if wanted_mc not in games or wanted_loader not in loaders or not jar:
+            continue
+        date = str(row.get("date_published") or "")[:10]
+        picked.append({
+            "id": str(row.get("id") or ""),
+            "name": str(row.get("name") or row.get("version_number") or ""),
+            "fileName": str(jar.get("filename") or ""),
+            "version": str(row.get("version_number") or ""),
+            "category": "MAIN",
+            "date": date,
+            "size": int(jar.get("size") or 0) // 1024,
+            "primary": False,
+            "url": str(jar.get("url") or ""),
+        })
+    picked.sort(key=lambda row: row["date"], reverse=True)
+    if picked:
+        picked[0]["primary"] = True
+    return picked
+
+
 def _owner(slug: str) -> str:
     try:
         rows = _get(f"/project/{urllib.parse.quote(slug)}/members")

@@ -190,6 +190,85 @@ def download_links(api_key: str, game: str, mod_id: int, file_id: int) -> list[d
     return []
 
 
+def list_files(api_key: str, game: str, mod_id: int) -> list[dict[str, Any]]:
+    """Archivos públicos del mod. Sin ARCHIVED. El principal va primero."""
+    payload, _headers = request_json(f"/games/{game}/mods/{mod_id}/files.json", api_key)
+    raw = payload.get("files") if isinstance(payload, dict) else None
+    if not isinstance(raw, list):
+        raw = payload if isinstance(payload, list) else []
+    rows: list[dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, dict) or item.get("file_id") is None:
+            continue
+        category = str(item.get("category_name") or "").upper()
+        if category == "ARCHIVED":
+            continue
+        stamp = int(item.get("uploaded_timestamp") or 0)
+        date = ""
+        if stamp > 0:
+            date = datetime.fromtimestamp(stamp, timezone.utc).strftime("%Y-%m-%d")
+        rows.append({
+            "id": int(item["file_id"]),
+            "name": str(item.get("name") or item.get("file_name") or "").strip(),
+            "fileName": str(item.get("file_name") or "").strip(),
+            "version": str(item.get("version") or item.get("mod_version") or "").strip(),
+            "category": category or "MAIN",
+            "date": date,
+            "size": int(item.get("size_kb") or 0),
+            "primary": bool(item.get("is_primary")),
+        })
+    rows.sort(key=lambda row: row["date"], reverse=True)
+    rows.sort(key=lambda row: not row["primary"])
+    keep_old = 8
+    seen_old = 0
+    trimmed: list[dict[str, Any]] = []
+    for row in rows:
+        if row["category"] == "OLD_VERSION":
+            if seen_old >= keep_old:
+                continue
+            seen_old += 1
+        trimmed.append(row)
+    return trimmed
+
+
+_ENB_PAGE = {
+    "skyrimspecialedition": "http://enbdev.com/download_mod_tesskyrimse.html",
+    "skyrim": "http://enbdev.com/download_mod_tesskyrim.html",
+    "skyrimvr": "http://enbdev.com/download_mod_tesskyrimvr.html",
+    "enderal": "http://enbdev.com/download_mod_tesskyrimse.html",
+    "fallout4": "http://enbdev.com/download_mod_fallout4.html",
+    "fallout4vr": "http://enbdev.com/download_mod_fallout4vr.html",
+    "fallout3": "http://enbdev.com/download_mod_fallout3.html",
+    "newvegas": "http://enbdev.com/download_mod_falloutnv.html",
+    "falloutnv": "http://enbdev.com/download_mod_falloutnv.html",
+}
+_ENB_NEED = re.compile(r"enbdev\.com|d3d11\.dll|d3dcompiler_46", re.I)
+_ENB_URL = re.compile(r"https?://enbdev\.com/[^\s\"'<>]+", re.I)
+
+
+def external_sources(game: str, text: str) -> list[dict[str, str]]:
+    """Binarios que el autor no sube a Nexus. Solo el enlace oficial, sin descargarlos."""
+    blob = str(text or "")
+    urls = []
+    for match in _ENB_URL.findall(blob):
+        clean = match.rstrip(").,]")
+        if clean not in urls:
+            urls.append(clean)
+    if not urls and _ENB_NEED.search(blob):
+        page = _ENB_PAGE.get(str(game or "").strip().lower())
+        if page:
+            urls.append(page)
+    if not urls:
+        return []
+    return [{
+        "kind": "external",
+        "name": "Binarios ENBSeries",
+        "detail": "d3d11.dll y d3dcompiler_46e.dll",
+        "url": urls[0],
+        "note": "Boris los publica en enbdev.com. Nexus no los aloja. Ábrelo y cópialos en la carpeta del juego.",
+    }]
+
+
 def pick_file(files: list[dict[str, Any]]) -> dict[str, Any] | None:
     usable = [f for f in files if isinstance(f, dict)]
     if not usable:

@@ -90,6 +90,7 @@ def export_library(
     platform: str | None = None,
     game: str | None = None,
     modpack: str | None = None,
+    include_files: bool = True,
 ) -> tuple[Path, int]:
     kind = (scope or "all").strip().lower()
     if mod_ids is not None and kind == "all" and not platform and not game and not modpack:
@@ -186,13 +187,15 @@ def export_library(
                     continue
                 row = dict(item)
                 stored = str(row.get("storedAs") or "").strip()
-                if stored:
+                if stored and include_files:
                     raw_name = Path(stored).name
                     safe = re.sub(r"[^\w.\-]+", "-", raw_name).strip(".-")[:80] or "file"
                     # Prefijo mods/ → carpeta de descargas del programa al importar
                     arc = put(stored, f"mods/{mod_folder}/{safe}")
                     if arc:
                         row["storedAs"] = arc
+                elif stored:
+                    row["storedAs"] = ""
                 files_out.append(row)
             mod["files"] = files_out
 

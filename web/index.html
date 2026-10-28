@@ -10,7 +10,7 @@
     } catch (_) {}
   </script>
   <link rel="icon" href="/wimod-icon-pack/wimod.ico" type="image/x-icon">
-  <link rel="stylesheet" href="/styles.css?v=0.27.0">
+  <link rel="stylesheet" href="/styles.css?v=0.28.0">
 </head>
 <body>
   <div id="login" class="login" hidden>
@@ -60,7 +60,7 @@
     <img class="sysbar-logo brand-iso pywebview-drag-region" data-tauri-drag-region src="/wimod-icon-pack/wimod-32x32.png" alt="" width="16" height="16">
     <div class="sysbar-id">
       <div class="brand pywebview-drag-region" data-tauri-drag-region><span class="brand-wi">wi-</span><span class="brand-mod">mod</span></div>
-      <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.27.0</a>
+      <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.28.0</a>
     </div>
     <div class="sysbar-drag pywebview-drag-region" data-tauri-drag-region></div>
     <div class="sysbar-right">
@@ -86,13 +86,24 @@
           <span id="sys-dl-badge" class="sys-badge" hidden>0</span>
         </button>
         <div id="tasks-pop" class="tasks-pop" hidden>
-          <p class="tasks-title" data-i18n="tasks">Tareas</p>
-          <ul id="tasks-live" class="tasks-live" hidden></ul>
-          <div class="tasks-sec">
-            <button type="button" id="tasks-fold" aria-expanded="true" data-i18n="tasksDone">Completadas</button>
+          <div class="dl-top">
+            <p class="tasks-title" data-i18n="tasks">Tareas</p>
             <button type="button" id="tasks-clear" data-i18n="tasksClear">Limpiar</button>
           </div>
-          <ul id="tasks-done" class="tasks-done" hidden></ul>
+          <div class="dl-scroll">
+            <table class="dl-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Size</th>
+                  <th>Filetime</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tasks-body"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -281,18 +292,6 @@
         </div>
         <div id="platforms"></div>
       </div>
-      <div class="side-block" data-fold="modpacks">
-        <div class="side-head">
-          <button type="button" class="side-fold" aria-expanded="true">
-            <span class="side-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z"/><path d="M12 12v8M4 8l8 4 8-4"/></svg><span class="side-badge" id="fold-modpacks-badge"></span></span>
-            <span class="side-label" data-i18n="modpack">Instancia</span>
-            <span class="side-count" id="fold-modpacks"></span>
-            <span class="side-caret" aria-hidden="true"></span>
-          </button>
-          <button type="button" class="side-add" data-add="modpack" title="Crear instancia" data-i18n-title="createPack">+</button>
-        </div>
-        <div id="modpacks"></div>
-      </div>
       <div class="side-block" data-fold="categories">
         <div class="side-head">
           <button type="button" class="side-fold" aria-expanded="true">
@@ -302,6 +301,10 @@
             <span class="side-caret" aria-hidden="true"></span>
           </button>
           <button type="button" class="side-add" data-add="category" title="Añadir categoría" data-i18n-title="addCategory">+</button>
+        </div>
+        <div id="drag-cats" class="drag-cats" hidden>
+          <p data-i18n="dragCat">Suelta para cambiar la categoría</p>
+          <div id="drag-cats-list"></div>
         </div>
         <div id="categories"></div>
       </div>
@@ -562,6 +565,8 @@
         <label id="pack-value-wrap" hidden><span data-i18n="choose">Elige</span>
           <select id="pack-value"></select>
         </label>
+        <label class="pack-files"><input id="pack-files" type="checkbox" checked> <span data-i18n="exportFiles">Incluir descargas</span></label>
+        <p class="meta" data-i18n="exportFilesHint">Sin marcar, solo las fichas.</p>
         <p id="pack-count" class="meta"></p>
         <p id="pack-export-path" class="meta pack-path" hidden></p>
         <footer>
@@ -846,6 +851,9 @@
       <label><span data-i18n="category">Categoría</span>
         <select id="edit-category"></select>
       </label>
+      <label><span data-i18n="otherCategory">Otra categoría</span>
+        <input id="edit-category-new" type="text" autocomplete="off" placeholder="Si no está en la lista" data-i18n-placeholder="otherCategoryPh">
+      </label>
       <label><span data-i18n="note">Nota</span>
         <textarea id="edit-note" rows="3" placeholder="Nota de este mod" data-i18n-placeholder="modNotePh"></textarea>
       </label>
@@ -978,7 +986,7 @@
     </div>
   </div>
 
-  <script src="/neon.js?v=0.27.0"></script>
-  <script src="/app.js?v=0.27.0"></script>
+  <script src="/neon.js?v=0.28.0"></script>
+  <script src="/app.js?v=0.28.0"></script>
 </body>
 </html>
