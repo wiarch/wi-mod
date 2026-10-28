@@ -12,9 +12,9 @@
   <link rel="stylesheet" href="pages.css">
   <script>
     (function () {
-      var themes = ["nexus", "modrinth", "curseforge", "steam", "moddb", "rawg"];
+      var themes = ["wimod", "nexus", "modrinth", "curseforge", "moddb", "rawg"];
       var saved = localStorage.getItem("wi-mod-theme");
-      document.documentElement.dataset.theme = themes.indexOf(saved) >= 0 ? saved : "nexus";
+      document.documentElement.dataset.theme = themes.indexOf(saved) >= 0 ? saved : "wimod";
     })();
   </script>
 </head>
@@ -33,7 +33,7 @@
     </header>
 
     <h1>Documentación</h1>
-    <p class="lead">wi-mod 0.28.0 es una biblioteca local y portable de mods. Junta fichas de varios juegos y webs en tu PC. Puede enlazar los archivos del mod en la carpeta Data del juego.</p>
+    <p class="lead">wi-mod 0.29.0 es una biblioteca local de mods. Al abrir eliges el juego, ves su carátula y entras al gestor. En Ajustes puedes omitir esa pantalla y volver al último juego. También puedes mandar la descarga a WI MOD o a Mod Organizer 2.</p>
 
     <h2>Qué guarda</h2>
     <ul>
@@ -44,9 +44,8 @@
 
     <h2>Descargar y abrir</h2>
     <ol>
-      <li>Windows: el portable <a href="wi-mod-portable.zip">wi-mod-portable.zip</a> o el instalador de <a href="https://github.com/wiarch/wi-mod/releases">Releases</a> (<code>wi-mod_*_x64-setup.exe</code>).</li>
-      <li>Descomprime el zip donde quieras y ejecuta <code>wi-mod.exe</code>. No hace falta instalador.</li>
-      <li>La primera vez creas tú el usuario. Esa sesión solo existe en este PC.</li>
+      <li>Windows: el instalador que GitHub compila en cada cambio de <code>main</code>, <a href="https://github.com/wiarch/wi-mod/releases/latest/download/wi-mod-windows.exe">wi-mod-windows.exe</a>.</li>
+      <li>Ejecuta el instalador. La primera vez creas tú el usuario. Esa sesión solo existe en este PC.</li>
       <li>Linux está en beta (AppImage / deb / rpm en el mismo release, cuando el build de esa versión terminó).</li>
     </ol>
     <p>La <a href="app/">demo web</a> enseña la interfaz en el navegador. La biblioteca de verdad es la del escritorio: la demo no reemplaza la carpeta <code>data/</code> de tu PC.</p>

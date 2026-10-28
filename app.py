@@ -30,7 +30,7 @@ def _run() -> None:
     _hide_nxm_console()
     if "--restart-wait" in sys.argv:
         time.sleep(1.2)
-    pending = _nxm_arg()
+    pending = "" if "--restart-wait" in sys.argv else _nxm_arg()
     if pending and _forward_nxm(pending):
         return
     app = App(ROOT / "data")
@@ -173,6 +173,22 @@ class _Host:
             return
         _ensure_tray(window)
         _hide_window(window)
+
+    def focus(self) -> None:
+        window = self.holder.get("window")
+        if window is not None:
+            _raise_window(window)
+
+    def taskbar(self, badge=0, mode="none", pct=0) -> None:
+        try:
+            count = max(0, min(99, int(badge or 0)))
+        except (TypeError, ValueError):
+            count = 0
+        try:
+            percent = max(0, min(100, int(float(pct or 0))))
+        except (TypeError, ValueError):
+            percent = 0
+        _taskbar_apply(str(mode or "none"), count, percent)
 
     def win_restart(self) -> None:
         window = self.holder.get("window")
@@ -368,6 +384,7 @@ def _open(url: str, app: App) -> None:
             )
             holder["window"] = window
             holder["max"] = True
+            app.on_focus = lambda: _raise_window(window)
 
             def on_closing():
                 if _quitting:
@@ -597,6 +614,74 @@ def _hide_window(window) -> None:
     window.hide()
 
 
+def _raise_window(window) -> None:
+    native = getattr(window, "native", None)
+    if native is None:
+        try:
+            window.show()
+            window.restore()
+        except Exception:
+            pass
+        return
+
+    def go():
+        from System.Windows.Forms import FormWindowState
+
+        if native.WindowState == FormWindowState.Minimized:
+            native.WindowState = FormWindowState.Normal
+        native.Show()
+        native.Activate()
+        native.TopMost = True
+        native.TopMost = False
+        try:
+            hwnd = int(native.Handle.ToInt64())
+        except Exception:
+            hwnd = 0
+        if hwnd:
+            _force_foreground(hwnd)
+
+    try:
+        from System import Func, Type
+
+        if native.InvokeRequired:
+            native.Invoke(Func[Type](go))
+            return
+    except Exception:
+        pass
+    try:
+        go()
+    except Exception:
+        try:
+            window.show()
+        except Exception:
+            pass
+
+
+def _force_foreground(hwnd: int) -> None:
+    import ctypes
+
+    user32 = ctypes.windll.user32
+    kernel32 = ctypes.windll.kernel32
+    user32.GetForegroundWindow.restype = ctypes.c_void_p
+    user32.GetWindowThreadProcessId.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    user32.GetWindowThreadProcessId.restype = ctypes.c_ulong
+    user32.AttachThreadInput.argtypes = [ctypes.c_ulong, ctypes.c_ulong, ctypes.c_int]
+    user32.ShowWindow.argtypes = [ctypes.c_void_p, ctypes.c_int]
+    user32.SetForegroundWindow.argtypes = [ctypes.c_void_p]
+    user32.BringWindowToTop.argtypes = [ctypes.c_void_p]
+    fg = user32.GetForegroundWindow()
+    fg_thread = user32.GetWindowThreadProcessId(fg, None)
+    our = kernel32.GetCurrentThreadId()
+    attached = False
+    if fg_thread and fg_thread != our:
+        attached = bool(user32.AttachThreadInput(our, fg_thread, True))
+    user32.ShowWindow(hwnd, 9)
+    user32.SetForegroundWindow(hwnd)
+    user32.BringWindowToTop(hwnd)
+    if attached:
+        user32.AttachThreadInput(our, fg_thread, False)
+
+
 def _spawn_restart() -> None:
     """Abre otra instancia y deja que esta se cierre. El hijo espera a que suelte el puerto."""
     import subprocess
@@ -606,7 +691,10 @@ def _spawn_restart() -> None:
         cmd = [sys.executable]
     else:
         cmd = [sys.executable, str(Path(sys.argv[0]).resolve())]
-    cmd.extend(arg for arg in sys.argv[1:] if arg != "--restart-wait")
+    cmd.extend(
+        arg for arg in sys.argv[1:]
+        if arg != "--restart-wait" and not str(arg).lower().startswith("nxm:")
+    )
     cmd.append("--restart-wait")
     kwargs = {"cwd": str(ROOT), "close_fds": True}
     if sys.platform == "win32":
@@ -751,6 +839,192 @@ def _own_taskbar() -> None:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("wiarch.wi-mod")
     except Exception:
         pass
+
+
+_TASKBAR = None
+_BADGES: dict[int, object] = {}
+_TRAY_BADGES: dict[int, object] = {}
+
+
+def _form_hwnd() -> int:
+    try:
+        from System.Windows.Forms import Application
+    except Exception:
+        return 0
+    form = Application.OpenForms[0] if Application.OpenForms.Count else None
+    if form is None:
+        return 0
+    try:
+        return int(form.Handle.ToInt64())
+    except Exception:
+        return 0
+
+
+def _taskbar_com():
+    global _TASKBAR
+    if _TASKBAR is not None:
+        return _TASKBAR
+    import ctypes
+    import uuid
+
+    class GUID(ctypes.Structure):
+        _fields_ = (
+            ("Data1", ctypes.c_ulong),
+            ("Data2", ctypes.c_ushort),
+            ("Data3", ctypes.c_ushort),
+            ("Data4", ctypes.c_ubyte * 8),
+        )
+
+    def make(text: str) -> GUID:
+        item = GUID()
+        ctypes.memmove(ctypes.byref(item), uuid.UUID(text).bytes_le, 16)
+        return item
+
+    ole32 = ctypes.windll.ole32
+    ole32.CoCreateInstance.argtypes = [
+        ctypes.POINTER(GUID),
+        ctypes.c_void_p,
+        ctypes.c_ulong,
+        ctypes.POINTER(GUID),
+        ctypes.POINTER(ctypes.c_void_p),
+    ]
+    ole32.CoCreateInstance.restype = ctypes.c_long
+    clsid = make("56FDF344-FD6D-11d0-958A-006097C9A090")
+    iid = make("EA1AFB91-9E28-4B86-90E9-9E9F8A5EEFAF")
+    ptr = ctypes.c_void_p()
+    if ole32.CoCreateInstance(ctypes.byref(clsid), None, 1, ctypes.byref(iid), ctypes.byref(ptr)) != 0 or not ptr.value:
+        return None
+    funcs = ctypes.cast(ptr, ctypes.POINTER(ctypes.c_void_p))
+    table = ctypes.cast(funcs[0], ctypes.POINTER(ctypes.c_void_p))
+    init = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p)(table[3])
+    if init(ptr) != 0:
+        return None
+    _TASKBAR = (ptr, table)
+    return _TASKBAR
+
+
+def _badge_icon(count: int):
+    count = max(1, min(99, int(count)))
+    cached = _BADGES.get(count)
+    if cached is not None:
+        return cached
+    from System.Drawing import Bitmap, Color, Font, FontStyle, Graphics, RectangleF, SolidBrush, StringAlignment, StringFormat
+    from System.Drawing.Drawing2D import SmoothingMode
+
+    size = 32
+    bmp = Bitmap(size, size)
+    draw = Graphics.FromImage(bmp)
+    draw.SmoothingMode = SmoothingMode.AntiAlias
+    draw.Clear(Color.Transparent)
+    draw.FillEllipse(SolidBrush(Color.FromArgb(255, 237, 66, 69)), 1, 1, size - 3, size - 3)
+    label = str(count)
+    font = Font("Segoe UI", 11 if len(label) > 1 else 14, FontStyle.Bold)
+    fmt = StringFormat()
+    fmt.Alignment = StringAlignment.Center
+    fmt.LineAlignment = StringAlignment.Center
+    draw.DrawString(label, font, SolidBrush(Color.White), RectangleF(0, 0, size, size), fmt)
+    draw.Dispose()
+    icon = IconFromBitmap(bmp)
+    _BADGES[count] = icon
+    return icon
+
+
+def IconFromBitmap(bmp):
+    from System.Drawing import Icon
+
+    handle = bmp.GetHicon()
+    icon = Icon.FromHandle(handle).Clone()
+    try:
+        import ctypes
+        ctypes.windll.user32.DestroyIcon(int(handle.ToInt64()))
+    except Exception:
+        pass
+    return icon
+
+
+def _tray_badge_icon(count: int):
+    count = max(1, min(99, int(count)))
+    cached = _TRAY_BADGES.get(count)
+    if cached is not None:
+        return cached
+    from System.Drawing import Bitmap, Color, Font, FontStyle, Graphics, RectangleF, SolidBrush, StringAlignment, StringFormat
+    from System.Drawing.Drawing2D import InterpolationMode, SmoothingMode
+
+    size = 32
+    bmp = Bitmap(size, size)
+    draw = Graphics.FromImage(bmp)
+    draw.SmoothingMode = SmoothingMode.AntiAlias
+    draw.InterpolationMode = InterpolationMode.HighQualityBicubic
+    draw.Clear(Color.Transparent)
+    base = _brand_icon()[0]
+    draw.DrawImage(base, 0, 2, 26, 26)
+    dot = 16
+    draw.FillEllipse(SolidBrush(Color.FromArgb(255, 237, 66, 69)), size - dot - 1, 0, dot, dot)
+    label = str(count if count < 10 else "9+")
+    font = Font("Segoe UI", 7 if len(label) > 1 else 8, FontStyle.Bold)
+    fmt = StringFormat()
+    fmt.Alignment = StringAlignment.Center
+    fmt.LineAlignment = StringAlignment.Center
+    draw.DrawString(label, font, SolidBrush(Color.White), RectangleF(size - dot - 1, 0, dot, dot), fmt)
+    draw.Dispose()
+    icon = IconFromBitmap(bmp)
+    _TRAY_BADGES[count] = icon
+    return icon
+
+
+def _taskbar_paint(mode: str, badge: int, pct: int) -> None:
+    import ctypes
+
+    hwnd = _form_hwnd()
+    com = _taskbar_com() if hwnd else None
+    if com is not None:
+        ptr, table = com
+        progress = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_ulonglong, ctypes.c_ulonglong)(table[9])
+        state = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int)(table[10])
+        overlay = ctypes.WINFUNCTYPE(ctypes.c_long, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_wchar_p)(table[18])
+        window = ctypes.c_void_p(hwnd)
+        flag = {"normal": 2, "indeterminate": 1, "error": 4}.get(mode, 0)
+        state(ptr, window, flag)
+        if flag == 2:
+            progress(ptr, window, pct, 100)
+        elif flag == 0:
+            progress(ptr, window, 0, 100)
+        if badge > 0:
+            icon = _badge_icon(badge)
+            overlay(ptr, window, ctypes.c_void_p(int(icon.Handle.ToInt64())), f"{badge}")
+        else:
+            overlay(ptr, window, None, "")
+
+
+def _taskbar_apply(mode: str, badge: int, pct: int) -> None:
+    def go():
+        try:
+            _taskbar_paint(mode, badge, pct)
+        except Exception:
+            pass
+        try:
+            _sync_tray(badge, mode, pct)
+        except Exception:
+            return
+
+    _on_ui(go)
+
+
+def _sync_tray(badge: int, mode: str, pct: int) -> None:
+    icon = _tray
+    if icon is None:
+        return
+    if badge > 0:
+        bits = [f"wi-mod · {badge}"]
+        if mode == "normal":
+            bits.append(f"{pct}%")
+        elif mode == "indeterminate":
+            bits.append("descargando")
+        icon.Text = " ".join(bits)[:127]
+        icon.Icon = _tray_badge_icon(badge)
+        return
+    icon.Text = "wi-mod"
+    icon.Icon = _brand_icon()[1]
 
 
 def _apply_window_icon() -> None:

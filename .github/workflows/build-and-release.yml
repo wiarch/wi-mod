@@ -1,5 +1,5 @@
-# En cada push a main: build web + deploy gh-pages.
-# Compila Tauri + draft Release solo si cambió la versión, o en tag v*, o a mano.
+# En cada push a main: build web + compila el escritorio y publica el .exe.
+# La landing baja https://github.com/wiarch/wi-mod/releases/latest/download/wi-mod-windows.exe
 
 name: Build and Release
 
@@ -77,33 +77,8 @@ jobs:
             fi
           elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
             SHOULD_WEB=true
-            BEFORE="${{ github.event.before }}"
-            if [[ -z "$BEFORE" || "$BEFORE" =~ ^0+$ ]]; then
-              SHOULD_COMPILE=true
-            else
-              PREV_PKG=$(git show "$BEFORE:package.json" 2>/dev/null \
-                | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" \
-                || true)
-              PREV_PY=$(git show "$BEFORE:wi_mod/__init__.py" 2>/dev/null \
-                | python -c "import re,sys; m=re.search(r'__version__\s*=\s*[\"\']([^\"\']+)[\"\']', sys.stdin.read()); print(m.group(1) if m else '')" \
-                || true)
-              if [[ ( -n "$PREV_PKG" && "$PREV_PKG" != "$VER" ) || ( -n "$PREV_PY" && "$PREV_PY" != "$VER" ) ]]; then
-                SHOULD_COMPILE=true
-                echo "Version bump: pkg ${PREV_PKG:-?} / py ${PREV_PY:-?} → ${VER}"
-              else
-                echo "Version unchanged (${VER}) → skip desktop compile"
-              fi
-            fi
-          fi
-
-          # Evita recompilar si el tag ya existe (salvo force o push de tag)
-          if [[ "$SHOULD_COMPILE" == "true" \
-                && "${{ github.ref_type }}" != "tag" \
-                && "${{ inputs.force_compile || false }}" != "true" ]]; then
-            if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
-              echo "Tag ${TAG} already exists → skip compile"
-              SHOULD_COMPILE=false
-            fi
+            SHOULD_COMPILE=true
+            echo "Push a main → compilar escritorio (${VER})"
           fi
 
           {
@@ -235,4 +210,9 @@ jobs:
         run: |
           set -euo pipefail
           gh release edit "$TAG" --draft=false --latest --repo "${{ github.repository }}"
+          mkdir -p /tmp/rel
+          gh release download "$TAG" --repo "${{ github.repository }}" --pattern "*x64-setup.exe" --dir /tmp/rel
+          setup=$(ls /tmp/rel/*x64-setup.exe | head -n 1)
+          cp "$setup" /tmp/rel/wi-mod-windows.exe
+          gh release upload "$TAG" /tmp/rel/wi-mod-windows.exe --clobber --repo "${{ github.repository }}"
           echo "Published $TAG"

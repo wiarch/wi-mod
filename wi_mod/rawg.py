@@ -95,9 +95,24 @@ def search_games(api_key: str, query: str, *, page_size: int = 12) -> list[dict[
     data = request_json(
         "/games",
         api_key,
-        {"search": q, "page_size": max(1, min(int(page_size), 40)), "search_precise": "false"},
+        {
+            "search": q,
+            "page_size": 40,
+            "search_precise": "false",
+            "ordering": "-added",
+        },
     )
-    return [normalize_game(item) for item in (data.get("results") or []) if isinstance(item, dict)]
+    rows = [normalize_game(item) for item in (data.get("results") or []) if isinstance(item, dict)]
+    rows.sort(key=_fame, reverse=True)
+    return rows[: max(1, min(int(page_size), 40))]
+
+
+def _fame(game: dict[str, Any]) -> tuple[int, int, float]:
+    try:
+        rating = float(game.get("rating") or 0)
+    except (TypeError, ValueError):
+        rating = 0.0
+    return (int(game.get("added") or 0), int(game.get("ratingsCount") or 0), rating)
 
 
 def get_game(api_key: str, rawg_id: int | str) -> dict[str, Any]:
@@ -140,6 +155,8 @@ def normalize_game(item: dict[str, Any]) -> dict[str, Any]:
         "imageUrl": str(item.get("background_image") or "").strip(),
         "released": str(item.get("released") or "").strip()[:10],
         "rating": item.get("rating"),
+        "ratingsCount": int(item.get("ratings_count") or 0),
+        "added": int(item.get("added") or 0),
         "metacritic": item.get("metacritic"),
         "playtime": item.get("playtime"),
         "platforms": platforms[:8],

@@ -68,11 +68,12 @@ from wi_mod.nexus import (
 from wi_mod.rawg import (
     RawgError,
     get_game,
+    nexus_domain_for,
     resolve_game,
     search_games,
     validate_key as validate_rawg_key,
 )
-from wi_mod.launch import detect_game, launch_path, steam_run_url
+from wi_mod.launch import detect_game, launch_path, list_installed_games, steam_run_url
 from wi_mod.sources import GAME_SOURCES, platforms_for, sources_payload
 from wi_mod.steam import SteamError, validate_key as validate_steam_key
 from wi_mod.store import Library, now, safe_name
@@ -312,6 +313,7 @@ def _status_payload(app: App) -> dict:
         "downBps": down,
         "upBps": up,
         "events": app.notes(),
+        "prompts": app.prompts(),
     }
 # De momento la app abre sin usuario ni clave.
 LOGIN_OFF = True
@@ -422,6 +424,7 @@ class App:
         self._notes: list[dict] = []
         self._note_n = 0
         self._note_lock = threading.Lock()
+        self._prompts: dict[str, dict] = {}
         _fill_default_games(self)
         try:
             sync_instances(root.parent / "instances")
@@ -429,7 +432,7 @@ class App:
             pass
         start_download_watcher(self)
 
-    def note(self, message: str, *, ok: bool = True, reload: bool = False, phase: str = "", mod_id: str = "", name: str = "") -> None:
+    def note(self, message: str, *, ok: bool = True, reload: bool = False, phase: str = "", mod_id: str = "", name: str = "", size: int = 0) -> None:
         with self._note_lock:
             self._note_n += 1
             item = {"n": self._note_n, "message": message, "ok": ok, "reload": reload}
@@ -439,12 +442,62 @@ class App:
                 item["modId"] = mod_id
             if name:
                 item["name"] = name
+            if size:
+                item["size"] = int(size)
             self._notes.append(item)
             del self._notes[:-20]
 
     def notes(self) -> list[dict]:
         with self._note_lock:
             return list(self._notes)
+
+    def ask_choice(self, kind: str, name: str, timeout: float = 600, title: str = "", tone: str = "") -> dict:
+        token = uuid.uuid4().hex
+        done = threading.Event()
+        slot = {"choice": "", "remember": False}
+        with self._note_lock:
+            self._prompts[token] = {
+                "kind": kind,
+                "name": name,
+                "title": title,
+                "tone": tone,
+                "done": done,
+                "slot": slot,
+            }
+        self.note(name, phase="notice" if kind == "notice" else "prompt", name=name)
+        self._poke_focus()
+        done.wait(timeout)
+        with self._note_lock:
+            self._prompts.pop(token, None)
+        return {"choice": str(slot.get("choice") or ""), "remember": bool(slot.get("remember"))}
+
+    def prompts(self) -> list[dict]:
+        with self._note_lock:
+            return [{"id": key, "kind": row["kind"], "name": row["name"], "title": row.get("title") or "", "tone": row.get("tone") or ""} for key, row in self._prompts.items()]
+
+    def answer_prompt(self, token: str, choice: str, remember: bool) -> bool:
+        with self._note_lock:
+            row = self._prompts.get(str(token or ""))
+            if not row:
+                return False
+            row["slot"]["choice"] = str(choice or "")
+            row["slot"]["remember"] = bool(remember)
+            row["done"].set()
+            return True
+
+    def _poke_focus(self) -> None:
+        def run() -> None:
+            for _ in range(30):
+                fn = getattr(self, "on_focus", None)
+                if callable(fn):
+                    try:
+                        fn()
+                    except Exception:
+                        return
+                    return
+                time.sleep(0.2)
+
+        threading.Thread(target=run, name="wi-mod-focus", daemon=True).start()
 
 
 def _report_early_exit(app: App, exe_name: str) -> None:
@@ -561,6 +614,7 @@ def make_handler(app: App):
                     "windowsUser": _machine_names()["windowsUser"],
                     "pcName": _machine_names()["pcName"],
                     "quitMode": str(app.library.settings().get("quitMode") or ""),
+                    "downloadTarget": str(app.library.settings().get("downloadTarget") or "ask"),
                     "appVersion": __version__,
                 })
                 return
@@ -761,6 +815,15 @@ def make_handler(app: App):
                 threading.Thread(target=lambda: ingest_nxm(app, url), name="wi-mod-nxm", daemon=True).start()
                 self._json(202, {"ok": True})
                 return
+            if path == "/api/prompt":
+                body = self._json_body()
+                ok = app.answer_prompt(
+                    str(body.get("id") or ""),
+                    str(body.get("choice") or ""),
+                    bool(body.get("remember")),
+                )
+                self._json(200 if ok else 404, {"ok": ok})
+                return
             if path == "/api/logout":
                 app.library.logout(self._token())
                 self._json(200, {"ok": True}, clear_cookie=True)
@@ -878,6 +941,9 @@ def make_handler(app: App):
                     favorite=None if favorite is None else bool(favorite),
                 )
                 self._json(200, {"catalog": catalog})
+                return
+            if path == "/api/game/installed":
+                self._json(200, {"games": _installed_missing(app)})
                 return
             if path == "/api/game/detect":
                 body = self._json_body()
@@ -1138,6 +1204,8 @@ def make_handler(app: App):
                 app.library.set_language(str(body.get("language") or "es"))
                 if _lang(app) == "es":
                     _localize_missing(app)
+            if "downloadTarget" in body:
+                app.library.set_download_target(str(body.get("downloadTarget") or "ask"))
             if "theme" in body:
                 app.library.set_theme(str(body.get("theme") or "nexus"))
             if "curseforgeApiKey" in body:
@@ -1531,6 +1599,34 @@ def _key_flags(app: App) -> dict:
         "steam": bool(str(settings.get("steamApiKey") or "").strip()),
         "rawg": bool(str(settings.get("rawgApiKey") or "").strip()),
     }
+
+
+def _installed_missing(app: App) -> list[dict]:
+    catalog = app.library.catalog()
+    known_ids: set[int] = set()
+    known_names: set[str] = set()
+    known_domains: set[str] = set()
+    for item in catalog.get("games") or []:
+        if not isinstance(item, dict):
+            continue
+        try:
+            known_ids.add(int(item.get("steamAppId") or 0))
+        except (TypeError, ValueError):
+            pass
+        known_domains.add(str(item.get("gameDomain") or "").strip().lower())
+        known_names.add(re.sub(r"[^a-z0-9]", "", str(item.get("gameName") or "").lower()))
+    known_ids.discard(0)
+    known_names.discard("")
+    rows = []
+    for game in list_installed_games():
+        app_id = int(game.get("steamAppId") or 0)
+        name = str(game.get("gameName") or "")
+        domain = nexus_domain_for("", name)
+        key = re.sub(r"[^a-z0-9]", "", name.lower())
+        if app_id in known_ids or domain in known_domains or key in known_names:
+            continue
+        rows.append({**game, "gameDomain": domain})
+    return rows
 
 
 def _catalog_game(app: App, domain: str) -> dict | None:
@@ -2188,6 +2284,11 @@ def _download_mod(app: App, mod_id: str, body: dict | None = None, token: str = 
     if not mod:
         raise ValueError("Mod no encontrado.")
     chosen = body if isinstance(body, dict) else {}
+    picked = str(chosen.get("target") or "")
+    if picked in {"wimod", "mo2"} and chosen.get("remember") and mod.get("modId"):
+        from wi_mod.mo2 import remember_target
+
+        remember_target(str(mod.get("gameDomain") or ""), mod.get("modId"), picked)
     try:
         uri, file_name = _resolve_download(app, mod, chosen)
     except ValueError as exc:
@@ -2634,6 +2735,7 @@ def _public_settings(settings: dict) -> dict:
         "curseforgeApiKey": curse,
         "steamApiKey": steam,
         "language": "en" if str(settings.get("language") or "es").lower().startswith("en") else "es",
+        "downloadTarget": (str(settings.get("downloadTarget") or "ask") if str(settings.get("downloadTarget") or "") in {"wimod", "mo2"} else "ask"),
         "theme": _theme_name(settings.get("theme"), bool(settings.get("wiPro"))),
         "wiPro": bool(settings.get("wiPro")),
         "profile": {

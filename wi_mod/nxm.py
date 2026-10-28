@@ -75,13 +75,25 @@ def ingest_nxm(app: Any, url: str) -> dict[str, Any]:
     if not api_key:
         app.note("Agrega tu clave API de Nexus en Ajustes.", ok=False, reload=False)
         return {"ok": False, "error": "Agrega tu clave API de Nexus en Ajustes."}
-    from wi_mod.mo2 import ask_target, find_mo2, handoff
+    from wi_mod.mo2 import find_mo2, handoff
 
     mo2 = find_mo2()
     if mo2:
-        known = app.library.find_nexus(parsed["game"], parsed["mod_id"])
-        label = str((known or {}).get("name") or "Esta descarga de Nexus")
-        if ask_target(label) == "mo2":
+        pref = str(app.library.settings().get("downloadTarget") or "ask")
+        choice = pref if pref in {"wimod", "mo2"} else ""
+        if not choice:
+            known = app.library.find_nexus(parsed["game"], parsed["mod_id"])
+            label = str((known or {}).get("name") or "Esta descarga de Nexus")
+            answer = app.ask_choice("manager", label)
+            choice = str(answer.get("choice") or "")
+            if choice not in {"wimod", "mo2"}:
+                app.note("Descarga cancelada.", ok=True, reload=False)
+                return {"ok": False, "reason": "cancel", "name": label}
+            if answer.get("remember"):
+                app.library.set_download_target(choice)
+        if choice == "mo2":
+            known = app.library.find_nexus(parsed["game"], parsed["mod_id"])
+            label = str((known or {}).get("name") or "Esta descarga de Nexus")
             try:
                 handoff(mo2, url)
             except OSError as exc:
@@ -112,15 +124,11 @@ def ingest_nxm(app: Any, url: str) -> dict[str, Any]:
         mod = app.library.add(remote)
     label = str(mod.get("name") or _name_from_url(uri) or "Nexus")
     where = _present(app, mod)
-    if where:
-        if not _ask_replace(label, where):
-            app.note(f"Ya estaba: {label}. No lo reemplacé.", ok=True, reload=False)
-            notify_windows("Ya estaba", f"{label}. No lo reemplacé.")
-            return {"ok": False, "reason": "kept", "name": label}
-        notify_windows("Reemplazando", label)
-    else:
-        notify_windows("Descarga iniciada", label)
+    if where and not _ask_replace(app, label):
+        app.ask_choice("notice", label, title="skip", tone="warn")
+        return {"ok": False, "reason": "kept", "name": label}
     mod_id = str(mod.get("id") or "")
+    notify_windows("Descarga iniciada", label)
     app.note(f"Descargando {label}", ok=True, reload=True, phase="download", mod_id=mod_id, name=label)
     dest = app.tmp / f"nxm-{uuid.uuid4().hex}"
     record = None
@@ -140,7 +148,15 @@ def ingest_nxm(app: Any, url: str) -> dict[str, Any]:
         app.note("No pude guardar el archivo de Nexus.", ok=False, reload=False, phase="fail", mod_id=mod_id, name=label)
         return {"ok": False, "error": "No pude guardar el archivo de Nexus."}
     label = str(mod.get("name") or file_name)
-    app.note(f"Listo para instalar: {label}", ok=True, reload=True, phase="done", mod_id=mod_id, name=label)
+    app.note(
+        f"Listo para instalar: {label}",
+        ok=True,
+        reload=True,
+        phase="done",
+        mod_id=mod_id,
+        name=label,
+        size=int((record or {}).get("size") or 0),
+    )
     return {"ok": True, "modId": mod.get("id"), "name": label}
 
 
@@ -169,17 +185,9 @@ def _in_game(app: Any, mod_id: str) -> bool:
     return any(isinstance(row, dict) and str(row.get("modId") or "") == mod_id for row in links.values())
 
 
-def _ask_replace(name: str, where: str) -> bool:
-    if sys.platform != "win32":
-        return False
-    import ctypes
-
-    text = f"{name} ya está {where}.\n\n¿Quieres reemplazarlo?"
-    flags = 0x4 | 0x20 | 0x1000 | 0x10000
-    try:
-        return int(ctypes.windll.user32.MessageBoxW(None, text, "wi-mod", flags)) == 6
-    except OSError:
-        return False
+def _ask_replace(app: Any, name: str) -> bool:
+    answer = app.ask_choice("replace", name)
+    return str(answer.get("choice") or "") == "replace"
 
 
 def _drop_old(app: Any, mod: dict[str, Any]) -> None:
@@ -253,6 +261,7 @@ if ($env:WI_TOAST_FROZEN -eq '1') { $sc.Arguments = '' } else { $sc.Arguments = 
 $sc.WorkingDirectory = $env:WI_TOAST_CWD
 $sc.Description = 'wi-mod'
 $sc.WindowStyle = 7
+if ($env:WI_TOAST_ICON) { $sc.IconLocation = $env:WI_TOAST_ICON }
 $sc.Save()
 [Aumid]::Set($shortcutPath, $appId)
 [Aumid]::SetCurrentProcessExplicitAppUserModelID($appId) | Out-Null
@@ -260,7 +269,12 @@ $sc.Save()
 [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
 $title = Esc $env:WI_TOAST_TITLE
 $body = Esc $env:WI_TOAST_BODY
-$xml = "<toast><visual><binding template=`"ToastGeneric`"><text>$title</text><text>$body</text></binding></visual></toast>"
+$img = ''
+if ($env:WI_TOAST_LOGO -and (Test-Path -LiteralPath $env:WI_TOAST_LOGO)) {
+  $logoUri = Esc ([Uri]([System.IO.Path]::GetFullPath($env:WI_TOAST_LOGO))).AbsoluteUri
+  $img = "<image placement=`"appLogoOverride`" hint-crop=`"none`" src=`"$logoUri`"/>"
+}
+$xml = "<toast><visual><binding template=`"ToastGeneric`">$img<text>$title</text><text>$body</text></binding></visual></toast>"
 $doc = New-Object Windows.Data.Xml.Dom.XmlDocument
 $doc.LoadXml($xml)
 $toast = [Windows.UI.Notifications.ToastNotification]::new($doc)
@@ -284,6 +298,13 @@ def notify_windows(title: str, body: str) -> None:
         env["WI_TOAST_APP"] = str(app)
         env["WI_TOAST_CWD"] = str(Path(sys.executable).parent if getattr(sys, "frozen", False) else app.parent)
         env["WI_TOAST_FROZEN"] = "1" if getattr(sys, "frozen", False) else "0"
+        root = Path(__file__).resolve().parent.parent
+        ico = root / "public" / "wimod-icon-pack" / "wimod.ico"
+        logo = root / "public" / "wimod-icon-pack" / "wimod-256x256.png"
+        if ico.is_file():
+            env["WI_TOAST_ICON"] = str(ico)
+        if logo.is_file():
+            env["WI_TOAST_LOGO"] = str(logo)
         startup = subprocess.STARTUPINFO()
         startup.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         startup.wShowWindow = 0

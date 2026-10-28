@@ -323,6 +323,55 @@ def _hit(path: Path, score: int) -> dict[str, Any]:
     }
 
 
+_STEAM_SKIP_IDS = {
+    228980, 1070560, 1391110, 1493710, 1628350, 2180100, 2230260,
+}
+_STEAM_SKIP_NAMES = ("redistributable", "steamworks", "proton", "dedicated server", "linux runtime")
+
+
+def list_installed_games() -> list[dict[str, Any]]:
+    """Juegos de Steam instalados. No los añade a wi-mod."""
+    found: list[dict[str, Any]] = []
+    seen: set[int] = set()
+    for common in _steam_libraries():
+        steamapps = common.parent
+        try:
+            manifests = list(steamapps.glob("appmanifest_*.acf"))
+        except OSError:
+            continue
+        for manifest in manifests:
+            try:
+                text = manifest.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            app_match = re.search(r'"appid"\s+"(\d+)"', text)
+            name_match = re.search(r'"name"\s+"([^"]+)"', text)
+            dir_match = re.search(r'"installdir"\s+"([^"]+)"', text)
+            if not app_match or not name_match or not dir_match:
+                continue
+            app_id = int(app_match.group(1))
+            if app_id in seen or app_id in _STEAM_SKIP_IDS:
+                continue
+            flags = re.search(r'"StateFlags"\s+"(\d+)"', text)
+            if flags and not (int(flags.group(1)) & 4):
+                continue
+            name = name_match.group(1).strip()
+            low = name.lower()
+            if any(bit in low for bit in _STEAM_SKIP_NAMES):
+                continue
+            folder = common / dir_match.group(1)
+            if not folder.is_dir():
+                continue
+            seen.add(app_id)
+            found.append({
+                "steamAppId": app_id,
+                "gameName": name,
+                "path": str(folder),
+            })
+    found.sort(key=lambda row: str(row["gameName"]).lower())
+    return found
+
+
 def detect_game(game_name: str, game_domain: str = "", *, timeout: float = 45.0, limit: int = 16) -> list[dict[str, Any]]:
     """Busca la carpeta de instalación del juego (con .exe dentro), no un ejemplo fijo."""
     tokens = _tokens(game_name, game_domain)

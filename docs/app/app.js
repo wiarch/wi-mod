@@ -58,7 +58,7 @@ const state = {
     return nav.startsWith("es") ? "es" : "en";
   })(),
   showEs: true,
-  theme: "nexus",
+  theme: "wimod",
   keys: { nexus: false, curseforge: false, steam: false, rawg: false },
   windowsUser: "",
   pcName: "",
@@ -2488,6 +2488,7 @@ function fillCategorySelect(node, preferred) {
 }
 
 const THEME_ICONS = {
+  wimod: "brand/wimod-32x32.png",
   nexus: "/brand/nexus.ico",
   modrinth: "/brand/modrinth.png",
   curseforge: "/brand/curseforge.ico",
@@ -2497,8 +2498,9 @@ const THEME_ICONS = {
 };
 
 function applyTheme(theme) {
-  const allowed = ["nexus", "modrinth", "curseforge", "steam", "moddb", "rawg"];
-  state.theme = allowed.includes(theme) ? theme : "nexus";
+  const name = String(theme || "").trim().toLowerCase();
+  const allowed = ["wimod", "nexus", "modrinth", "curseforge", "moddb", "rawg"];
+  state.theme = allowed.includes(name) ? name : "wimod";
   document.documentElement.dataset.theme = state.theme;
   document.querySelectorAll(".theme-panel [data-theme]").forEach((button) => {
     button.classList.toggle("on", button.dataset.theme === state.theme);

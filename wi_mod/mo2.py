@@ -63,12 +63,50 @@ def _store(exe: Path) -> None:
     global _CACHE, _LOOKED
     _CACHE = exe
     _LOOKED = True
+    data = _read_mo2()
+    data["exe"] = str(exe)
+    _write_mo2(data)
+
+
+def _read_mo2() -> dict:
+    try:
+        data = json.loads(_data_file().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _write_mo2(data: dict) -> None:
     path = _data_file()
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({"exe": str(exe)}), encoding="utf-8")
+        path.write_text(json.dumps(data), encoding="utf-8")
     except OSError:
         return
+
+
+def _target_key(game: str, mod_id: object) -> str:
+    return f"{str(game or '').strip().lower()}:{str(mod_id or '').strip()}"
+
+
+def remembered_target(game: str, mod_id: object) -> str:
+    targets = _read_mo2().get("targets")
+    if not isinstance(targets, dict):
+        return ""
+    value = str(targets.get(_target_key(game, mod_id)) or "")
+    return value if value in {"wimod", "mo2"} else ""
+
+
+def remember_target(game: str, mod_id: object, target: str) -> None:
+    if target not in {"wimod", "mo2"} or not str(mod_id or "").strip():
+        return
+    data = _read_mo2()
+    targets = data.get("targets")
+    if not isinstance(targets, dict):
+        targets = {}
+    targets[_target_key(game, mod_id)] = target
+    data["targets"] = targets
+    _write_mo2(data)
 
 
 def _from_disk() -> Path | None:
@@ -180,20 +218,5 @@ def handoff(exe: Path, url: str) -> None:
 
 
 def ask_target(label: str) -> str:
-    """'wimod' o 'mo2'. Sí = wi-mod, No = Mod Organizer 2."""
-    if sys.platform != "win32":
-        return "wimod"
-    import ctypes
-
-    text = (
-        f"{label}\n\n"
-        "wi-mod y Mod Organizer 2 están instalados.\n\n"
-        "Sí = descargar en wi-mod\n"
-        "No = descargar en Mod Organizer 2"
-    )
-    flags = 0x4 | 0x20 | 0x1000 | 0x10000
-    try:
-        answer = int(ctypes.windll.user32.MessageBoxW(None, text, "wi-mod", flags))
-    except OSError:
-        return "wimod"
-    return "mo2" if answer == 7 else "wimod"
+    """La app pregunta en su propio modal. Esto ya no abre un aviso de Windows."""
+    return "wimod"

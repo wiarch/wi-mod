@@ -672,6 +672,16 @@ class Library:
             self._kv_set("settings", json.dumps(current, ensure_ascii=False))
         return picked
 
+    def set_download_target(self, mode: str) -> str:
+        picked = str(mode or "").strip().lower()
+        if picked not in {"wimod", "mo2"}:
+            picked = "ask"
+        with self._lock:
+            current = self._read_settings()
+            current["downloadTarget"] = picked
+            self._kv_set("settings", json.dumps(current, ensure_ascii=False))
+        return picked
+
     def set_theme(self, theme: str) -> None:
         allowed = {"wimod", "nexus", "modrinth", "curseforge", "moddb", "rawg"}
         picked = str(theme or "").strip().lower()

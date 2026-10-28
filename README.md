@@ -38,7 +38,9 @@ It is not designed to replace advanced installation managers like *Mod Organizer
 - 🔒 **Privacy-First:** Runs entirely locally (`SQLite`/`IndexedDB`). No cloud account or telemetry.
 - 🌐 **Multi-Platform Integration:** Import cards and fetch metadata from:
   - Nexus Mods · Modrinth · CurseForge · Steam Workshop · ModDB
-- 🎨 **Dynamic Themes:** UI color schemes inspired by each platform's aesthetic.
+- 🎨 **Temas:** el de WI MOD es el de serie. También Nexus, Modrinth, CurseForge, ModDB y RAWG.
+- 🎮 **Pantalla de juego:** al abrir eliges el juego, ves la carátula y entras. En Ajustes se puede omitir y volver al último juego.
+- 📥 **Descarga:** WI MOD o Mod Organizer 2. El registro muestra pendientes y completados.
 - 🌍 **Multilingual:** Automatic system language detection (English and Spanish supported out of the box).
 - ⚡ **Ultra-Lightweight Performance:** Built with **Tauri v2 + Rust**, consuming under 40 MB of RAM.
 
@@ -70,9 +72,8 @@ The GitHub language bar is high in **Python** because the shipping desktop shell
 
 ### 💻 Desktop Executable (Recommended)
 
-1. Go to the [wi-mod Releases page](https://github.com/wiarch/wi-mod/releases/latest).
-2. Download the portable file for your OS (`.exe` for Windows or `.AppImage` / portable binary for Linux).
-3. Run it directly without installation.
+1. Go to the [latest Windows build](https://github.com/wiarch/wi-mod/releases/latest/download/wi-mod-windows.exe). GitHub compiles it on every push to `main`.
+2. Run `wi-mod-windows.exe`.
 
 
 
