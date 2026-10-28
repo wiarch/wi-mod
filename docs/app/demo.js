@@ -745,7 +745,8 @@
         windowsUser: "WYDEX",
         pcName: "PC",
         quitMode: "",
-        appVersion: "0.15.0",
+        appVersion: "0.29.1",
+        downloadTarget: "ask",
       });
     }
     if (path === "/api/logout" && method === "POST") return reply(200, { ok: true });
@@ -1353,9 +1354,9 @@
         position: sticky; top: 0; z-index: 90; width: 100%; box-sizing: border-box;
         display: flex; gap: 10px 14px; align-items: center; justify-content: space-between; flex-wrap: wrap;
         padding: 10px 16px;
-        background: #1a1410;
-        color: #f6efe6;
-        border-bottom: 2px solid var(--accent, #e08a2c);
+        background: #0e141b;
+        color: #e8f4fc;
+        border-bottom: 2px solid var(--accent, #66c0f4);
         font: 13px/1.35 "Segoe UI", system-ui, sans-serif;
       }
       #demo-bar .demo-title {
@@ -1363,7 +1364,7 @@
       }
       #demo-bar .demo-title em {
         font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
-        color: #1a1208; background: var(--accent, #e08a2c); border-radius: 999px; padding: 3px 8px;
+        color: #0b1b28; background: var(--accent, #66c0f4); border-radius: 999px; padding: 3px 8px;
       }
       #demo-bar .demo-chips {
         display: flex; flex: 1; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap;
@@ -1372,7 +1373,7 @@
         display: inline-flex; align-items: center; gap: 6px;
         padding: 5px 10px; border-radius: 999px;
         background: rgba(255,255,255,.06);
-        border: 1px solid rgba(224,138,44,.35);
+        border: 1px solid rgba(102,192,244,.35);
         color: #f6efe6;
       }
       #demo-bar .demo-chip strong { color: #fff; font-weight: 800; }
@@ -1390,9 +1391,9 @@
         padding: 7px 12px;
         white-space: nowrap;
       }
-      #demo-bar a.demo-home:hover { border-color: var(--accent, #e08a2c); color: #fff; }
+      #demo-bar a.demo-home:hover { border-color: var(--accent, #66c0f4); color: #fff; }
       #demo-bar a.demo-dl {
-        color: #1a1208; background: var(--accent, #e08a2c);
+        color: #0b1b28; background: var(--accent, #66c0f4);
         text-decoration: none; font-weight: 700; border-radius: 999px; padding: 7px 12px; white-space: nowrap;
       }
       #demo-bar a.demo-dl:hover { filter: brightness(1.08); }
@@ -1420,7 +1421,7 @@
       </div>
       <div class="demo-actions">
         <a class="demo-home" href="../">${en ? "Back to site" : "Volver al inicio"}</a>
-        <a class="demo-dl" href="../wi-mod-portable.zip">${en ? "Download desktop" : "Descargar escritorio"}</a>
+        <a class="demo-dl" href="https://github.com/wiarch/wi-mod/releases/latest/download/wi-mod-windows.exe">${en ? "Download desktop" : "Descargar escritorio"}</a>
       </div>
     `;
     document.body.prepend(bar);

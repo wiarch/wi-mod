@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="wimod">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,20 +11,34 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root, html[data-theme="wimod"], html[data-theme="nexus"] {
+    :root, html[data-theme="wimod"] {
+      --bg: #171a21;
+      --bg-2: #1b2838;
+      --bg-deep: #0e141b;
+      --text: #e8f4fc;
+      --muted: #8f98a0;
+      --line: rgba(255, 255, 255, 0.08);
+      --copper: #66c0f4;
+      --hot: #8fd4ff;
+      --ember: #1a9fff;
+      --ink: #0b1b28;
+      --glow: rgba(102, 192, 244, 0.34);
+      --glow-2: rgba(26, 159, 255, 0.18);
+      --glass: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(102, 192, 244, 0.28);
+    }
+    html[data-theme="nexus"] {
       --bg: #141210;
       --bg-2: #1c1916;
       --bg-deep: #0c0b0a;
       --text: #f6efe6;
       --muted: #c9c3b8;
-      --line: rgba(255, 255, 255, 0.08);
       --copper: #e08a2c;
       --hot: #f0a04a;
       --ember: #c45c26;
       --ink: #1a1208;
       --glow: rgba(224, 138, 44, 0.34);
       --glow-2: rgba(240, 160, 74, 0.18);
-      --glass: rgba(255, 255, 255, 0.03);
       --glass-border: rgba(224, 138, 44, 0.28);
     }
     html[data-theme="modrinth"] {
@@ -40,13 +54,6 @@
       --copper: #f16436; --hot: #ff8a5b; --ember: #c2410c; --ink: #2a100a;
       --glow: rgba(241, 100, 54, 0.32); --glow-2: rgba(255, 138, 91, 0.16);
       --glass-border: rgba(241, 100, 54, 0.28);
-    }
-    html[data-theme="steam"] {
-      --bg: #171a21; --bg-2: #1b2838; --bg-deep: #0e141b;
-      --text: #e8f4fc; --muted: #c5d4de;
-      --copper: #66c0f4; --hot: #8fd4ff; --ember: #1a9fff; --ink: #0b1b28;
-      --glow: rgba(102, 192, 244, 0.32); --glow-2: rgba(26, 159, 255, 0.18);
-      --glass-border: rgba(102, 192, 244, 0.28);
     }
     html[data-theme="moddb"] {
       --bg: #140c0c; --bg-2: #1c1010; --bg-deep: #0c0707;
@@ -668,7 +675,7 @@
     <header>
       <div class="mark"><img src="brand/wimod-32x32.png" alt="" width="28" height="28">wi-mod</div>
       <div class="head-mid">
-        <span class="ver-badge" data-i18n="verBadge"><strong>v0.29.0</strong> · 28 oct 2026 · Windows · Linux (beta)</span>
+        <span class="ver-badge" data-i18n="verBadge"><strong>v0.29.1</strong> · 28 oct 2026 · Windows · Linux (beta)</span>
         <a class="gh-link" href="https://github.com/wiarch/wi-mod" target="_blank" rel="noreferrer" aria-label="GitHub">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2C6.48 2 2 6.58 2 12.26c0 4.52 2.87 8.35 6.84 9.71.5.1.68-.22.68-.48 0-.24-.01-.87-.01-1.71-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.37-2.22-.26-4.55-1.14-4.55-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.31.1-2.73 0 0 .84-.27 2.75 1.05A9.3 9.3 0 0 1 12 6.84c.85 0 1.71.12 2.51.34 1.9-1.32 2.74-1.05 2.74-1.05.55 1.42.21 2.47.1 2.73.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.8-4.57 5.06.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.59.69.48A10.03 10.03 0 0 0 22 12.26C22 6.58 17.52 2 12 2z"/></svg>
         </a>
@@ -819,7 +826,7 @@
       es: {
         title: "wi-mod — portable",
         desc: "wi-mod: gestor local de mods open source para la comunidad. Multi-juego y multi-plataforma.",
-        verBadge: "<strong>v0.29.0</strong> · 28 oct 2026 · Windows · Linux (beta)",
+        verBadge: "<strong>v0.29.1</strong> · 28 oct 2026 · Windows · Linux (beta)",
         badge: "Open source · Pensado para la comunidad",
         h1: "Tu biblioteca de mods. Totalmente local. Sin cuentas.",
         lead: "Junta mods de múltiples plataformas en una sola biblioteca portable, rápida y privada en tu PC.",
@@ -847,12 +854,12 @@
         s3p: "El primer usuario lo creas tú. Tus mods quedan en data/.",
         footDocs: "Documentación",
         footLic: "Licencias",
-        foot: "wi-mod 0.29.0 · open source",
+        foot: "wi-mod 0.29.1 · open source",
       },
       en: {
         title: "wi-mod — portable",
         desc: "wi-mod is an open-source local mod manager for the community. Multi-game, multi-platform.",
-        verBadge: "<strong>v0.29.0</strong> · Oct 28, 2026 · Windows · Linux (beta)",
+        verBadge: "<strong>v0.29.1</strong> · Oct 28, 2026 · Windows · Linux (beta)",
         badge: "Open source · Built for the community",
         h1: "Your mod library. Fully local. No accounts.",
         lead: "Gather mods from multiple platforms into one portable, fast, and private library on your PC.",
@@ -880,7 +887,7 @@
         s3p: "You create the first user. Your mods live in data/.",
         footDocs: "Docs",
         footLic: "License",
-        foot: "wi-mod 0.29.0 · open source",
+        foot: "wi-mod 0.29.1 · open source",
       },
     };
 
@@ -918,7 +925,7 @@
     const THEMES = ["wimod", "nexus", "modrinth", "curseforge", "moddb", "rawg"];
     const PLAT = {
       es: {
-        wimod: ["WI MOD", "Tema por defecto. Cobre oscuro, el logo de wi-mod y la pantalla de elección de juego.", "Al abrir eliges el juego, ves su carátula y entras al gestor. En Ajustes puedes omitir esa pantalla y volver al último juego."],
+        wimod: ["WI MOD", "Tema por defecto. Azul WI MOD, el logo y la pantalla de elección de juego.", "Al abrir eliges el juego, ves su carátula y entras al gestor. En Ajustes puedes omitir esa pantalla y volver al último juego."],
         nexus: ["Nexus Mods", "Web de mods para juegos de un jugador: Skyrim, Fallout, Cyberpunk y miles más.", "En wi-mod buscas o pegas la ficha. Hace falta tu clave de Nexus. El mod se guarda en tu PC, no se instala solo en el juego."],
         modrinth: ["Modrinth", "Plataforma abierta, sobre todo de Minecraft: mods, modpacks, resource packs y shaders.", "La API es pública, sin clave. wi-mod busca el proyecto y archiva el enlace en la biblioteca."],
         curseforge: ["CurseForge", "Mods y modpacks de Minecraft, WoW y otros juegos, publicados en CurseForge.", "Buscas con tu clave de CurseForge y guardas la ficha junto al resto, en la misma biblioteca."],
@@ -927,7 +934,7 @@
         rawg: ["RAWG", "Base de datos de juegos, no de mods. Trae portada, nombre y ficha del juego.", "Sirve para dar de alta el juego en la biblioteca. Los mods se cuelgan de ese juego. Hace falta clave RAWG."],
       },
       en: {
-        wimod: ["WI MOD", "Default theme. Dark copper, the wi-mod logo, and the game picker.", "On launch you pick a game, see its cover, and enter the manager. Settings can skip that screen and reopen the last game."],
+        wimod: ["WI MOD", "Default theme. WI MOD blue, the logo, and the game picker.", "On launch you pick a game, see its cover, and enter the manager. Settings can skip that screen and reopen the last game."],
         nexus: ["Nexus Mods", "Mod site for single-player games: Skyrim, Fallout, Cyberpunk, and thousands more.", "Search or paste the page in wi-mod. You need your Nexus key. The mod is stored on your PC; it is not installed into the game."],
         modrinth: ["Modrinth", "Open platform, mainly Minecraft: mods, modpacks, resource packs, and shaders.", "The API is public, no key. wi-mod searches the project and keeps the link in your library."],
         curseforge: ["CurseForge", "Mods and modpacks for Minecraft, WoW, and other games hosted on CurseForge.", "Search with your CurseForge key and save the page next to everything else."],
