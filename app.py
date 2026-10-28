@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 import threading
+import time
 import urllib.error
 import urllib.request
 import webbrowser
@@ -26,6 +27,8 @@ def main() -> None:
 
 
 def _run() -> None:
+    if "--restart-wait" in sys.argv:
+        time.sleep(1.2)
     pending = _nxm_arg()
     if pending and _forward_nxm(pending):
         return
@@ -130,17 +133,14 @@ class _Host:
             return
 
         def toggle():
-            from System.Windows.Forms import FormWindowState, Screen
+            from System.Windows.Forms import FormWindowState
 
-            area = Screen.FromHandle(native.Handle).WorkingArea
-            bounds = native.Bounds
-            filled = abs(bounds.Width - area.Width) < 12 and abs(bounds.Height - area.Height) < 12
             native.WindowState = FormWindowState.Normal
-            if filled and self.holder.get("box") is not None:
-                native.Bounds = self.holder["box"]
+            if _fills_work(native) and self.holder.get("box") is not None:
+                _restore_box(native, self.holder["box"])
                 return
-            self.holder["box"] = bounds
-            native.Bounds = area
+            self.holder["box"] = native.Bounds
+            _fill_work(native)
 
         try:
             from System import Func, Type
@@ -158,6 +158,11 @@ class _Host:
             return
         _ensure_tray(window)
         _hide_window(window)
+
+    def win_restart(self) -> None:
+        window = self.holder.get("window")
+        _spawn_restart()
+        _quit(window)
 
     def site(self) -> None:
         webbrowser.open("https://wiarch.github.io/wi-mod/")
@@ -339,7 +344,7 @@ def _open(url: str, app: App) -> None:
                 height=840,
                 min_size=(980, 640),
                 resizable=True,
-                maximized=True,
+                maximized=False,
                 frameless=True,
                 easy_drag=False,
                 text_select=True,
@@ -359,6 +364,7 @@ def _open(url: str, app: App) -> None:
 
             def on_shown():
                 _apply_window_icon()
+                _no_browser_keys(window)
                 _open_maximized(window, holder)
                 _ensure_tray(window)
 
@@ -372,16 +378,38 @@ def _open(url: str, app: App) -> None:
     threading.Event().wait()
 
 
-def _chrome(native) -> None:
-    """Bordes para achicar, sin barra de título ni línea de color."""
+def _fills_work(native) -> bool:
+    from System.Windows.Forms import Screen
+
+    area = Screen.FromHandle(native.Handle).WorkingArea
+    bounds = native.Bounds
+    return abs(bounds.Width - area.Width) < 12 and abs(bounds.Height - area.Height) < 12
+
+
+def _fill_work(native) -> None:
+    """Ocupa el área de trabajo, sin marco. La barra de tareas queda fuera."""
+    from System.Drawing import Rectangle
+    from System.Windows.Forms import FormBorderStyle, Screen
+
+    native.FormBorderStyle = getattr(FormBorderStyle, "None")
+    area = Screen.FromHandle(native.Handle).WorkingArea
+    native.Bounds = Rectangle(area.X, area.Y, area.Width, area.Height)
+    _no_color_border(native)
+    _hook_snap(native)
+
+
+def _restore_box(native, box) -> None:
+    from System.Windows.Forms import FormBorderStyle
+
+    native.FormBorderStyle = getattr(FormBorderStyle, "None")
+    native.Bounds = box
+    _chrome(native)
+
+
+def _no_color_border(native) -> None:
     import ctypes
 
     hwnd = int(native.Handle.ToInt32())
-    user32 = ctypes.windll.user32
-    style = user32.GetWindowLongW(hwnd, -16)
-    style = (style | 0x00040000 | 0x00010000 | 0x00020000 | 0x00080000) & ~0x00C00000
-    user32.SetWindowLongW(hwnd, -16, style)
-    user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0027)
 
     class _Margins(ctypes.Structure):
         _fields_ = (
@@ -393,7 +421,107 @@ def _chrome(native) -> None:
 
     ctypes.windll.dwmapi.DwmExtendFrameIntoClientArea(hwnd, ctypes.byref(_Margins(0, 0, 0, 0)))
     none = ctypes.c_int(0xFFFFFFFE)
+    caption = ctypes.c_int(0x000A0B0C)
     ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, 34, ctypes.byref(none), 4)
+    ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, 35, ctypes.byref(caption), 4)
+
+
+_FRAME_HOOKS: dict = {}
+
+
+def _hook_snap(native) -> None:
+    """Marco grueso para Aero Snap, sin la barra de acento. El arrastre sigue en la titlebar."""
+    try:
+        handle = native.Handle
+        key = int(handle.ToInt64()) if hasattr(handle, "ToInt64") else int(handle.ToInt32())
+    except Exception:
+        return
+    if key in _FRAME_HOOKS:
+        return
+    from System import IntPtr
+    from System.Windows.Forms import NativeWindow
+
+    class _Hook(NativeWindow):
+        def WndProc(self, m):
+            if m.Msg == 0x0083 and int(m.WParam) == 1:
+                m.Result = IntPtr.Zero
+                return
+            if m.Msg == 0x0084:
+                NativeWindow.WndProc(self, m)
+                if int(m.Result) == 1:
+                    hit = _edge_hit(self.Handle, m.LParam)
+                    if hit:
+                        m.Result = IntPtr(hit)
+                return
+            NativeWindow.WndProc(self, m)
+
+    hook = _Hook()
+    try:
+        hook.AssignHandle(native.Handle)
+    except Exception:
+        return
+    _FRAME_HOOKS[key] = hook
+
+
+def _edge_hit(handle, lparam) -> int:
+    import ctypes
+
+    raw = int(lparam.ToInt64()) if hasattr(lparam, "ToInt64") else int(lparam.ToInt32())
+    x = ctypes.c_short(raw & 0xFFFF).value
+    y = ctypes.c_short((raw >> 16) & 0xFFFF).value
+
+    class _Rect(ctypes.Structure):
+        _fields_ = (("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long))
+
+    rect = _Rect()
+    hwnd = int(handle.ToInt64()) if hasattr(handle, "ToInt64") else int(handle.ToInt32())
+    get_rect = ctypes.windll.user32.GetWindowRect
+    get_rect.argtypes = [ctypes.c_void_p, ctypes.POINTER(_Rect)]
+    get_rect.restype = ctypes.c_int
+    if not get_rect(hwnd, ctypes.byref(rect)):
+        return 0
+    grip = 8
+    on_l = x < rect.left + grip
+    on_r = x >= rect.right - grip
+    on_t = y < rect.top + grip
+    on_b = y >= rect.bottom - grip
+    if on_t and on_l:
+        return 13
+    if on_t and on_r:
+        return 14
+    if on_b and on_l:
+        return 16
+    if on_b and on_r:
+        return 17
+    if on_l:
+        return 10
+    if on_r:
+        return 11
+    if on_t:
+        return 12
+    if on_b:
+        return 15
+    return 0
+
+
+def _chrome(native) -> None:
+    """Thick frame para snap y resize. Sin WS_CAPTION: la barra nativa no se pinta."""
+    import ctypes
+
+    hwnd = int(native.Handle.ToInt64()) if hasattr(native.Handle, "ToInt64") else int(native.Handle.ToInt32())
+    _hook_snap(native)
+    user32 = ctypes.windll.user32
+    style = user32.GetWindowLongW(hwnd, -16)
+    style = (style | 0x00040000 | 0x00010000 | 0x00020000 | 0x00080000) & ~0x00C00000
+    user32.SetWindowLongW(hwnd, -16, style)
+    user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0027)
+    try:
+        native.MaximizeBox = True
+        native.MinimizeBox = True
+    except Exception:
+        pass
+    _no_color_border(native)
+    _hook_snap(native)
 
 
 def _open_maximized(window, holder: dict) -> None:
@@ -410,7 +538,6 @@ def _open_maximized(window, holder: dict) -> None:
         from System.Drawing import Rectangle
         from System.Windows.Forms import FormWindowState, Screen
 
-        _chrome(native)
         native.WindowState = FormWindowState.Normal
         area = Screen.FromHandle(native.Handle).WorkingArea
         box = native.Bounds
@@ -426,7 +553,7 @@ def _open_maximized(window, holder: dict) -> None:
         else:
             box = Rectangle(box.X, box.Y, box.Width, box.Height)
         holder["box"] = box
-        native.Bounds = area
+        _fill_work(native)
 
     try:
         from System import Func, Type
@@ -453,6 +580,42 @@ def _hide_window(window) -> None:
         form.Hide()
         return
     window.hide()
+
+
+def _spawn_restart() -> None:
+    """Abre otra instancia y deja que esta se cierre. El hijo espera a que suelte el puerto."""
+    import subprocess
+    from pathlib import Path
+
+    if getattr(sys, "frozen", False):
+        cmd = [sys.executable]
+    else:
+        cmd = [sys.executable, str(Path(sys.argv[0]).resolve())]
+    cmd.extend(arg for arg in sys.argv[1:] if arg != "--restart-wait")
+    cmd.append("--restart-wait")
+    kwargs = {"cwd": str(ROOT), "close_fds": True}
+    if sys.platform == "win32":
+        kwargs["creationflags"] = 0x00000008 | 0x00000200
+    subprocess.Popen(cmd, **kwargs)
+
+
+def _no_browser_keys(window) -> None:
+    """Ctrl+Shift+R lo maneja la app, no el recargar del WebView."""
+    native = getattr(window, "native", None)
+    browser = getattr(native, "browser", None) if native is not None else None
+    if browser is None:
+        browser = getattr(window, "browser", None)
+    web = getattr(browser, "webview", None) if browser is not None else None
+    core = getattr(web, "CoreWebView2", None) if web is not None else None
+    settings = getattr(core, "Settings", None) if core is not None else None
+    if settings is None and web is not None:
+        settings = getattr(web, "Settings", None)
+    if settings is None:
+        return
+    try:
+        settings.AreBrowserAcceleratorKeysEnabled = False
+    except Exception:
+        return
 
 
 def _quit(window) -> None:
@@ -509,7 +672,22 @@ def _brand_icon():
     global _mark
     if _mark is not None:
         return _mark
-    from System.Drawing import Bitmap, Color, Graphics, Icon, Pen, PointF, SolidBrush
+    from System.Drawing import Bitmap, Icon
+
+    ico = ROOT / "public" / "wimod-icon-pack" / "wimod.ico"
+    png = ROOT / "public" / "wimod-icon-pack" / "wimod-256x256.png"
+    try:
+        if ico.is_file():
+            icon = Icon(str(ico))
+            _mark = (icon.ToBitmap(), icon)
+            return _mark
+        if png.is_file():
+            bitmap = Bitmap(str(png))
+            _mark = (bitmap, Icon.FromHandle(bitmap.GetHicon()))
+            return _mark
+    except Exception:
+        pass
+    from System.Drawing import Color, Graphics, Pen, PointF, SolidBrush
     from System.Drawing.Drawing2D import GraphicsPath, LineJoin, SmoothingMode
 
     size = 128

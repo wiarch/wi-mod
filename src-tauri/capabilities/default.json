@@ -7,10 +7,15 @@
     "core:default",
     "core:window:allow-show",
     "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-is-maximized",
+    "core:window:allow-start-dragging",
     "core:window:allow-set-focus",
     "sql:default",
     "sql:allow-execute",
     "allow-fetch-external-api",
-    "allow-destroy-splashscreen"
+    "allow-destroy-splashscreen",
+    "allow-restart-app"
   ]
 }

@@ -18,6 +18,16 @@ fn init_app_state(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Erro
 }
 
 #[tauri::command]
+fn restart_app(app: tauri::AppHandle) {
+    thread::spawn(move || {
+        if let Ok(exe) = std::env::current_exe() {
+            let _ = std::process::Command::new(exe).spawn();
+        }
+        app.exit(0);
+    });
+}
+
+#[tauri::command]
 fn destroy_splashscreen(app: tauri::AppHandle) -> Result<(), String> {
     init_app_state(&app).map_err(|err| err.to_string())?;
     thread::spawn(move || {
@@ -66,7 +76,8 @@ CREATE TABLE IF NOT EXISTS settings (
         })
         .invoke_handler(tauri::generate_handler![
             http_proxy::fetch_external_api,
-            destroy_splashscreen
+            destroy_splashscreen,
+            restart_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running wi-mod");

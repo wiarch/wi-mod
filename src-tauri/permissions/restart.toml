@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-restart-app"
+description = "Cierra esta instancia y abre otra."
+commands.allow = ["restart_app"]

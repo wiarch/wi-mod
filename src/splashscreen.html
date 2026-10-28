@@ -3,27 +3,22 @@
 <head>
   <meta charset="utf-8">
   <title>wi-mod</title>
+  <script>
+    try {
+      if (localStorage.getItem("wi-mod-neon") !== "0") document.documentElement.classList.add("neon-effects-active");
+    } catch (_) {}
+  </script>
   <link rel="stylesheet" href="./splashscreen.css">
 </head>
 <body>
   <div class="splash">
     <div class="glow" aria-hidden="true"></div>
     <div class="watermark" aria-hidden="true">
-      <svg viewBox="0 0 48 48" fill="none">
-        <path d="M6 16L24 6L42 16V32L24 42L6 32V16Z" stroke="currentColor" stroke-width="1"/>
-        <path d="M6 16L16 34L24 20L32 34L42 16" stroke="currentColor" stroke-width="1"/>
-        <path d="M16 34L24 42L32 34" stroke="currentColor" stroke-width="1"/>
-        <path d="M14 11L24 28L34 11" stroke="currentColor" stroke-width="1"/>
-      </svg>
+      <div class="bg-brand-pattern"></div>
     </div>
     <div class="stack">
-      <div class="brand">
-        <svg class="logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M6 16L24 6L42 16V32L24 42L6 32V16Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-          <path d="M6 16L16 34L24 20L32 34L42 16" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-          <path d="M16 34L24 42L32 34" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-          <path d="M14 11L24 28L34 11" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-        </svg>
+      <div class="brand-row">
+        <img class="logo" src="/wimod-icon-pack/wimod-256x256.png" alt="" width="64" height="64">
         <h1 class="title"><span class="wi">wi-</span><span class="mod">mod</span></h1>
       </div>
       <div class="bar" aria-hidden="true"><span class="fill"></span></div>

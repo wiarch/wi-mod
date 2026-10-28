@@ -1,11 +1,16 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="nexus">
+<html lang="es" data-theme="wimod">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>wi-mod</title>
-  <link rel="icon" href="/brand/wi-mod.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css?v=0.26.0">
+  <script>
+    try {
+      if (localStorage.getItem("wi-mod-neon") !== "0") document.documentElement.classList.add("neon-effects-active");
+    } catch (_) {}
+  </script>
+  <link rel="icon" href="/wimod-icon-pack/wimod.ico" type="image/x-icon">
+  <link rel="stylesheet" href="/styles.css?v=0.27.0">
 </head>
 <body>
   <div id="login" class="login" hidden>
@@ -39,21 +44,11 @@
   <div id="boot" class="boot" aria-hidden="true">
     <div class="boot-glow" aria-hidden="true"></div>
     <div class="boot-watermark" aria-hidden="true">
-      <svg viewBox="0 0 48 48" fill="none">
-        <path d="M6 16L24 6L42 16V32L24 42L6 32V16Z" stroke="currentColor" stroke-width="1"/>
-        <path d="M6 16L16 34L24 20L32 34L42 16" stroke="currentColor" stroke-width="1"/>
-        <path d="M16 34L24 42L32 34" stroke="currentColor" stroke-width="1"/>
-        <path d="M14 11L24 28L34 11" stroke="currentColor" stroke-width="1"/>
-      </svg>
+      <div class="bg-brand-pattern"></div>
     </div>
     <div class="boot-stack">
       <div class="boot-brand">
-        <svg class="boot-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M6 16L24 6L42 16V32L24 42L6 32V16Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-          <path d="M6 16L16 34L24 20L32 34L42 16" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-          <path d="M16 34L24 42L32 34" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-          <path d="M14 11L24 28L34 11" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-        </svg>
+        <img class="boot-logo" src="/wimod-icon-pack/wimod-256x256.png" alt="" width="64" height="64">
         <h1 class="boot-title"><span class="boot-wi">wi-</span><span class="boot-mod">mod</span></h1>
       </div>
       <div class="boot-bar" aria-hidden="true"><span class="boot-bar-fill" style="width:8%"></span></div>
@@ -61,28 +56,13 @@
     </div>
   </div>
 
-  <header class="sysbar" id="sysbar">
-    <svg class="sysbar-logo brand-iso pywebview-drag-region" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="22" height="22">
-      <path d="M6 16L24 6L42 16V32L24 42L6 32V16Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-      <path d="M6 16L16 34L24 20L32 34L42 16" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-      <path d="M16 34L24 42L32 34" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-      <path d="M14 11L24 28L34 11" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-    </svg>
+  <header class="sysbar pywebview-drag-region" id="sysbar" data-tauri-drag-region>
+    <img class="sysbar-logo brand-iso pywebview-drag-region" data-tauri-drag-region src="/wimod-icon-pack/wimod-32x32.png" alt="" width="16" height="16">
     <div class="sysbar-id">
-      <div class="brand pywebview-drag-region"><span class="brand-wi">wi-</span><span class="brand-mod">mod</span></div>
-      <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.26.0</a>
+      <div class="brand pywebview-drag-region" data-tauri-drag-region><span class="brand-wi">wi-</span><span class="brand-mod">mod</span></div>
+      <a id="app-version" class="app-version" href="https://wiarch.github.io/wi-mod/" target="_blank" rel="noopener noreferrer">v0.27.0</a>
     </div>
-    <div class="game-picker-wrap">
-      <button type="button" id="game-picker" class="game-picker" aria-haspopup="listbox" aria-expanded="false">
-        <img id="game-picker-img" alt="" hidden>
-        <span id="game-picker-name" data-i18n="pickGame">Elegir juego</span>
-        <svg class="sys-caret" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
-      </button>
-      <div id="game-menu" class="game-menu" hidden role="listbox">
-        <button type="button" id="game-add" class="game-menu-add" title="Añadir juego (RAWG)" data-i18n-title="addGameTitle"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg><span data-i18n="addGame">Añadir juego</span></button>
-      </div>
-    </div>
-    <div class="sysbar-drag pywebview-drag-region"></div>
+    <div class="sysbar-drag pywebview-drag-region" data-tauri-drag-region></div>
     <div class="sysbar-right">
       <div class="log-slot">
         <button type="button" id="log-open" class="dock-log" title="Log" data-i18n-title="log" aria-expanded="false" aria-controls="log-panel">
@@ -162,6 +142,11 @@
             <span data-i18n="sound">Sonido</span>
             <span class="prefs-toggle-ui" aria-hidden="true"></span>
           </button>
+          <button type="button" id="neon" class="prefs-row mute-btn on" title="Efectos Neón" data-i18n-title="neonEffects" aria-pressed="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
+            <span data-i18n="neonEffects">Efectos Neón</span>
+            <span class="prefs-toggle-ui" aria-hidden="true"></span>
+          </button>
           <button type="button" id="lang-toggle" class="prefs-row mute-btn" title="Cambiar a inglés">
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" d="M3.6 9h16.8M3.6 15h16.8M12 3c3 3.6 3 14.4 0 18M12 3c-3 3.6-3 14.4 0 18"/></svg>
             <span data-i18n="language">Idioma</span>
@@ -186,6 +171,10 @@
       <div class="theme-panel" id="theme-panel" role="dialog" aria-label="Temas">
         <p class="theme-panel-title" data-i18n="themes">Temas</p>
         <div class="theme-grid">
+          <button type="button" class="theme-card" data-theme="wimod" title="WI MOD" aria-label="WI MOD">
+            <span class="theme-preview" aria-hidden="true"><span class="tp-side"></span><span class="tp-main"><span class="tp-bar"></span><span class="tp-bar short"></span></span></span>
+            <span class="theme-card-meta"><img src="/wimod-icon-pack/wimod-32x32.png" alt="" width="14" height="14"><span>WI MOD</span></span>
+          </button>
           <button type="button" class="theme-card" data-theme="nexus" title="Nexus Mods" aria-label="Nexus Mods">
             <span class="theme-preview" aria-hidden="true"><span class="tp-side"></span><span class="tp-main"><span class="tp-bar"></span><span class="tp-bar short"></span></span></span>
             <span class="theme-card-meta"><img src="/brand/nexus.ico" alt="" width="14" height="14"><span>Nexus</span></span>
@@ -197,10 +186,6 @@
           <button type="button" class="theme-card" data-theme="curseforge" title="CurseForge" aria-label="CurseForge">
             <span class="theme-preview" aria-hidden="true"><span class="tp-side"></span><span class="tp-main"><span class="tp-bar"></span><span class="tp-bar short"></span></span></span>
             <span class="theme-card-meta"><img src="/brand/curseforge.ico" alt="" width="14" height="14"><span>CurseForge</span></span>
-          </button>
-          <button type="button" class="theme-card" data-theme="steam" title="Steam Workshop" aria-label="Steam Workshop">
-            <span class="theme-preview" aria-hidden="true"><span class="tp-side"></span><span class="tp-main"><span class="tp-bar"></span><span class="tp-bar short"></span></span></span>
-            <span class="theme-card-meta"><img src="/brand/steam.ico" alt="" width="14" height="14"><span>Steam</span></span>
           </button>
           <button type="button" class="theme-card" data-theme="moddb" title="ModDB" aria-label="ModDB">
             <span class="theme-preview" aria-hidden="true"><span class="tp-side"></span><span class="tp-main"><span class="tp-bar"></span><span class="tp-bar short"></span></span></span>
@@ -215,30 +200,43 @@
     </div>
     <div class="sys-wins" id="sys-wins" hidden>
       <button type="button" id="sys-min" class="sys-win" aria-label="Minimizar" data-i18n-aria="sysMin" title="Minimizar" data-i18n-title="sysMin">
-        <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path stroke="currentColor" stroke-width="1.6" d="M5 12h14"/></svg>
+        <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><path stroke="currentColor" stroke-width="1" d="M1.5 6h9"/></svg>
       </button>
-      <button type="button" id="sys-max" class="sys-win is-max" aria-label="Restaurar" data-i18n-aria="sysMax" title="Restaurar" data-i18n-title="sysMax">
-        <svg class="ico-max" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><rect x="5" y="5" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
-        <svg class="ico-restore" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><rect x="8" y="8" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.6"/><path stroke="currentColor" stroke-width="1.6" fill="none" d="M9 8V6h10v10h-2"/></svg>
+      <button type="button" id="sys-max" class="sys-win is-max" aria-label="Restaurar" data-i18n-aria="sysRestore" title="Restaurar" data-i18n-title="sysRestore">
+        <svg class="ico-max" viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><rect x="2" y="2" width="8" height="8" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+        <svg class="ico-restore" viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><rect x="3.25" y="3.75" width="6.25" height="6.25" fill="none" stroke="currentColor" stroke-width="1"/><path stroke="currentColor" stroke-width="1" fill="none" d="M4.25 3.75V2h6.25v6.25H8.5"/></svg>
       </button>
       <button type="button" id="sys-close" class="sys-win sys-close" aria-label="Cerrar" data-i18n-aria="sysClose" title="Cerrar" data-i18n-title="sysClose">
-        <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+        <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true"><path stroke="currentColor" stroke-width="1" stroke-linecap="round" d="M2.5 2.5 9.5 9.5M9.5 2.5 2.5 9.5"/></svg>
       </button>
     </div>
   </header>
 
   <header class="top">
     <div class="game-scope">
+      <div class="game-picker-wrap">
+        <button type="button" id="game-picker" class="sys-pill game-picker is-empty" aria-haspopup="listbox" aria-expanded="false">
+          <svg class="instance-mark game-mark" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 12h3M9.5 10.5v3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="15.5" cy="11" r="0.8" fill="currentColor"/><circle cx="17.2" cy="13" r="0.8" fill="currentColor"/></svg>
+          <img id="game-picker-img" alt="" width="16" height="16" hidden>
+          <span id="game-picker-name" data-i18n="pickGame">Elegir juego</span>
+          <svg class="sys-caret" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div id="game-menu" class="game-menu" hidden role="listbox">
+          <button type="button" id="game-add" class="game-menu-add" title="Añadir juego (RAWG)" data-i18n-title="addGameTitle"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg><span data-i18n="addGame">Añadir juego</span></button>
+        </div>
+      </div>
       <div class="sys-instance-wrap">
-        <button type="button" id="sys-instance" class="sys-pill" aria-haspopup="listbox" aria-expanded="false">
+        <button type="button" id="sys-instance" class="sys-pill is-empty" aria-haspopup="listbox" aria-expanded="false">
+          <svg class="instance-mark" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 20h8M12 16v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
           <img id="sys-instance-ico" alt="" width="16" height="16" hidden>
           <span id="sys-instance-name" data-i18n="sysNone">Sin instancia</span>
-          <svg class="sys-caret" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M7 10l5 5 5-5z"/></svg>
+          <svg class="sys-caret" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
         </button>
         <div id="sys-instance-menu" class="sys-menu" hidden role="listbox"></div>
       </div>
-      <button type="button" id="game-play" class="game-play" title="Lanzar juego" aria-label="Lanzar juego">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 6.2v11.6l9.2-5.8z"/></svg>
+      <button type="button" id="game-play" class="game-play" title="Jugar" aria-label="Jugar" data-i18n-title="play" data-i18n-aria="play" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg>
+        <span data-i18n="play">Jugar</span>
       </button>
     </div>
     <div class="search-wrap">
@@ -287,11 +285,11 @@
         <div class="side-head">
           <button type="button" class="side-fold" aria-expanded="true">
             <span class="side-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v8l-8 4-8-4V8z"/><path d="M12 12v8M4 8l8 4 8-4"/></svg><span class="side-badge" id="fold-modpacks-badge"></span></span>
-            <span class="side-label" data-i18n="modpack">Modpack</span>
+            <span class="side-label" data-i18n="modpack">Instancia</span>
             <span class="side-count" id="fold-modpacks"></span>
             <span class="side-caret" aria-hidden="true"></span>
           </button>
-          <button type="button" class="side-add" data-add="modpack" title="Crear modpack" data-i18n-title="createPack">+</button>
+          <button type="button" class="side-add" data-add="modpack" title="Crear instancia" data-i18n-title="createPack">+</button>
         </div>
         <div id="modpacks"></div>
       </div>
@@ -335,6 +333,7 @@
       <section id="game-hero" class="game-hero" hidden></section>
       <div class="bar">
         <p id="count"></p>
+        <div class="bar-center">
         <button type="button" id="update-banner" class="update-banner" hidden data-i18n="newVersion">Versión nueva</button>
         <div class="view-dock">
           <div class="pick-tools">
@@ -364,6 +363,7 @@
           <input id="list-search" class="list-search" type="search" placeholder="Filtrar lista" data-i18n-placeholder="listSearch" autocomplete="off" spellcheck="false" aria-label="Filtrar lista">
           <button type="button" id="hero-show" class="game-hero-toggle" hidden data-i18n="showCard">Mostrar</button>
         </div>
+        </div>
         <span class="bar-balance" aria-hidden="true"></span>
       </div>
       <div id="bulk" class="bulk" hidden>
@@ -378,7 +378,7 @@
             <button type="button" id="bulk-cat" class="solid" data-i18n="assign">Asignar</button>
           </div>
           <div class="bulk-action pack">
-            <label><span data-i18n="modpack">Modpack</span>
+            <label><span data-i18n="modpack">Instancia</span>
               <select id="bulk-pack"></select>
             </label>
             <label><span data-i18n="insidePack">Dentro del pack</span>
@@ -434,10 +434,10 @@
         </label>
       </div>
       <div class="row">
-        <label style="flex:1"><span data-i18n="modpack">Modpack</span>
+        <label style="flex:1"><span data-i18n="modpack">Instancia</span>
           <span class="pick-add">
             <select id="add-modpack"></select>
-            <button type="button" class="side-add" id="add-pack-new" title="Crear modpack">+</button>
+            <button type="button" class="side-add" id="add-pack-new" title="Crear instancia">+</button>
           </span>
         </label>
         <label style="flex:1"><span data-i18n="packCat">Categoría del pack</span>
@@ -447,7 +447,7 @@
           </span>
         </label>
       </div>
-      <p class="hint" data-i18n="plusHint">Con + creas el modpack o la categoría aquí mismo.</p>
+      <p class="hint" data-i18n="plusHint">Con + creas la instancia o la categoría aquí mismo.</p>
       <footer>
         <button id="add-save" class="solid" type="submit" data-i18n="save">Guardar</button>
       </footer>
@@ -549,12 +549,12 @@
         </button>
       </div>
       <div id="pack-export-pane" hidden>
-        <p class="hint" data-i18n="exportHint">Todo, o solo un juego, un modpack, una plataforma o los marcados.</p>
+        <p class="hint" data-i18n="exportHint">Todo, o solo un juego, una instancia, una plataforma o los marcados.</p>
         <label><span data-i18n="whatExport">Qué exportar</span>
           <select id="pack-scope">
             <option value="all" data-i18n="all">Todo</option>
             <option value="game" data-i18n="oneGame">Un juego</option>
-            <option value="modpack" data-i18n="onePack">Un modpack</option>
+            <option value="modpack" data-i18n="onePack">Una instancia</option>
             <option value="platform" data-i18n="byPlatform">Por plataforma</option>
             <option value="selected" data-i18n="selectedOnly">Solo marcados</option>
           </select>
@@ -585,7 +585,7 @@
             <select id="pack-in-scope">
               <option value="all">Todo</option>
               <option value="game">Un juego</option>
-              <option value="modpack">Un modpack</option>
+              <option value="modpack">Una instancia</option>
             </select>
           </label>
           <label id="pack-in-wrap" hidden><span data-i18n="choose">Elige</span>
@@ -603,7 +603,7 @@
   <dialog id="modpacks-dialog">
     <form id="modpacks-form">
       <header>
-        <h2 data-i18n="modpacks">Modpacks</h2>
+        <h2 data-i18n="modpacks">Instancias</h2>
         <button type="button" class="icon" data-close>✕</button>
       </header>
       <p class="hint" data-i18n="packHint">Pon el nombre y las categorías. Luego asigna los mods marcados.</p>
@@ -650,7 +650,7 @@
         <button type="button" class="ghost" id="mp-cat-add" data-i18n="addCategory">Añadir categoría</button>
       </div>
       <div id="mp-cats" class="mp-cats"></div>
-      <label><span data-i18n="description">Descripción</span><textarea id="mp-notes" rows="3" placeholder="De qué va este modpack…" data-i18n-placeholder="packNotesPh"></textarea></label>
+      <label><span data-i18n="description">Descripción</span><textarea id="mp-notes" rows="3" placeholder="De qué va esta instancia…" data-i18n-placeholder="packNotesPh"></textarea></label>
       <div class="mp-preview" id="mp-preview">
         <div id="mp-mark-face" class="mp-mark-face" aria-hidden="true">📦</div>
         <div>
@@ -662,7 +662,7 @@
       <input id="mp-edit-id" type="hidden">
       <footer>
         <button id="mp-delete" class="ghost" type="button" hidden data-i18n="delete">Eliminar</button>
-        <button id="mp-save" class="solid" type="submit" data-i18n="savePack">Guardar modpack</button>
+        <button id="mp-save" class="solid" type="submit" data-i18n="savePack">Guardar instancia</button>
       </footer>
     </form>
   </dialog>
@@ -701,7 +701,7 @@
         <h2 id="packcat-title" data-i18n="packCat">Categoría del pack</h2>
         <button type="button" class="icon" data-close>✕</button>
       </header>
-      <p class="hint" data-i18n="packCatHint">Apartado dentro del modpack. Nombre, imagen y una nota.</p>
+      <p class="hint" data-i18n="packCatHint">Apartado dentro de la instancia. Nombre, imagen y una nota.</p>
       <p id="packcat-pack" class="meta"></p>
       <label><span data-i18n="name">Nombre</span>
         <input id="pc-name" type="text" placeholder="Ej. Iluminación" data-i18n-placeholder="exampleLight" required>
@@ -822,7 +822,7 @@
     <button type="button" data-act="note"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M6 3h9l5 5v13H6zM14 3v6h6M8 13h8M8 17h6"/></svg><span data-i18n="note">Nota</span></button>
     <button type="button" data-act="pick"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M8 12l3 3 5-6"/></svg><span data-i18n="select">Seleccionar</span></button>
     <button type="button" data-act="file"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 6h6l2 2h8v10H4z"/></svg><span data-i18n="localFile">Archivo local</span></button>
-    <button type="button" data-act="move"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg><span data-i18n="moveToPack">Mover a modpack</span></button>
+    <button type="button" data-act="move"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M13 6l6 6-6 6"/></svg><span data-i18n="moveToPack">Mover a instancia</span></button>
   </div>
   <div id="app-menu" class="mod-menu" hidden>
     <button type="button" data-act="refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 12a8 8 0 1 1-2.2-5.5M20 4v5h-5"/></svg><span data-i18n="refresh">Actualizar</span></button>
@@ -876,11 +876,11 @@
   <dialog id="move-dialog">
     <form id="move-form">
       <header>
-        <h2 data-i18n="moveToPack">Mover a modpack</h2>
+        <h2 data-i18n="moveToPack">Mover a instancia</h2>
         <button type="button" class="icon" id="move-x">✕</button>
       </header>
       <p class="hint" id="move-name"></p>
-      <label><span data-i18n="modpack">Modpack</span>
+      <label><span data-i18n="modpack">Instancia</span>
         <select id="move-pack"></select>
       </label>
       <label><span data-i18n="insidePack">Dentro del pack</span>
@@ -978,6 +978,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=0.26.0"></script>
+  <script src="/neon.js?v=0.27.0"></script>
+  <script src="/app.js?v=0.27.0"></script>
 </body>
 </html>

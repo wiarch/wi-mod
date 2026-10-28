@@ -240,12 +240,12 @@ class Library:
     def set_modpack_active(self, pack_id: str, active: bool) -> list[dict[str, Any]]:
         pack_id = str(pack_id or "").strip()
         if not pack_id:
-            raise ValueError("Elige un modpack.")
+            raise ValueError("Elige una instancia.")
         with self._lock:
             data = self._read()
             self._migrate(data)
             if not self._find_pack(data.get("modpacks") or [], pack_id):
-                raise ValueError("Modpack no encontrado.")
+                raise ValueError("Instancia no encontrada.")
             ids = [
                 str(mod.get("id") or "")
                 for mod in data.get("mods") or []
@@ -673,11 +673,15 @@ class Library:
         return picked
 
     def set_theme(self, theme: str) -> None:
-        allowed = {"nexus", "modrinth", "curseforge", "steam", "moddb", "rawg"}
+        allowed = {"wimod", "nexus", "modrinth", "curseforge", "moddb", "rawg"}
         picked = str(theme or "").strip().lower()
+        if picked == "steam":
+            picked = "wimod"
         if picked not in allowed:
-            picked = "nexus"
+            picked = "wimod"
         with self._lock:
+            if picked != "wimod" and not self._read_settings().get("wiPro"):
+                picked = "wimod"
             current = self._read_settings()
             current["theme"] = picked
             self._kv_set("settings", json.dumps(current, ensure_ascii=False))
@@ -886,7 +890,7 @@ class Library:
                 return None
             cats = list(pack.get("categories") or [])
             if any(str(item.get("name") or "").strip().lower() == cat["name"].lower() for item in cats):
-                raise ValueError("Esa categoría ya existe en el modpack.")
+                raise ValueError("Esa categoría ya existe en la instancia.")
             cats.append(cat)
             pack["categories"] = cats
             pack["updatedAt"] = now()
@@ -911,7 +915,7 @@ class Library:
                 str(item.get("id")) != cat_id and str(item.get("name") or "").strip().lower() == new_name
                 for item in cats
             ):
-                raise ValueError("Esa categoría ya existe en el modpack.")
+                raise ValueError("Esa categoría ya existe en la instancia.")
             pack["categories"] = [updated if str(item.get("id")) == cat_id else item for item in cats]
             pack["updatedAt"] = now()
             self._write(data)
@@ -1166,10 +1170,10 @@ class Library:
     def _apply_pack(self, pack: dict[str, Any], fields: dict[str, Any], *, create: bool) -> None:
         name = str(fields.get("name") or pack.get("name") or "").strip()
         if not name:
-            raise ValueError("El modpack necesita un nombre.")
+            raise ValueError("La instancia necesita un nombre.")
         game = str(fields.get("gameDomain") or pack.get("gameDomain") or "").strip().lower()
         if not game:
-            raise ValueError("Elige el juego del modpack.")
+            raise ValueError("Elige el juego de la instancia.")
         pack["name"] = name
         pack["gameDomain"] = game
         pack["gameName"] = str(fields.get("gameName") or pack.get("gameName") or "").strip() or game
@@ -1225,14 +1229,14 @@ class Library:
         previous = str(mod.get("modpackId") or "")
         pack = self._find_pack(packs, pack_id)
         if not pack:
-            raise ValueError("Ese modpack no existe.")
+            raise ValueError("Esa instancia no existe.")
         mod_game = str(mod.get("gameDomain") or "").strip().lower()
         pack_game = str(pack.get("gameDomain") or "").strip().lower()
         if mod_game and pack_game and mod_game != pack_game:
-            raise ValueError("El mod y el modpack son de juegos distintos.")
+            raise ValueError("El mod y la instancia son de juegos distintos.")
         cats = pack.get("categories") or []
         if cat_id and not any(str(cat.get("id")) == cat_id for cat in cats):
-            raise ValueError("Esa categoría no pertenece al modpack.")
+            raise ValueError("Esa categoría no pertenece a la instancia.")
         if not cat_id and cats:
             cat_id = str(cats[0].get("id") or "")
         mod["modpackId"] = pack_id
@@ -1301,7 +1305,7 @@ class Library:
                 raise ValueError("Hay un mod que ya no existe.")
             pack_id = str(mods[0].get("modpackId") or "")
             if not pack_id or any(str(mod.get("modpackId") or "") != pack_id for mod in mods):
-                raise ValueError("Solo se ordenan mods del mismo modpack.")
+                raise ValueError("Solo se ordenan mods de la misma instancia.")
             for index, mod in enumerate(mods, start=1):
                 mod["packOrder"] = index
             self._write(data)
@@ -1854,17 +1858,17 @@ class Library:
     def _read_settings(self) -> dict[str, Any]:
         raw = self._kv_get("settings")
         if not raw:
-            return {"apiKey": "", "rawgApiKey": "", "curseforgeApiKey": "", "steamApiKey": "", "language": "es", "theme": "nexus", "profile": {}}
+            return {"apiKey": "", "rawgApiKey": "", "curseforgeApiKey": "", "steamApiKey": "", "language": "es", "theme": "wimod", "profile": {}}
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
-            return {"apiKey": "", "rawgApiKey": "", "curseforgeApiKey": "", "steamApiKey": "", "language": "es", "theme": "nexus", "profile": {}}
+            return {"apiKey": "", "rawgApiKey": "", "curseforgeApiKey": "", "steamApiKey": "", "language": "es", "theme": "wimod", "profile": {}}
         data.setdefault("apiKey", "")
         data.setdefault("rawgApiKey", "")
         data.setdefault("curseforgeApiKey", "")
         data.setdefault("steamApiKey", "")
         data.setdefault("language", "es")
-        data.setdefault("theme", "nexus")
+        data.setdefault("theme", "wimod")
         data.setdefault("profile", {})
         return data
 

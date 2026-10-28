@@ -3,6 +3,7 @@
  * Capa nueva: src/services/{storage,api}/
  */
 import "../web/styles.css";
+import "../web/neon.js";
 import "../web/app.js";
 
 if (window.__TAURI_INTERNALS__) {

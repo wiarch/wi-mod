@@ -22,6 +22,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from wi_mod import __version__
 from wi_mod.archive import export_label, export_library, import_library, peek_library
+from wi_mod.imgcache import KIND, fetch as fetch_image, warm as warm_images
 from wi_mod.conflicts import annotate as annotate_conflicts
 from wi_mod.deploy import deploy_mod, inspect_mod, installed_ids, purge as purge_deploy, undeploy_mod
 from wi_mod.packages import install_seven_zip
@@ -329,6 +330,20 @@ _BRAND = {
     "loader-vanilla.ico": "image/x-icon",
     "wi-mod.svg": "image/svg+xml",
 }
+
+
+def _icon_pack_file(path: str):
+    name = Path(path).name
+    kind = {".png": "image/png", ".ico": "image/x-icon"}.get(Path(name).suffix.lower())
+    if not kind or not name or name != Path(name).name:
+        return None
+    root = (ROOT / "public" / "wimod-icon-pack").resolve()
+    file = (root / name).resolve()
+    if root not in file.parents or not file.is_file():
+        return None
+    return file, kind
+
+
 _ID = re.compile(r"^[0-9a-f]{32}$")
 
 
@@ -511,11 +526,13 @@ def make_handler(app: App):
 
         def _open(self) -> bool:
             path = urlparse(self.path).path
-            if path in {"/", "/index.html", "/app.js", "/styles.css", "/api/session", "/api/status", "/api/login", "/api/logout", "/api/users/lookup", "/api/users", "/api/password/reset"}:
+            if path in {"/", "/index.html", "/app.js", "/neon.js", "/styles.css", "/api/session", "/api/status", "/api/login", "/api/logout", "/api/users/lookup", "/api/users", "/api/password/reset"}:
                 return True
             if path.startswith("/media/"):
                 return True
             if path.startswith("/brand/") and Path(path).name in _BRAND:
+                return True
+            if path.startswith("/wimod-icon-pack/") and _icon_pack_file(path) is not None:
                 return True
             if LOGIN_OFF or app.library.user_for_token(self._token()):
                 return True
@@ -567,6 +584,9 @@ def make_handler(app: App):
             if path == "/app.js":
                 self._file(WEB / "app.js", "text/javascript; charset=utf-8")
                 return
+            if path == "/neon.js":
+                self._file(WEB / "neon.js", "text/javascript; charset=utf-8")
+                return
             if path == "/styles.css":
                 self._file(WEB / "styles.css", "text/css; charset=utf-8")
                 return
@@ -585,11 +605,17 @@ def make_handler(app: App):
                         "catalog": app.library.catalog(),
                         "language": _lang(app),
                         "theme": _theme(app),
+                        "wiPro": bool(app.library.settings().get("wiPro")),
                         "sources": sources_payload(),
                         "keys": _key_flags(app),
                         "packsDir": str(app.packs),
                     },
                 )
+                threading.Thread(
+                    target=warm_images,
+                    args=(app.root, {"mods": mods, "modpacks": packs, "catalog": app.library.catalog()}),
+                    daemon=True,
+                ).start()
                 return
             if path == "/api/modpacks":
                 packs = app.library.list_modpacks()
@@ -664,6 +690,19 @@ def make_handler(app: App):
                 if kind:
                     self._file(WEB / "brand" / name, kind)
                     return
+            if path == "/img":
+                query = parse_qs(urlparse(self.path).query)
+                remote = (query.get("u") or [""])[0]
+                cached = fetch_image(app.root, remote)
+                if cached is None:
+                    self._json(404, {"error": "Sin imagen en caché."})
+                    return
+                self._file(cached, KIND.get(cached.suffix, "application/octet-stream"))
+                return
+            pack = _icon_pack_file(path)
+            if pack is not None:
+                self._file(pack[0], pack[1])
+                return
             self._json(404, {"error": "No encontrado."})
 
         def _post(self) -> None:
@@ -747,7 +786,7 @@ def make_handler(app: App):
                     fields["modpackId"] = body.get("modpackId") or ""
                     fields["modpackCategoryId"] = body.get("modpackCategoryId") or ""
                 if not fields:
-                    raise ValueError("Elige categoría o modpack.")
+                    raise ValueError("Elige categoría o instancia.")
                 updated = app.library.update_many(ids, fields)
                 self._json(200, {"mods": [_public_mod(mod) for mod in updated], "count": len(updated)})
                 return
@@ -959,7 +998,7 @@ def make_handler(app: App):
                 body = self._json_body()
                 pack = app.library.add_pack_category(cat_match.group(1), body)
                 if not pack:
-                    self._json(404, {"error": "Modpack no encontrado."})
+                    self._json(404, {"error": "Instancia no encontrada."})
                     return
                 self._json(201, {"modpack": _public_pack(pack)})
                 return
@@ -1113,7 +1152,7 @@ def make_handler(app: App):
             if pack_match:
                 pack = app.library.update_modpack(pack_match.group(1), self._json_body())
                 if not pack:
-                    self._json(404, {"error": "Modpack no encontrado."})
+                    self._json(404, {"error": "Instancia no encontrada."})
                     return
                 self._json(200, {"modpack": _public_pack(pack)})
                 return
@@ -1151,7 +1190,7 @@ def make_handler(app: App):
             pack_match = re.fullmatch(r"/api/modpacks/([0-9a-f]{32})", path)
             if pack_match:
                 if not app.library.delete_modpack(pack_match.group(1)):
-                    self._json(404, {"error": "Modpack no encontrado."})
+                    self._json(404, {"error": "Instancia no encontrada."})
                     return
                 self._json(200, {"ok": True})
                 return
@@ -1451,7 +1490,8 @@ def _lang(app: App) -> str:
 
 
 def _theme(app: App) -> str:
-    return _theme_name(app.library.settings().get("theme"))
+    settings = app.library.settings()
+    return _theme_name(settings.get("theme"), bool(settings.get("wiPro")))
 
 
 def _key_flags(app: App) -> dict:
@@ -1490,11 +1530,15 @@ def _install_mod(app: App, mod_id: str, body: dict) -> dict:
     return deploy_mod(app.library, mod, launch, plugins)
 
 
-def _theme_name(value: object) -> str:
-    raw = str(value or "nexus").strip().lower()
-    if raw in {"nexus", "modrinth", "curseforge", "steam", "moddb", "rawg"}:
-        return raw
-    return "nexus"
+def _theme_name(value: object, pro: bool = False) -> str:
+    raw = str(value or "wimod").strip().lower()
+    if raw == "steam":
+        raw = "wimod"
+    if raw not in {"wimod", "nexus", "modrinth", "curseforge", "moddb", "rawg"}:
+        raw = "wimod"
+    if raw != "wimod" and not pro:
+        return "wimod"
+    return raw
 
 
 def _platform_for_url(url: str) -> str:
@@ -2446,7 +2490,8 @@ def _public_settings(settings: dict) -> dict:
         "curseforgeApiKey": curse,
         "steamApiKey": steam,
         "language": "en" if str(settings.get("language") or "es").lower().startswith("en") else "es",
-        "theme": _theme_name(settings.get("theme")),
+        "theme": _theme_name(settings.get("theme"), bool(settings.get("wiPro"))),
+        "wiPro": bool(settings.get("wiPro")),
         "profile": {
             "name": profile.get("name") or "",
             "isPremium": bool(profile.get("isPremium")),

@@ -50,7 +50,12 @@ const state = {
   packsDir: "",
   importZipPath: "",
   muted: localStorage.getItem("wi-mod-mute") === "1",
-  coverBg: localStorage.getItem("wi-mod-cover-bg") === "1",
+  coverMode: (() => {
+    const saved = localStorage.getItem("wi-mod-cover-bg");
+    if (saved === "pattern" || saved === "cover" || saved === "plain") return saved;
+    if (saved === "1") return "cover";
+    return "pattern";
+  })(),
   lang: (() => {
     const saved = localStorage.getItem("wi-mod-lang");
     if (saved === "en" || saved === "es") return saved;
@@ -181,8 +186,8 @@ const UI = {
     detectGames: "Detectar juego", nexusLinked: "Vinculado a Nexus", nexusMissing: "Sin clave de Nexus",
     detectGamesTip: "Busca la carpeta del juego activo en todos los discos",
     searchMods: "Buscar mods", searchIn: "Buscar en {name}", listSearch: "Filtrar lista", menu: "Menú",
-    platform: "Plataforma", platforms: "Plataformas", tags: "Etiquetas", modpack: "Modpack", category: "Categoría",
-    createPack: "Crear modpack", addCategory: "Añadir categoría",
+    platform: "Plataforma", platforms: "Plataformas", tags: "Etiquetas", modpack: "Instancia", category: "Categoría",
+    createPack: "Crear instancia", addCategory: "Añadir categoría",
     hideNames: "Ocultar nombres", showNames: "Mostrar nombres", hide: "Ocultar", show: "Mostrar",
     dragWidth: "Arrastra el ancho", newVersion: "Versión nueva", selectAll: "Seleccionar todo",
     layout: "Diseño", grid: "Cuadrícula", listView: "Listado", tableView: "Tabla", size: "Tamaño",
@@ -211,7 +216,7 @@ const UI = {
     linkPh: "Nexus, Modrinth, CurseForge, Steam o página oficial", detect: "Detectar",
     manual: "Completar a mano", name: "Nombre", game: "Juego", author: "Autor", version: "Versión",
     whatItDoes: "Qué hace", packCat: "Categoría del pack", createCat: "Crear categoría",
-    plusHint: "Con + creas el modpack o la categoría aquí mismo.", save: "Guardar",
+    plusHint: "Con + creas la instancia o la categoría aquí mismo.", save: "Guardar",
     translator: "Traductor",
     translateHint: "Pega cualquier texto del mod (inglés → español). También puedes traducir la ficha guardada desde el detalle del mod.",
     original: "Original", translateRun: "Traducir a español", spanish: "Español", english: "Inglés",
@@ -224,35 +229,37 @@ const UI = {
     search: "Buscar", gameSearchPh: "Skyrim, WoW Classic, Minecraft…",
     rawgData: "Datos de juegos vía RAWG.", close: "Cerrar", importExport: "Importar y exportar",
     export: "Exportar", import: "Importar",
-    exportHint: "Todo, o solo un juego, un modpack, una plataforma o los marcados.",
+    exportHint: "Todo, o solo un juego, una instancia, una plataforma o los marcados.",
     exportElsewhere: "Otra ruta",
     packsFolder: "Carpeta: {path}",
     zipFilePh: "Elige un .zip…",
-    whatExport: "Qué exportar", all: "Todo", oneGame: "Un juego", onePack: "Un modpack",
+    whatExport: "Qué exportar", all: "Todo", oneGame: "Un juego", onePack: "Una instancia",
     byPlatform: "Por plataforma", selectedOnly: "Solo marcados", choose: "Elige", back: "Volver",
-    zipFile: "Archivo .zip", whatImport: "Qué importar", modpacks: "Modpacks",
+    zipFile: "Archivo .zip", whatImport: "Qué importar", modpacks: "Instancias",
     packHint: "Pon el nombre y las categorías. Luego asigna los mods marcados.",
     emoji: "Emoji", image: "Imagen", remove: "Quitar", searchEmoji: "Buscar emoji",
     categories: "Categorías", description: "Descripción", preview: "Vista previa",
-    savePack: "Guardar modpack", packCatHint: "Apartado dentro del modpack. Nombre, imagen y una nota.",
+    savePack: "Guardar instancia", packCatHint: "Apartado dentro de la instancia. Nombre, imagen y una nota.",
     orUrl: "O una URL", note: "Nota", erase: "Borrar", saveCat: "Guardar categoría",
     already: "Ya existe", cancel: "Cancelar", duplicate: "Duplicar", replace: "Sustituir",
     add: "Añadir", confirm: "Confirmar", yes: "Sí", useImage: "Usar imagen", view: "Ver",
-    edit: "Editar", select: "Seleccionar", moveToPack: "Mover a modpack", localFile: "Archivo local", quit: "Salir",
+    edit: "Editar", select: "Seleccionar", moveToPack: "Mover a instancia", localFile: "Archivo local", quit: "Salir",
     quitAsk: "¿Cerrar wi-mod del todo o dejarlo en la bandeja?", remember: "Recordar opción",
     tray: "Bandeja", quitClose: "Cerrar", changeName: "Cambiar nombre", tutorial: "Tutorial / Ayuda",
     settings: "Ajustes", keys: "Claves", apiKeys: "Claves API", quickSettings: "Ajustes rápidos",
     allSettings: "Todos los ajustes...", coverChange: "Cambiar", language: "Idioma",
-    sound: "Sonido", theme: "Tema", themes: "Temas", compress: "Comprimir", restore: "Restaurar",
+    sound: "Sonido", neonEffects: "Efectos Neón", theme: "Tema", themes: "Temas",
+    wiProLock: "wi mod Premium · $0.99/mes para usar este tema.",
+    compress: "Comprimir", restore: "Restaurar",
     key: "Clave", pasteKey: "Pega la clave", docs: "Documentación",
     keyNeeded: "No tienes la clave de {name} instalada. Pégala aquí o sigue la guía.",
     keyNeededShort: "Falta la clave de {name}.",
     tourExit: "Salir del tutorial",
-    next: "Siguiente", done: "Listo", allF: "Todas", allM: "Todos", noPack: "Sin modpack",
+    next: "Siguiente", done: "Listo", allF: "Todas", allM: "Todos", noPack: "Sin instancia",
     noCats: "Sin categorías (usa +)", noDesc: "Sin descripción", hideCard: "Ocultar",
     showCard: "Mostrar", addDesc: "Añadir descripción",
     heroFallback: "Añade el juego con + para traer ficha completa desde RAWG, o espera a que se complete sola.",
-    modsN: "{n} mods", packsN: "{n} modpacks", officialSite: "Sitio oficial", rawgCredit: "Datos: RAWG",
+    modsN: "{n} mods", packsN: "{n} instancias", officialSite: "Sitio oficial", rawgCredit: "Datos: RAWG",
     pinOn: "Quitar de arriba", pinOff: "Fijar arriba, máximo 3", favOn: "Quitar favorito",
     favOff: "Abrir siempre este juego", keyOn: "activa", keyOff: "falta",
     keysReady: "Todos los servicios activos", keysSome: "{ready} de {total} servicios activos",
@@ -268,7 +275,9 @@ const UI = {
     qExtract: "📦 Extrayendo archivo…", qDown: "⬇️ Descargando mods…", qSync: "🔄 Sincronizando…",
     hideDock: "Ocultar barra", showDock: "Mostrar barra",
     coverBgUse: "Portada", coverBgDefault: "Predeterminado",
-    coverBgTitleUse: "Usar portada del juego", coverBgTitleOff: "Usar fondo predeterminado",
+    coverModePattern: "Marca", coverModeCover: "Juego", coverModePlain: "Plano",
+    coverBgTitlePattern: "Fondo con la marca de wi-mod",
+    coverBgTitleUse: "Usar portada del juego", coverBgTitleOff: "Usar fondo plano",
     noDate: "sin fecha", newTag: "nueva", emptyFiltered: "Hay {n} mod(s) ocultos por el filtro.",
     clearFilters: "Quitar filtros", emptyGame: "Sin mods en este juego.", emptyInstance: "Esta instancia no tiene mods.",
     createInstance: "Instancia", instanceTitle: "Crear perfil", instanceName: "Nombre",
@@ -282,23 +291,23 @@ const UI = {
     zipInstalling: "Instalando 7-Zip…",
     javaInstalling: "Instalando Java…", javaReady: "Java listo.",
     instanceLoaders: "Buscando loaders…",
-    sysBack: "Atrás", sysFwd: "Adelante", sysNone: "Sin instancia",
+    sysBack: "Atrás", sysFwd: "Adelante", sysNone: "Sin instancia", play: "Jugar",
     searchInstance: "Buscar instancia", addInstance: "Añadir instancia",
     sysDownloads: "Descargas",
     tasks: "Tareas", tasksDone: "Completadas", tasksClear: "Limpiar",
-    sysMin: "Minimizar", sysMax: "Maximizar", sysClose: "Cerrar",
+    sysMin: "Minimizar", sysMax: "Maximizar", sysRestore: "Restaurar", sysClose: "Cerrar",
     emptyAll: "Pega un enlace de Nexus con Añadir mod. La ficha trae imagen, resumen, categoría, versión y última actualización.",
     picked: "{n} marcados", pickFirst: "Marca mods primero.", noResults: "Sin resultados",
     type2: "Escribe al menos 2 letras.", searching: "Buscando…",
     noneHere: "Sin mods en este juego.", gameWord: "Juego", independent: "Independiente",
     noErrors: "Sin errores.", noAlerts: "Sin alertas.", noReqs: "Sin peticiones.", empty: "Vacío.",
-    exampleLux: "Ej. Lux Stack", exampleLight: "Ej. Iluminación", packNotesPh: "De qué va este modpack…",
+    exampleLux: "Ej. Lux Stack", exampleLight: "Ej. Iluminación", packNotesPh: "De qué va esta instancia…",
     catNotesPh: "Para qué sirve este apartado…", modNotePh: "Nota de este mod", urlPh: "https://…",
     tour1t: "Juego", tour1d: "Aquí eliges el juego. Los fijados quedan arriba y el favorito es el que abre al entrar.",
     tour2t: "Añadir juego", tour2d: "Dentro del selector. Si el juego no está, lo buscas en RAWG y lo agregas.",
     tour3t: "Buscar", tour3d: "Busca mods por nombre. Si pegas una URL, detecta la plataforma y el juego, lo crea si falta y guarda el mod.",
     tour4t: "Plataforma", tour4d: "Filtra por tienda. El número dice cuántas hay. La flecha pliega la lista.",
-    tour5t: "Modpack", tour5d: "Agrupa mods de este juego. El + crea un modpack.",
+    tour5t: "Instancia", tour5d: "Agrupa mods de este juego. El + crea una instancia.",
     tour6t: "Categoría", tour6d: "Apartados de los mods. El + añade una categoría.",
     tour7t: "Sidebar", tour7d: "Ocultar deja solo iconos. Si lo achicas mucho, entra solo en ese modo. Mostrar vuelve al ancho de antes.",
     tour8t: "Ficha del juego", tour8d: "Un clic oculta o muestra la ficha. No abre los enlaces.",
@@ -352,8 +361,8 @@ const UI = {
     detectGames: "Detect game", nexusLinked: "Linked to Nexus", nexusMissing: "No Nexus key",
     detectGamesTip: "Find the active game folder across all disks",
     searchMods: "Search mods", searchIn: "Search {name}", listSearch: "Filter list", menu: "Menu",
-    platform: "Platform", platforms: "Platforms", tags: "Tags", modpack: "Modpack", category: "Category",
-    createPack: "Create modpack", addCategory: "Add category",
+    platform: "Platform", platforms: "Platforms", tags: "Tags", modpack: "Instance", category: "Category",
+    createPack: "Create instance", addCategory: "Add category",
     hideNames: "Hide names", showNames: "Show names", hide: "Hide", show: "Show",
     dragWidth: "Drag to resize", newVersion: "New version", selectAll: "Select all",
     layout: "Layout", grid: "Grid", listView: "List", tableView: "Table", size: "Size",
@@ -382,7 +391,7 @@ const UI = {
     linkPh: "Nexus, Modrinth, CurseForge, Steam or official page", detect: "Detect",
     manual: "Fill in by hand", name: "Name", game: "Game", author: "Author", version: "Version",
     whatItDoes: "What it does", packCat: "Pack category", createCat: "Create category",
-    plusHint: "Use + to create the modpack or category here.", save: "Save",
+    plusHint: "Use + to create the instance or category here.", save: "Save",
     translator: "Translator",
     translateHint: "Paste any mod text (English → Spanish). You can also translate the saved card from the mod detail.",
     original: "Original", translateRun: "Translate to Spanish", spanish: "Spanish", english: "English",
@@ -395,35 +404,37 @@ const UI = {
     search: "Search", gameSearchPh: "Skyrim, WoW Classic, Minecraft…",
     rawgData: "Game data via RAWG.", close: "Close", importExport: "Import and export",
     export: "Export", import: "Import",
-    exportHint: "Everything, or one game, one modpack, one platform, or the selected mods.",
+    exportHint: "Everything, or one game, one instance, one platform, or the selected mods.",
     exportElsewhere: "Other path",
     packsFolder: "Folder: {path}",
     zipFilePh: "Pick a .zip…",
-    whatExport: "What to export", all: "All", oneGame: "One game", onePack: "One modpack",
+    whatExport: "What to export", all: "All", oneGame: "One game", onePack: "One instance",
     byPlatform: "By platform", selectedOnly: "Selected only", choose: "Choose", back: "Back",
-    zipFile: "Zip file", whatImport: "What to import", modpacks: "Modpacks",
+    zipFile: "Zip file", whatImport: "What to import", modpacks: "Instances",
     packHint: "Set the name and categories. Then assign the selected mods.",
     emoji: "Emoji", image: "Image", remove: "Remove", searchEmoji: "Search emoji",
     categories: "Categories", description: "Description", preview: "Preview",
-    savePack: "Save modpack", packCatHint: "Section inside the modpack. Name, image, and a note.",
+    savePack: "Save instance", packCatHint: "Section inside the instance. Name, image, and a note.",
     orUrl: "Or a URL", note: "Note", erase: "Delete", saveCat: "Save category",
     already: "Already exists", cancel: "Cancel", duplicate: "Duplicate", replace: "Replace",
     add: "Add", confirm: "Confirm", yes: "Yes", useImage: "Use image", view: "View",
-    edit: "Edit", select: "Select", moveToPack: "Move to modpack", localFile: "Local file", quit: "Quit",
+    edit: "Edit", select: "Select", moveToPack: "Move to instance", localFile: "Local file", quit: "Quit",
     quitAsk: "Close wi-mod fully or leave it in the tray?", remember: "Remember choice",
     tray: "Tray", quitClose: "Close", changeName: "Change name", tutorial: "Tutorial / Help",
     settings: "Settings", keys: "Keys", apiKeys: "API keys", quickSettings: "Quick settings",
     allSettings: "All settings...", coverChange: "Change", language: "Language",
-    sound: "Sound", theme: "Theme", themes: "Themes", compress: "Compress", restore: "Restore",
+    sound: "Sound", neonEffects: "Neon effects", theme: "Theme", themes: "Themes",
+    wiProLock: "wi mod Premium · $0.99/month to use this theme.",
+    compress: "Compress", restore: "Restore",
     key: "Key", pasteKey: "Paste the key", docs: "Docs",
     keyNeeded: "You do not have the {name} key installed. Paste it here or open the guide.",
     keyNeededShort: "Missing {name} key.",
     tourExit: "Exit tutorial",
-    next: "Next", done: "Done", allF: "All", allM: "All", noPack: "No modpack",
+    next: "Next", done: "Done", allF: "All", allM: "All", noPack: "No instance",
     noCats: "No categories (use +)", noDesc: "No description", hideCard: "Hide",
     showCard: "Show", addDesc: "Add description",
     heroFallback: "Add the game with + to pull a full RAWG card, or wait for it to fill in.",
-    modsN: "{n} mods", packsN: "{n} modpacks", officialSite: "Official site", rawgCredit: "Data: RAWG",
+    modsN: "{n} mods", packsN: "{n} instances", officialSite: "Official site", rawgCredit: "Data: RAWG",
     pinOn: "Unpin", pinOff: "Pin to top, max 3", favOn: "Unfavorite",
     favOff: "Always open this game", keyOn: "on", keyOff: "off",
     keysReady: "All services active", keysSome: "{ready} of {total} services active",
@@ -439,7 +450,9 @@ const UI = {
     qExtract: "📦 Extracting archive…", qDown: "⬇️ Downloading mods…", qSync: "🔄 Syncing…",
     hideDock: "Hide bar", showDock: "Show bar",
     coverBgUse: "Cover", coverBgDefault: "Default",
-    coverBgTitleUse: "Use game cover as background", coverBgTitleOff: "Use default background",
+    coverModePattern: "Mark", coverModeCover: "Game", coverModePlain: "Flat",
+    coverBgTitlePattern: "wi-mod mark background",
+    coverBgTitleUse: "Use game cover as background", coverBgTitleOff: "Use flat background",
     noDate: "no date", newTag: "new", emptyFiltered: "{n} mod(s) hidden by the filter.",
     clearFilters: "Clear filters", emptyGame: "No mods in this game.", emptyInstance: "This instance has no mods.",
     createInstance: "Instance", instanceTitle: "Create profile", instanceName: "Name",
@@ -453,23 +466,23 @@ const UI = {
     zipInstalling: "Installing 7-Zip…",
     javaInstalling: "Installing Java…", javaReady: "Java is ready.",
     instanceLoaders: "Looking up loaders…",
-    sysBack: "Back", sysFwd: "Forward", sysNone: "No instance",
+    sysBack: "Back", sysFwd: "Forward", sysNone: "No instance", play: "Play",
     searchInstance: "Search instance", addInstance: "Add instance",
     sysDownloads: "Downloads",
     tasks: "Tasks", tasksDone: "Complete", tasksClear: "Clear all",
-    sysMin: "Minimize", sysMax: "Maximize", sysClose: "Close",
+    sysMin: "Minimize", sysMax: "Maximize", sysRestore: "Restore", sysClose: "Close",
     emptyAll: "Paste a Nexus link with Add mod. The card brings image, summary, category, version, and last update.",
     picked: "{n} selected", pickFirst: "Select mods first.", noResults: "No results",
     type2: "Type at least 2 letters.", searching: "Searching…",
     noneHere: "No mods in this game.", gameWord: "Game", independent: "Independent",
     noErrors: "No errors.", noAlerts: "No alerts.", noReqs: "No requests.", empty: "Empty.",
-    exampleLux: "e.g. Lux Stack", exampleLight: "e.g. Lighting", packNotesPh: "What this modpack is about…",
+    exampleLux: "e.g. Lux Stack", exampleLight: "e.g. Lighting", packNotesPh: "What this instance is about…",
     catNotesPh: "What this section is for…", modNotePh: "Note for this mod", urlPh: "https://…",
     tour1t: "Game", tour1d: "Pick the game here. Pinned ones stay on top and the favorite opens on launch.",
     tour2t: "Add game", tour2d: "Inside the picker. If the game is missing, search RAWG and add it.",
     tour3t: "Search", tour3d: "Search mods by name. If you paste a URL, it detects the store and game, creates it if needed, and saves the mod.",
     tour4t: "Platform", tour4d: "Filter by store. The number is how many there are. The arrow folds the list.",
-    tour5t: "Modpack", tour5d: "Group mods for this game. + creates a modpack.",
+    tour5t: "Instance", tour5d: "Group mods for this game. + creates an instance.",
     tour6t: "Category", tour6d: "Mod sections. + adds a category.",
     tour7t: "Sidebar", tour7d: "Hide leaves icons only. If you shrink it a lot, it enters that mode. Show restores the previous width.",
     tour8t: "Game card", tour8d: "One click hides or shows the card. It does not open the links.",
@@ -697,6 +710,30 @@ function endLoad(id) {
   paintSysActivity();
 }
 
+function neonEnabled() {
+  try {
+    return localStorage.getItem("wi-mod-neon") !== "0";
+  } catch (_) {
+    return true;
+  }
+}
+
+function setNeonEnabled(on) {
+  try {
+    localStorage.setItem("wi-mod-neon", on ? "1" : "0");
+  } catch (_) {}
+  syncNeon();
+}
+
+function syncNeon() {
+  const on = neonEnabled();
+  document.documentElement.classList.toggle("neon-effects-active", on);
+  const btn = $("neon");
+  if (!btn) return;
+  btn.classList.toggle("on", on);
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+}
+
 function syncMute() {
   const btn = $("mute");
   if (!btn) return;
@@ -713,6 +750,21 @@ function esc(value) {
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   }[ch]));
 }
+
+function imgSrc(url) {
+  const text = String(url || "").trim();
+  if (!/^https?:\/\//i.test(text)) return text;
+  return `/img?u=${encodeURIComponent(text)}`;
+}
+
+document.addEventListener("error", (event) => {
+  const img = event.target;
+  if (!img || img.tagName !== "IMG") return;
+  const src = img.getAttribute("src") || "";
+  if (!src.startsWith("/img?u=") || img.dataset.rawTried) return;
+  img.dataset.rawTried = "1";
+  try { img.src = decodeURIComponent(src.slice(7)); } catch (_) {}
+}, true);
 
 function fmtDate(iso) {
   if (!iso) return t("noDate");
@@ -881,6 +933,7 @@ async function load() {
     if (saved === "en" || saved === "es") applyLang(saved);
     else if (data.language === "en" || data.language === "es") applyLang(data.language);
   }
+  state.wiPro = !!data.wiPro;
   if (data.theme) applyTheme(data.theme);
   if (data.keys) {
     state.keys = {
@@ -1002,10 +1055,11 @@ function wallpaperCover(domain) {
 }
 
 function applyCoverBg() {
-  const url = state.coverBg && state.game ? wallpaperCover(state.game) : "";
-  const on = !!url;
-  document.body.classList.toggle("cover-bg", on);
-  document.body.style.setProperty("--cover-image", on ? `url("${String(url).replace(/"/g, "")}")` : "none");
+  const mode = state.coverMode === "cover" || state.coverMode === "plain" ? state.coverMode : "pattern";
+  const url = mode === "cover" && state.game ? wallpaperCover(state.game) : "";
+  document.body.classList.toggle("cover-bg", mode === "cover" && !!url);
+  document.body.classList.toggle("cover-pattern", mode === "pattern");
+  document.body.style.setProperty("--cover-image", url ? `url("${String(url).replace(/"/g, "")}")` : "none");
   syncCoverToggle();
 }
 
@@ -1013,15 +1067,19 @@ function syncCoverToggle() {
   const btn = $("cover-bg");
   const label = $("cover-bg-label");
   if (!btn) return;
-  btn.classList.toggle("on", state.coverBg);
-  if (label) label.textContent = t("coverChange");
+  const mode = state.coverMode === "cover" || state.coverMode === "plain" ? state.coverMode : "pattern";
+  btn.classList.toggle("on", mode !== "plain");
+  if (label) {
+    label.textContent = mode === "cover" ? t("coverModeCover") : mode === "plain" ? t("coverModePlain") : t("coverModePattern");
+  }
   const preview = $("cover-bg-preview");
   if (preview) {
-    const shot = state.game ? wallpaperCover(state.game) : "";
+    const shot = mode === "cover" && state.game ? wallpaperCover(state.game) : "";
     preview.style.backgroundImage = shot ? `url("${String(shot).replace(/"/g, "")}")` : "";
-    preview.classList.toggle("on", !!shot && state.coverBg);
+    preview.classList.toggle("on", mode === "cover" && !!shot);
+    preview.classList.toggle("pattern", mode === "pattern");
   }
-  btn.title = state.coverBg ? t("coverBgTitleOff") : t("coverBgTitleUse");
+  btn.title = mode === "cover" ? t("coverBgTitleUse") : mode === "plain" ? t("coverBgTitleOff") : t("coverBgTitlePattern");
   btn.setAttribute("aria-label", btn.title);
 }
 
@@ -1040,10 +1098,15 @@ function modFilesBytes(mod) {
 
 const DEFAULT_DISK_GAMES = new Set(["stardewvalley", "minecraft", "gtasa", "skyrimspecialedition", "projectzomboid"]);
 
+function diskBarWidth(bytes, total) {
+  if (!(bytes > 0) || !(total > 0)) return "0";
+  const pct = Math.min(100, (bytes / total) * 100);
+  return `max(${pct.toFixed(2)}%, 6px)`;
+}
+
 function diskRowHtml(row, total) {
-  const pct = Math.max(2, Math.round((row.bytes / (total || 1)) * 100));
   const on = row.id && row.id === state.game ? " on" : "";
-  return `<li class="${on.trim()}"><span>${esc(row.name)}</span><i style="width:${pct}%"></i><b>${esc(fmtDisk(row.bytes))}</b></li>`;
+  return `<li class="${on.trim()}"><span class="disk-top"><span>${esc(row.name)}</span><b>${esc(fmtDisk(row.bytes))}</b></span><span class="disk-track" aria-hidden="true"><i style="width:${diskBarWidth(row.bytes, total)}"></i></span></li>`;
 }
 
 function openDiskGames() {
@@ -1052,7 +1115,7 @@ function openDiskGames() {
   const list = $("disk-all-list");
   const sum = $("disk-all-sum");
   if (list) {
-    list.innerHTML = rows.map((row) => diskRowHtml(row, used || 1)).join("") || `<li><span>${esc(t("diskEmpty"))}</span></li>`;
+    list.innerHTML = rows.map((row) => diskRowHtml(row, used || 1)).join("") || `<li class="disk-empty"><span>${esc(t("diskEmpty"))}</span></li>`;
   }
   if (sum) sum.textContent = t("diskUsed", { n: fmtDisk(used) });
   const dialog = $("disk-games-dialog");
@@ -1081,10 +1144,22 @@ function paintDockStats(data) {
   const usedMods = rows.reduce((sum, row) => sum + row.bytes, 0);
   const breakdown = $("disk-games");
   if (breakdown) {
-    const defaults = rows.filter((row) => DEFAULT_DISK_GAMES.has(row.id));
-    const shown = defaults.length ? defaults : rows.slice(0, 5);
+    const ranked = [...rows].sort((a, b) => {
+      const aOn = a.id && a.id === state.game ? 1 : 0;
+      const bOn = b.id && b.id === state.game ? 1 : 0;
+      if (aOn !== bOn) return bOn - aOn;
+      return b.bytes - a.bytes || a.name.localeCompare(b.name, "es");
+    });
+    const preferred = ranked.filter((row) => (row.id && row.id === state.game) || DEFAULT_DISK_GAMES.has(row.id));
+    const shown = (preferred.length ? preferred : ranked).slice(0, 5);
     const more = rows.length > shown.length;
-    breakdown.innerHTML = `<p>${esc(t("diskByGame"))}</p><ul>${shown.map((row) => diskRowHtml(row, usedMods || 1)).join("") || `<li><span>${esc(t("diskEmpty"))}</span></li>`}</ul>${more ? `<button type="button" class="disk-more">${esc(t("diskMore"))}</button>` : ""}`;
+    const freeBytes = Number((lastStatus || {}).diskFreeBytes) || 0;
+    const span = usedMods + freeBytes;
+    const share = span > 0 ? Math.min(100, Math.round((usedMods / span) * 100)) : 0;
+    const foot = freeBytes > 0
+      ? `<footer class="disk-foot"><span>${esc(t("diskFree", { n: fmtDisk(freeBytes) }))}</span><b>${share}%</b></footer>`
+      : "";
+    breakdown.innerHTML = `<p><span>${esc(t("diskByGame"))}</span><b>${esc(fmtDisk(usedMods))}</b></p><ul>${shown.map((row) => diskRowHtml(row, usedMods || 1)).join("") || `<li class="disk-empty"><span>${esc(t("diskEmpty"))}</span></li>`}</ul>${more ? `<button type="button" class="disk-more">${esc(t("diskMore"))}</button>` : ""}${foot}`;
   }
   const mods = $("dock-mods");
   if (mods) {
@@ -1430,9 +1505,9 @@ function gameLabel(domain) {
 function gameCover(domain) {
   const row = LOCAL_COVERS[String(domain || "").toLowerCase()];
   const stored = catalogGame(domain)?.imageUrl || "";
-  if (stored && !stored.includes("/screenshots/")) return stored;
-  if (row) return row[1];
-  return stored;
+  if (stored && !stored.includes("/screenshots/")) return imgSrc(stored);
+  if (row) return imgSrc(row[1]);
+  return imgSrc(stored);
 }
 
 const LOCAL_COVERS = {
@@ -1444,9 +1519,9 @@ const LOCAL_COVERS = {
 function gameMark(domain) {
   const game = catalogGame(domain);
   const row = LOCAL_COVERS[String(domain || "").toLowerCase()];
-  if (row) return { src: row[0], fallback: row[1], logo: false };
-  if (game?.logoUrl) return { src: game.logoUrl, logo: true };
-  if (game?.imageUrl) return { src: game.imageUrl, logo: false };
+  if (row) return { src: imgSrc(row[0]), fallback: imgSrc(row[1]), logo: false };
+  if (game?.logoUrl) return { src: imgSrc(game.logoUrl), logo: true };
+  if (game?.imageUrl) return { src: imgSrc(game.imageUrl), logo: false };
   return { src: "", logo: false };
 }
 
@@ -1596,6 +1671,7 @@ function renderGameScope() {
   nameNode.textContent = gameName;
   nameNode.title = gameName;
   $("game-picker").title = gameName;
+  $("game-picker").classList.toggle("is-empty", !state.game);
   const mark = gameMark(state.game);
   if (imgNode) {
     imgNode.classList.toggle("is-logo", mark.logo);
@@ -1619,9 +1695,11 @@ function gameHasLauncher(game) {
 function paintGamePlay() {
   const btn = $("game-play");
   if (!btn) return;
+  const pack = packById(state.modpack);
   const linked = gameHasLauncher();
-  btn.classList.toggle("need", !linked);
-  const tip = linked ? t("launchLinked") : t("launchUnlinked");
+  btn.disabled = !pack;
+  btn.classList.toggle("need", Boolean(pack) && !linked);
+  const tip = !pack ? t("sysNone") : (linked ? t("launchLinked") : t("launchUnlinked"));
   btn.title = tip;
   btn.setAttribute("aria-label", tip);
 }
@@ -1768,7 +1846,7 @@ function packHeroStrip() {
   const text = desc
     ? `<p class="pack-hero-desc">${esc(desc)}</p>`
     : `<button type="button" class="pack-hero-desc pack-hero-add" id="pack-desc-add">${esc(t("addDesc"))}</button>`;
-  return `<div class="pack-hero">${icon}<div><p class="pack-hero-kicker">Modpack</p><p class="pack-hero-name">${esc(pack.name || "")}</p>${text}
+  return `<div class="pack-hero">${icon}<div><p class="pack-hero-kicker">Instancia</p><p class="pack-hero-name">${esc(pack.name || "")}</p>${text}
     <div class="pack-hero-actions">
       <button type="button" class="ghost" id="pack-enable">${esc(t("packEnable"))}</button>
       <button type="button" class="ghost" id="pack-disable">${esc(t("packDisable"))}</button>
@@ -1868,7 +1946,7 @@ function packCatById(pack, catId) {
 
 function packCatMark(cat) {
   if (!cat || !cat.imageUrl) return "";
-  return `<img class="pc-ico" alt="" src="${esc(cat.imageUrl)}">`;
+  return `<img class="pc-ico" alt="" src="${esc(imgSrc(cat.imageUrl))}">`;
 }
 
 function packLabel(mod) {
@@ -2224,7 +2302,6 @@ function renderFilters() {
     (row) => modsForSide("platform", row.id),
   );
   $("platforms").innerHTML = platformPage.navHtml
-    + sideEntry(t("allF"), "", state.platform, "platform")
     + platformPage.shown.map((row) => (
       sideEntry(`${row.label} (${row.count})`, row.id, state.platform, "platform", modsForSide("platform", row.id))
     )).join("");
@@ -2279,7 +2356,6 @@ function renderFilters() {
     (row) => modsForSide("category", row.id),
   );
   $("categories").innerHTML = catsPage.navHtml
-    + sideEntry(t("allF"), "", state.category, "category")
     + catsPage.shown.map((row) => (
       sideEntry(`${categoryLabel(row.id)} (${row.count})`, row.id, state.category, "category", modsForSide("category", row.id))
     )).join("");
@@ -2331,9 +2407,17 @@ function renderFilters() {
         editModpack(value);
         return;
       }
+      if (kind === "platform" && value && String(state.platform) === value) {
+        state.platform = "";
+        sfx.click();
+        render();
+        scheduleRemoteSearch();
+        return;
+      }
       if (kind === "category" && value && String(state.category) === value) {
-        event.preventDefault();
-        openCategoryDialog(value);
+        state.category = "";
+        sfx.click();
+        render();
         return;
       }
       state[kind] = value;
@@ -2415,7 +2499,7 @@ async function sideAdd(kind) {
       if (pack?.id) state.modpack = pack.id;
       return;
     }
-    startSideName("modpacks", "Nombre del pack", async (name) => {
+    startSideName("modpacks", "Nombre de la instancia", async (name) => {
       if (!state.game) throw new Error("Elige un juego arriba.");
       const saved = await api("/api/modpacks", {
         method: "POST",
@@ -2428,7 +2512,7 @@ async function sideAdd(kind) {
         }),
       });
       if (saved.modpack?.id) state.modpack = saved.modpack.id;
-      toast("Modpack creado.");
+      toast("Instancia creada.");
     });
     return;
   }
@@ -2489,12 +2573,16 @@ function markOf(kind, id) {
 
 function markIcon(kind, id, fallback) {
   const mark = markOf(kind, id) || fallback || {};
-  if (mark.imageUrl) return `<img class="side-ico" alt="" src="${esc(mark.imageUrl)}">`;
+  if (mark.imageUrl) return `<img class="side-ico" alt="" src="${esc(imgSrc(mark.imageUrl))}">`;
   if (String(kind || "").toLowerCase() === "platform") {
     const brand = platformMark(id);
     if (brand) return brand;
   }
   if (mark.emoji) return `<span class="side-emoji">${esc(mark.emoji)}</span>`;
+  if (String(kind || "").toLowerCase() === "modpack") {
+    const src = loaderSrc(packById(id)?.loaderType);
+    if (src) return `<img class="side-ico" alt="" src="${esc(src)}">`;
+  }
   return "";
 }
 
@@ -2532,7 +2620,7 @@ function sideModsVisible(mods, groupLabel) {
 
 function modPictureSrc(mod) {
   if (mod?.pictureFile) return `/media/${encodeURI(mod.pictureFile)}`;
-  if (mod?.pictureUrl) return String(mod.pictureUrl);
+  if (mod?.pictureUrl) return imgSrc(mod.pictureUrl);
   return "";
 }
 
@@ -2555,7 +2643,7 @@ function sideEntry(label, value, current, kind, mods, markFallback) {
   const markKind = kind === "packCat" ? "packcat" : kind;
   const icon = value ? markIcon(markKind, value, markFallback) : "";
   const pencil = (kind === "modpack" || kind === "category") && on && value
-    ? `<span class="chip-edit" data-edit="${esc(value)}" title="${kind === "category" ? "Editar categoría" : "Editar modpack"}">✎</span>`
+    ? `<span class="chip-edit" data-edit="${esc(value)}" title="${kind === "category" ? "Editar categoría" : "Editar instancia"}">✎</span>`
     : "";
   const chipClass = kind === "packCat" ? `pack-cat-chip ${on}` : on;
   const chip = `<button type="button" class="${chipClass}" data-kind="${kind}" data-value="${encodeURIComponent(value)}" title="${esc(label)}">${icon}<span class="side-initial">${esc(sideInitial(label))}</span><span>${esc(label)}</span>${pencil}</button>`;
@@ -2603,6 +2691,7 @@ function fillCategorySelect(node, preferred) {
 }
 
 const THEME_ICONS = {
+  wimod: "/wimod-icon-pack/wimod-32x32.png",
   nexus: "/brand/nexus.ico",
   modrinth: "/brand/modrinth.png",
   curseforge: "/brand/curseforge.ico",
@@ -2610,16 +2699,30 @@ const THEME_ICONS = {
   moddb: "/brand/moddb.png",
   rawg: "/brand/rawg.png",
 };
+const FREE_THEME = "wimod";
+
+function normalizeTheme(theme) {
+  const name = String(theme || "").trim().toLowerCase();
+  if (name === "steam") return FREE_THEME;
+  if (name in THEME_ICONS && name !== "steam") return name;
+  return FREE_THEME;
+}
 
 function applyTheme(theme) {
-  const allowed = ["nexus", "modrinth", "curseforge", "steam", "moddb", "rawg"];
-  state.theme = allowed.includes(theme) ? theme : "nexus";
+  let next = normalizeTheme(theme);
+  if (next !== FREE_THEME && !state.wiPro) next = FREE_THEME;
+  state.theme = next;
   document.documentElement.dataset.theme = state.theme;
   document.querySelectorAll(".theme-panel [data-theme], .theme-card[data-theme]").forEach((button) => {
     const on = button.dataset.theme === state.theme;
+    const locked = button.dataset.theme !== FREE_THEME && !state.wiPro;
     button.classList.toggle("on", on);
+    button.classList.toggle("theme-locked", locked);
     button.setAttribute("aria-pressed", on ? "true" : "false");
+    button.setAttribute("aria-disabled", locked ? "true" : "false");
   });
+  const mark = $("theme-summary-img");
+  if (mark && THEME_ICONS[state.theme]) mark.src = THEME_ICONS[state.theme];
   const summary = $("theme-summary");
   if (summary) {
     summary.title = t("theme");
@@ -2655,7 +2758,13 @@ function setPrefsOpen(on) {
 }
 
 async function setTheme(theme) {
-  if (theme === state.theme) return;
+  const next = normalizeTheme(theme);
+  if (next !== FREE_THEME && !state.wiPro) {
+    toast(t("wiProLock"), "warn");
+    sfx.soft();
+    return;
+  }
+  if (next === state.theme) return;
   await softChange(() => applyTheme(theme));
   sfx.click();
   try {
@@ -2807,7 +2916,7 @@ async function createModpackInline(gameDomain, gameName) {
     return null;
   }
   if (domain.toLowerCase().startsWith("minecraft")) return openInstanceDialog();
-  const name = await askInput({ title: "Modpack", placeholder: "Nombre del pack", okLabel: "Crear" });
+  const name = await askInput({ title: "Instancia", placeholder: "Nombre de la instancia", okLabel: "Crear" });
   if (!name) return null;
   const saved = await api("/api/modpacks", {
     method: "POST",
@@ -2820,7 +2929,7 @@ async function createModpackInline(gameDomain, gameName) {
     }),
   });
   await load();
-  toast("Modpack creado.");
+  toast("Instancia creada.");
   return saved.modpack || null;
 }
 
@@ -2832,7 +2941,7 @@ function refillPackSelects(packNode, catNode, packId, catId, gameDomain) {
 function createCategoryInline(packNode, catNode, gameDomain) {
   const packId = packNode?.value || "";
   if (!packId || !packById(packId)) {
-    toast("Crea o elige un modpack.", "warn");
+    toast("Crea o elige una instancia.", "warn");
     return;
   }
   const dialog = $("packcat-dialog");
@@ -2854,20 +2963,20 @@ function paintCatPreview(src) {
     preview.removeAttribute("src");
     return;
   }
-  preview.src = src;
+  preview.src = imgSrc(src);
   preview.hidden = false;
 }
 
 function openPackCatDialog(packId, catId) {
   const pack = packById(packId);
   if (!pack) {
-    toast("Elige un modpack primero.", "warn");
+    toast("Elige una instancia primero.", "warn");
     return;
   }
   const cat = catId ? packCatById(pack, catId) : null;
   sfx.open();
   $("packcat-title").textContent = cat ? "Editar categoría" : "Nueva categoría";
-  $("packcat-pack").textContent = `Modpack: ${pack.name} · ${pack.gameName || pack.gameDomain}`;
+  $("packcat-pack").textContent = `Instancia: ${pack.name} · ${pack.gameName || pack.gameDomain}`;
   $("pc-pack-id").value = pack.id;
   $("pc-edit-id").value = cat ? cat.id : "";
   $("pc-name").value = cat ? cat.name : "";
@@ -2904,7 +3013,7 @@ async function savePackCatForm(event) {
   event.preventDefault();
   const packId = $("pc-pack-id").value || state.modpack;
   if (!packId) {
-    toast("Elige un modpack primero.", "warn");
+    toast("Elige una instancia primero.", "warn");
     return;
   }
   const name = ($("pc-name").value || "").trim();
@@ -2955,7 +3064,7 @@ async function savePackCatForm(event) {
 
 function shot(mod) {
   if (mod.pictureFile) return `style="background-image:url('/media/${encodeURI(mod.pictureFile)}')"`;
-  if (mod.pictureUrl) return `style="background-image:url('${esc(mod.pictureUrl)}')"`;
+  if (mod.pictureUrl) return `style="background-image:url('${esc(imgSrc(mod.pictureUrl))}')"`;
   return "";
 }
 
@@ -3466,7 +3575,7 @@ async function dropMarked(kind, value, ids) {
   });
   const where = kind === "category" || kind === "platform"
     ? value
-    : (value ? "el modpack" : "fuera del modpack");
+    : (value ? "la instancia" : "fuera de la instancia");
   toast(`${data.count} en ${where}.`);
   await load();
 }
@@ -4069,7 +4178,7 @@ async function ingestPastedMod() {
 function fillPreview(mod) {
   $("preview").hidden = false;
   $("preview").innerHTML = `
-    <img alt="" src="${esc(mod.pictureUrl || "")}">
+    <img alt="" src="${esc(imgSrc(mod.pictureUrl || ""))}">
     <div>
       <h3>${esc(mod.name)}</h3>
       <p>${esc(mod.gameName)} · ${esc(categoryLabel(mod.category, mod))} · v${esc(mod.version || "?")}<br>
@@ -4275,7 +4384,7 @@ let detailPaintToken = 0;
 function detailMarkup(mod) {
   const image = mod.pictureFile
     ? `/media/${encodeURI(mod.pictureFile)}`
-    : (mod.pictureUrl || "");
+    : imgSrc(mod.pictureUrl || "");
   const summaryText = displaySummary(mod);
   return `
     <header>
@@ -4292,7 +4401,7 @@ function detailMarkup(mod) {
       </div>
     </div>
     <div class="detail-picks">
-      <label>Modpack
+      <label>Instancia
         <select id="detail-modpack"></select>
       </label>
       <label>Categoría
@@ -4301,7 +4410,7 @@ function detailMarkup(mod) {
       <div class="detail-add">
         <button type="button" class="detail-add-btn" id="detail-add" aria-expanded="false" aria-haspopup="menu">+ Agregar</button>
         <div class="detail-pop" id="detail-add-pop" hidden role="menu">
-          <button type="button" id="detail-pack-new" role="menuitem">Modpack</button>
+          <button type="button" id="detail-pack-new" role="menuitem">Instancia</button>
           <button type="button" id="detail-cat-new" role="menuitem">Categoría</button>
         </div>
       </div>
@@ -4348,7 +4457,7 @@ function detailSkeletonHtml() {
       </div>
     </div>
     <div class="row">
-      <label style="flex:1">Modpack
+      <label style="flex:1">Instancia
         <span class="sk sk-field"></span>
       </label>
       <label style="flex:1">Categoría
@@ -4907,7 +5016,7 @@ async function searchRawgGames(query) {
     }
     box.innerHTML = rows.map((game) => `
       <div class="game-hit">
-        <img alt="" src="${esc(game.imageUrl || "")}" loading="lazy">
+        <img alt="" src="${esc(imgSrc(game.imageUrl || ""))}" loading="lazy">
         <div>
           <b>${esc(game.gameName || "")}</b>
           <p class="meta">${esc(game.released || "¿?")}${game.platforms?.length ? ` · ${esc(game.platforms.slice(0, 3).join(", "))}` : ""} · ${esc(game.gameDomain || "")}</p>
@@ -4981,10 +5090,16 @@ $("mute").onclick = () => {
   syncMute();
   if (!state.muted) sfx.click();
 };
+if ($("neon")) $("neon").onclick = () => {
+  setNeonEnabled(!neonEnabled());
+  sfx.click();
+};
 $("lang-toggle").onclick = () => setLanguage(state.lang === "en" ? "es" : "en");
 $("cover-bg").onclick = () => {
-  state.coverBg = !state.coverBg;
-  localStorage.setItem("wi-mod-cover-bg", state.coverBg ? "1" : "0");
+  const order = ["pattern", "cover", "plain"];
+  const at = order.indexOf(state.coverMode);
+  state.coverMode = order[(at + 1) % order.length];
+  localStorage.setItem("wi-mod-cover-bg", state.coverMode);
   applyCoverBg();
   sfx.click();
 };
@@ -5054,6 +5169,24 @@ function placePop(pop, anchor) {
   pop.style.left = `${left}px`;
   pop.style.top = `${top}px`;
 }
+function setSettingsOpen(on) {
+  const wrap = $("more-settings");
+  const panel = $("settings-panel");
+  const toggle = $("settings-toggle");
+  if (!wrap || !panel || !toggle) return;
+  wrap.classList.toggle("open", on);
+  panel.hidden = !on;
+  toggle.setAttribute("aria-expanded", on ? "true" : "false");
+}
+if ($("settings-toggle")) {
+  $("settings-toggle").onclick = (event) => {
+    event.stopPropagation();
+    const open = $("settings-panel")?.hidden !== false;
+    setSettingsOpen(open);
+    if (open) sfx.click();
+    else sfx.soft();
+  };
+}
 $("more-open").onclick = (event) => {
   event.stopPropagation();
   rollAvatar();
@@ -5062,7 +5195,10 @@ $("more-open").onclick = (event) => {
   pop.hidden = !open;
   $("tape-pop").hidden = true;
   event.currentTarget.setAttribute("aria-expanded", open ? "true" : "false");
-  if (!open) return;
+  if (!open) {
+    setSettingsOpen(false);
+    return;
+  }
   sfx.open();
   placePop(pop, event.currentTarget);
 };
@@ -5667,6 +5803,7 @@ $("settings-form").onsubmit = async (event) => {
     fillSecret($("cf-key"), data.curseforgeApiKey);
     fillSecret($("steam-key"), data.steamApiKey);
     if (data.language) applyLang(data.language);
+    state.wiPro = !!data.wiPro;
     if (data.theme) applyTheme(data.theme);
     await load();
     toast("Ajustes guardados.");
@@ -6193,7 +6330,7 @@ function paintRemote(results, label, filter) {
   }
   box.innerHTML = results.map((hit, index) => `
     <article class="search-hit">
-      ${hit.pictureUrl ? `<img alt="" src="${esc(hit.pictureUrl)}">` : `<span></span>`}
+      ${hit.pictureUrl ? `<img alt="" src="${esc(imgSrc(hit.pictureUrl))}">` : `<span></span>`}
       <div>
         <b>${esc(hit.name)}</b>
         <p class="meta">${esc(where)} · ${esc(hit.author || "?")} · ↓ ${esc(fmtCount(hit.downloads))}</p>
@@ -6288,6 +6425,25 @@ async function addRemoteMod(hit, button) {
   }
 }
 
+window.addEventListener("keydown", (event) => {
+  if (event.repeat) return;
+  if (!(event.ctrlKey || event.metaKey) || !event.shiftKey || event.altKey) return;
+  if (event.key.toLowerCase() !== "r") return;
+  event.preventDefault();
+  event.stopPropagation();
+  const host = window.pywebview && window.pywebview.api;
+  if (host && typeof host.win_restart === "function") {
+    host.win_restart();
+    return;
+  }
+  if (window.__TAURI_INTERNALS__) {
+    import("@tauri-apps/api/core")
+      .then(({ invoke }) => invoke("restart_app"))
+      .catch(() => location.reload());
+    return;
+  }
+  location.reload();
+}, true);
 window.addEventListener("keydown", (event) => {
   if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "k") return;
   if (event.altKey || event.target?.closest?.("dialog[open]")) return;
@@ -6495,7 +6651,7 @@ function paintCatMark() {
   const face = $("cat-mark-face");
   const clear = $("cat-mark-clear");
   if (!face) return;
-  if (catMarkDraft.imageUrl) face.innerHTML = `<img alt="" src="${esc(catMarkDraft.imageUrl)}">`;
+  if (catMarkDraft.imageUrl) face.innerHTML = `<img alt="" src="${esc(imgSrc(catMarkDraft.imageUrl))}">`;
   else face.textContent = catMarkDraft.emoji || "🏷️";
   if (clear) clear.hidden = !(catMarkDraft.emoji || catMarkDraft.imageUrl);
 }
@@ -6575,7 +6731,7 @@ function paintMpMark() {
   const face = $("mp-mark-face");
   const clear = $("mp-mark-clear");
   if (!face) return;
-  if (mpMarkDraft.imageUrl) face.innerHTML = `<img alt="" src="${esc(mpMarkDraft.imageUrl)}">`;
+  if (mpMarkDraft.imageUrl) face.innerHTML = `<img alt="" src="${esc(imgSrc(mpMarkDraft.imageUrl))}">`;
   else face.textContent = mpMarkDraft.emoji || "📦";
   if (clear) clear.hidden = !(mpMarkDraft.emoji || mpMarkDraft.imageUrl);
   const name = $("mp-preview-name");
@@ -6665,7 +6821,7 @@ async function deleteCurrentModpack() {
   try {
     await api(`/api/modpacks/${id}`, { method: "DELETE" });
     if (state.modpack === id) state.modpack = "";
-    toast("Modpack eliminado.", "warn");
+    toast("Instancia eliminada.", "warn");
     closeOpenDialogs();
     await load();
   } catch (error) {
@@ -6741,7 +6897,7 @@ async function saveModpackForm(event) {
           body: JSON.stringify(cat),
         });
       }
-      toast(extra.length ? "Modpack y categorías guardados." : "Modpack actualizado.");
+      toast(extra.length ? "Instancia y categorías guardadas." : "Instancia actualizada.");
     } else {
       if (extra.length) body.categories = extra;
       saved = await api("/api/modpacks", {
@@ -6749,7 +6905,7 @@ async function saveModpackForm(event) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      toast(extra.length ? "Modpack creado con categorías." : "Modpack creado.");
+      toast(extra.length ? "Instancia creada con categorías." : "Instancia creada.");
     }
     const pack = saved.modpack;
     let installAfter = false;
@@ -6951,7 +7107,7 @@ function paintImportPreview() {
   pick.hidden = false;
   const games = (preview.games || []).map((row) => esc(row.name)).join(", ") || "ninguno";
   const packs = (preview.modpacks || []).map((row) => esc(row.name)).join(", ") || "ninguno";
-  box.innerHTML = `<p><b>${preview.mods}</b> mods</p><p><b>${(preview.games || []).length}</b> juegos: ${games}</p><p><b>${(preview.modpacks || []).length}</b> modpacks: ${packs}</p>`;
+  box.innerHTML = `<p><b>${preview.mods}</b> mods</p><p><b>${(preview.games || []).length}</b> juegos: ${games}</p><p><b>${(preview.modpacks || []).length}</b> instancias: ${packs}</p>`;
   fillImportChoices();
 }
 
@@ -7012,11 +7168,11 @@ function syncPackDialog() {
   const filt = packFilter();
   const n = countForPack(filt);
   if (preview && scope === "all") {
-    $("pack-count").textContent = `El zip trae ${preview.mods} mods, ${preview.games.length} juegos y ${preview.modpacks.length} modpacks.`;
+    $("pack-count").textContent = `El zip trae ${preview.mods} mods, ${preview.games.length} juegos y ${preview.modpacks.length} instancias.`;
     return;
   }
   if (scope === "all") {
-    $("pack-count").textContent = `Todo: ${state.mods.length} mods, ${(state.catalog.games || []).length} juegos, ${state.modpacks.length} modpacks.`;
+    $("pack-count").textContent = `Todo: ${state.mods.length} mods, ${(state.catalog.games || []).length} juegos, ${state.modpacks.length} instancias.`;
     return;
   }
   $("pack-count").textContent = preview
@@ -7456,8 +7612,9 @@ async function enterApp() {
 }
 
 syncMute();
+syncNeon();
 syncDock();
-applyTheme("nexus");
+applyTheme("wimod");
 rollAvatar();
 spinBootLine();
 document.addEventListener("pointerdown", () => sfx.unlock(), { once: true });
@@ -7855,9 +8012,7 @@ function loaderSrc(type) {
     neoforge: "loader-neoforge.ico",
     vanilla: "loader-vanilla.ico",
   }[String(type || "").toLowerCase()];
-  if (!file) return "";
-  const icon = document.querySelector("link[rel='icon']")?.getAttribute("href") || "/brand/wi-mod.svg";
-  return icon.replace(/[^/]+$/, "") + file;
+  return file ? `/brand/${file}` : "";
 }
 
 function instanceTitle(pack) {
@@ -7913,13 +8068,16 @@ function closeSysMenu() {
 function paintSysbar() {
   const name = $("sys-instance-name");
   const ico = $("sys-instance-ico");
+  const pick = $("sys-instance");
   const pack = packById(state.modpack);
   if (name) name.textContent = instanceTitle(pack);
+  if (pick) pick.classList.toggle("is-empty", !pack);
+  paintGamePlay();
   if (ico) {
     const mark = pack ? markOf("modpack", pack.id) : null;
     const src = mark?.imageUrl || loaderSrc(pack?.loaderType);
     ico.hidden = !src;
-    if (src) ico.src = src;
+    if (src) ico.src = imgSrc(src);
   }
   navRemember();
 }
@@ -8105,22 +8263,76 @@ function bindSysbar() {
     if (!event.target.closest(".sys-instance-wrap")) closeSysMenu();
   });
   const hostOf = () => (window.pywebview && window.pywebview.api) || null;
+  const tauriWin = () => import("@tauri-apps/api/window").then(({ getCurrentWindow }) => getCurrentWindow());
+  const desktop = () => !!(window.__TAURI_INTERNALS__ || (hostOf() && typeof hostOf().win_min === "function"));
   const showWins = () => {
     const wins = $("sys-wins");
-    const host = hostOf();
-    if (wins) wins.hidden = !(host && typeof host.win_min === "function");
+    if (wins) wins.hidden = !desktop();
   };
   showWins();
   window.addEventListener("pywebviewready", showWins);
   const min = $("sys-min");
   const max = $("sys-max");
   const close = $("sys-close");
-  const flipMax = () => max && max.classList.toggle("is-max");
-  if (min) min.onclick = () => hostOf()?.win_min?.();
-  if (max) max.onclick = () => { hostOf()?.win_max?.(); flipMax(); };
-  if (close) close.onclick = () => hostOf()?.win_close?.();
-  document.querySelectorAll(".pywebview-drag-region").forEach((node) => {
-    node.addEventListener("dblclick", () => { hostOf()?.win_max?.(); flipMax(); });
+  let maximized = true;
+  const paintMax = (on) => {
+    maximized = !!on;
+    if (!max) return;
+    max.classList.toggle("is-max", maximized);
+    const key = maximized ? "sysRestore" : "sysMax";
+    max.setAttribute("data-i18n-title", key);
+    max.setAttribute("data-i18n-aria", key);
+    max.title = t(key);
+    max.setAttribute("aria-label", t(key));
+  };
+  const toggleHost = () => {
+    const host = hostOf();
+    if (host && typeof host.win_max === "function") {
+      host.win_max();
+      paintMax(!maximized);
+      return true;
+    }
+    return false;
+  };
+  if (window.__TAURI_INTERNALS__) {
+    tauriWin().then(async (win) => {
+      showWins();
+      paintMax(await win.isMaximized());
+      win.onResized(() => { win.isMaximized().then(paintMax).catch(() => {}); });
+    }).catch(() => {});
+  }
+  if (min) min.onclick = () => {
+    const host = hostOf();
+    if (host && typeof host.win_min === "function") { host.win_min(); return; }
+    if (window.__TAURI_INTERNALS__) tauriWin().then((win) => win.minimize());
+  };
+  if (max) max.onclick = () => {
+    if (toggleHost()) return;
+    if (window.__TAURI_INTERNALS__) {
+      tauriWin().then(async (win) => {
+        await win.toggleMaximize();
+        paintMax(await win.isMaximized());
+      });
+    }
+  };
+  if (close) close.onclick = () => {
+    const host = hostOf();
+    if (host && typeof host.win_close === "function") { host.win_close(); return; }
+    if (window.__TAURI_INTERNALS__) tauriWin().then((win) => win.close());
+  };
+  const dragSkip = "button, a, input, select, textarea, label, .game-picker-wrap, .game-menu, .log-slot, .log-panel, .tasks-wrap, .tasks-pop, .prefs-switch, .prefs-panel, .theme-switch, .theme-panel, .keys-panel, .sysbar-right, .sys-wins, .sys-menu";
+  document.querySelector(".sysbar")?.addEventListener("mousedown", (event) => {
+    if (event.target.closest(dragSkip)) event.stopPropagation();
+  }, true);
+  document.querySelector(".sysbar")?.addEventListener("dblclick", (event) => {
+    if (event.target.closest(dragSkip)) return;
+    if (toggleHost()) return;
+    if (window.__TAURI_INTERNALS__) {
+      tauriWin().then(async (win) => {
+        await win.toggleMaximize();
+        paintMax(await win.isMaximized());
+      });
+    }
   });
 }
 

@@ -3,6 +3,11 @@
 <head>
   <meta charset="utf-8">
   <title>wi-mod</title>
+  <script>
+    try {
+      if (localStorage.getItem("wi-mod-neon") !== "0") document.documentElement.classList.add("neon-effects-active");
+    } catch (_) {}
+  </script>
   <style>
     html, body {
       margin: 0;
@@ -34,16 +39,18 @@
     .watermark {
       position: absolute;
       inset: 0;
-      display: grid;
-      place-items: center;
       pointer-events: none;
-      opacity: 0.03;
-      color: #a5f3fc;
+      opacity: 0.04;
+      overflow: hidden;
     }
-    .watermark svg {
-      width: 400px;
-      height: 400px;
-      transform: scale(2.8);
+    .bg-brand-pattern {
+      position: absolute;
+      inset: -40%;
+      background-image: url("/wimod-icon-pack/wimod-64x64.png");
+      background-repeat: repeat;
+      background-size: 80px 80px;
+      transform: rotate(-25deg) scale(1.3);
+      image-rendering: crisp-edges;
     }
     .stack {
       position: relative;
@@ -52,64 +59,77 @@
       flex-direction: column;
       align-items: center;
     }
-    .brand {
+    .brand-row {
       display: flex;
+      flex-direction: row;
       align-items: center;
-      gap: 20px;
-      margin-bottom: 32px;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
     }
     .logo {
-      width: 80px;
-      height: 80px;
-      color: #22d3ee;
-      filter: drop-shadow(0 0 15px rgba(34, 211, 238, 0.7));
+      width: 4rem;
+      height: 4rem;
+      object-fit: contain;
       flex: 0 0 auto;
+    }
+    html.neon-effects-active .logo {
+      filter: drop-shadow(0 0 18px rgba(34, 211, 238, 0.85));
     }
     .title {
       margin: 0;
-      font-size: 3.75rem;
+      font-family: Inter, "Segoe UI", sans-serif;
+      font-size: 2.25rem;
       font-weight: 800;
       letter-spacing: -0.025em;
       line-height: 1;
     }
     .wi { color: #fff; }
-    .mod {
-      color: #22d3ee;
-      filter: drop-shadow(0 0 12px rgba(34, 211, 238, 0.6));
+    .mod { color: #22d3ee; }
+    html.neon-effects-active .title {
+      text-shadow: 0 0 20px rgba(34, 211, 238, 0.8);
+    }
+    .line {
+      margin: 0.75rem 0 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      text-align: center;
+      color: #9ca3af;
+      animation: splash-pulse 1.6s ease-in-out infinite;
     }
     .bar {
       box-sizing: border-box;
-      width: 400px;
-      height: 10px;
-      margin-bottom: 20px;
-      padding: 2px;
-      border-radius: 999px;
-      border: 1px solid rgba(6, 182, 212, 0.4);
-      background: transparent;
-      box-shadow: 0 0 15px rgba(34, 211, 238, 0.1);
+      width: 20rem;
+      max-width: calc(100vw - 2rem);
+      height: 0.5rem;
+      padding: 1px;
+      border-radius: 9999px;
+      border: 1px solid rgba(34, 211, 238, 0.8);
+      background: rgba(3, 7, 18, 0.8);
       overflow: hidden;
+    }
+    html.neon-effects-active .bar {
+      box-shadow: 0 0 12px rgba(34, 211, 238, 0.5);
     }
     .fill {
       display: block;
       height: 100%;
       width: 8%;
-      border-radius: 999px;
+      border-radius: 9999px;
       background: #22d3ee;
-      box-shadow: 0 0 10px rgba(34, 211, 238, 0.9);
-      transition: width 0.3s ease;
+      box-shadow: 0 0 10px #22d3ee;
+      transition: all 0.3s ease-out;
       animation: progress 2.8s ease-out forwards;
-    }
-    .line {
-      margin: 4px 0 0;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 0.3em;
-      text-transform: uppercase;
-      color: #9ca3af;
     }
     @keyframes progress {
       to { width: 88%; }
+    }
+    @keyframes splash-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
     }
   </style>
 </head>
@@ -117,21 +137,11 @@
   <div class="splash">
     <div class="glow" aria-hidden="true"></div>
     <div class="watermark" aria-hidden="true">
-      <svg viewBox="0 0 48 48" fill="none">
-        <path d="M6 16L24 6L42 16V32L24 42L6 32V16Z" stroke="currentColor" stroke-width="1"/>
-        <path d="M6 16L16 34L24 20L32 34L42 16" stroke="currentColor" stroke-width="1"/>
-        <path d="M16 34L24 42L32 34" stroke="currentColor" stroke-width="1"/>
-        <path d="M14 11L24 28L34 11" stroke="currentColor" stroke-width="1"/>
-      </svg>
+      <div class="bg-brand-pattern"></div>
     </div>
     <div class="stack">
-      <div class="brand">
-        <svg class="logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M6 16L24 6L42 16V32L24 42L6 32V16Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-          <path d="M6 16L16 34L24 20L32 34L42 16" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-          <path d="M16 34L24 42L32 34" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-          <path d="M14 11L24 28L34 11" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-        </svg>
+      <div class="brand-row">
+        <img class="logo" src="/wimod-icon-pack/wimod-256x256.png" alt="" width="64" height="64">
         <h1 class="title"><span class="wi">wi-</span><span class="mod">mod</span></h1>
       </div>
       <div class="bar" aria-hidden="true"><span class="fill"></span></div>

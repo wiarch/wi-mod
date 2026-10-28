@@ -46,7 +46,7 @@ def select_mods(
     elif kind == "modpack":
         value = str(modpack or "").strip()
         if not value:
-            raise ValueError("Elige un modpack.")
+            raise ValueError("Elige una instancia.")
         picked = [
             mod
             for mod in mods
