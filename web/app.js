@@ -273,9 +273,22 @@ const UI = {
     launchExe: "Ejecutable",
     launchBrowseHint: "Elige la carpeta del juego o pega la ruta.",
     launchPathLabel: "Ruta",
+    folderOpen: "Abrir carpeta del juego",
+    folderView: "Ver ubicación",
+    folderChange: "Cambiar ubicación",
+    folderChangeTip: "Mayús+clic para cambiar la ubicación.",
+    folderHint: "Carpeta donde está instalado el juego. Sustituye la detectada.",
+    folderSaved: "Ubicación guardada.",
+    folderMissing: "No encuentro la carpeta. Elige dónde está el juego.",
     browse: "Examinar",
     detectGames: "Detectar juego", detectNone: "No hay más juegos instalados fuera de wi-mod.",
     detectFound: "Instalados que aún no están en wi-mod. Elige cuál añadir.",
+    detectSub: "Detectados en este PC",
+    detectSearch: "Buscar juegos detectados...",
+    addedMark: "Añadido ✓",
+    workshopScan: "Workshop de Steam",
+    workshopNew: "{n} mods nuevos en Workshop",
+    workshopOk: "{n} mods de Workshop en la biblioteca.",
     nexusLinked: "Vinculado a Nexus", nexusMissing: "Sin clave de Nexus",
     detectGamesTip: "Busca la carpeta del juego activo en todos los discos",
     searchMods: "Buscar mods", searchIn: "Buscar en {name}", listSearch: "Filtrar lista", menu: "Menú",
@@ -369,6 +382,7 @@ const UI = {
     diskEmpty: "Sin mods", noGame: "Sin juego",
     diskTip: "Espacio libre en el disco", ramTip: "Memoria RAM de wi-mod",
     qRawg: "🔄 Sincronizando RAWG…",
+    loadingMods: "Cargando mods…", loadingGame: "Cargando juego…", updating: "Actualizando…",
     qExtract: "📦 Extrayendo archivo…", qDown: "⬇️ Descargando mods…", qSync: "🔄 Sincronizando…",
     hideDock: "Ocultar barra", showDock: "Mostrar barra",
     coverBgUse: "Portada", coverBgDefault: "Predeterminado",
@@ -394,7 +408,7 @@ const UI = {
     gateTitle: "Elige un juego", gateMods: "{n} mods", gateEmpty: "Sin mods",
     gateMain: "Principal", gateNew: "Nuevo", gateNone: "Todavía no hay juegos.",
     gateSkip: "Omitir juego", gateQuit: "Cerrar wi-mod",
-    gateLoading: "Cargando {name}…", gatePreparing: "Preparando instancia…",
+    gateLoading: "Cargando {name}…", gateSeek: "Buscando mods e instancias…", gatePreparing: "Preparando instancia…",
     skipGate: "Omitir pantalla de inicio",
     skipGateHint: "Entra directo al último juego. No muestra el selector después de la carga.",
     searchInstance: "Buscar instancia", addInstance: "Añadir instancia",
@@ -408,7 +422,7 @@ const UI = {
     emptyAll: "Pega un enlace de Nexus con Añadir mod. La ficha trae imagen, resumen, categoría, versión y última actualización.",
     picked: "{n} marcados", pickFirst: "Marca mods primero.", noResults: "Sin resultados",
     type2: "Escribe al menos 2 letras.", searching: "Buscando…",
-    noneHere: "Sin mods en este juego.", gameWord: "Juego", independent: "Independiente",
+    noneHere: "Sin mods en este juego.", gameWord: "Juego", independent: "Externo",
     noErrors: "Sin errores.", noAlerts: "Sin alertas.", noReqs: "Sin peticiones.", empty: "Vacío.",
     exampleLux: "Ej. Lux Stack", exampleLight: "Ej. Iluminación", packNotesPh: "De qué va esta instancia…",
     catNotesPh: "Para qué sirve este apartado…", modNotePh: "Nota de este mod", urlPh: "https://…",
@@ -483,9 +497,22 @@ const UI = {
     launchExe: "Executable",
     launchBrowseHint: "Pick the game folder or paste the path.",
     launchPathLabel: "Path",
+    folderOpen: "Open game folder",
+    folderView: "View location",
+    folderChange: "Change location",
+    folderChangeTip: "Shift+click to change the location.",
+    folderHint: "Folder where the game is installed. Replaces the detected one.",
+    folderSaved: "Location saved.",
+    folderMissing: "Game folder not found. Pick where it is.",
     browse: "Browse",
     detectGames: "Detect game", detectNone: "No other installed games outside wi-mod.",
     detectFound: "Installed games not in wi-mod yet. Pick one to add.",
+    detectSub: "Detected on this PC",
+    detectSearch: "Search detected games...",
+    addedMark: "Added ✓",
+    workshopScan: "Steam Workshop",
+    workshopNew: "{n} new Workshop mods",
+    workshopOk: "{n} Workshop mods saved in the library.",
     nexusLinked: "Linked to Nexus", nexusMissing: "No Nexus key",
     detectGamesTip: "Find the active game folder across all disks",
     searchMods: "Search mods", searchIn: "Search {name}", listSearch: "Filter list", menu: "Menu",
@@ -579,6 +606,7 @@ const UI = {
     diskEmpty: "No mods", noGame: "No game",
     diskTip: "Free disk space", ramTip: "wi-mod RAM usage",
     qRawg: "🔄 Syncing RAWG…",
+    loadingMods: "Loading mods…", loadingGame: "Loading game…", updating: "Updating…",
     qExtract: "📦 Extracting archive…", qDown: "⬇️ Downloading mods…", qSync: "🔄 Syncing…",
     hideDock: "Hide bar", showDock: "Show bar",
     coverBgUse: "Cover", coverBgDefault: "Default",
@@ -604,7 +632,7 @@ const UI = {
     gateTitle: "Choose a game", gateMods: "{n} mods", gateEmpty: "No mods",
     gateMain: "Main", gateNew: "New", gateNone: "No games yet.",
     gateSkip: "Skip game", gateQuit: "Close wi-mod",
-    gateLoading: "Loading {name}…", gatePreparing: "Preparing instance…",
+    gateLoading: "Loading {name}…", gateSeek: "Looking for mods and instances…", gatePreparing: "Preparing instance…",
     skipGate: "Skip the start screen",
     skipGateHint: "Open the last game. The picker stays hidden after the loader.",
     searchInstance: "Search instance", addInstance: "Add instance",
@@ -618,7 +646,7 @@ const UI = {
     emptyAll: "Paste a Nexus link with Add mod. The card brings image, summary, category, version, and last update.",
     picked: "{n} selected", pickFirst: "Select mods first.", noResults: "No results",
     type2: "Type at least 2 letters.", searching: "Searching…",
-    noneHere: "No mods in this game.", gameWord: "Game", independent: "Independent",
+    noneHere: "No mods in this game.", gameWord: "Game", independent: "External",
     noErrors: "No errors.", noAlerts: "No alerts.", noReqs: "No requests.", empty: "Empty.",
     exampleLux: "e.g. Lux Stack", exampleLight: "e.g. Lighting", packNotesPh: "What this instance is about…",
     catNotesPh: "What this section is for…", modNotePh: "Note for this mod", urlPh: "https://…",
@@ -683,6 +711,7 @@ function paintChrome() {
   const gameSearch = document.querySelector(".game-menu-search");
   if (gameSearch) gameSearch.placeholder = t("searchGame");
   paintGamePlay();
+  paintGameFolder();
 }
 
 
@@ -850,10 +879,13 @@ function queueHint(path) {
     if (mod[2] === "install" || mod[2] === "files") return name ? `📦 ${name}` : t("qExtract");
     return name ? `🔄 ${name}` : t("qSync");
   }
+  if (/\/api\/library/.test(p)) return `🔄 ${t("loadingMods")}`;
+  if (/\/api\/rawg\/resolve/.test(p)) return `🔄 ${t("loadingGame")}`;
+  if (/\/api\/refresh/.test(p)) return `🔄 ${t("updating")}`;
   if (/minecraft\/loaders/.test(p)) return t("instanceLoaders");
   if (/minecraft\/profiles\/install/.test(p)) return t("instanceDownloading");
   if (/minecraft\/launch/.test(p)) return t("launchOk");
-  if (/\/api\/java\/install/.test(p)) return t("javaInstalling");
+  if (/\/api\/game\/workshop/.test(p)) return t("workshopScan");
   if (/\/api\/7zip\/install/.test(p)) return t("zipInstalling");
   if (/minecraft\/profiles/.test(p)) return t("instanceCreating");
   if (/\/api\/images/.test(p)) return t("qExtract");
@@ -995,6 +1027,16 @@ function pollDlProgress() {
 function paintLiveTasks(freshId) {
   pollDlProgress();
   paintTaskTable(freshId);
+  paintWorkLoader();
+}
+
+function paintWorkLoader() {
+  const node = $("work-loader");
+  const label = $("work-loader-text");
+  if (!node) return;
+  const task = liveTasks.find((item) => item && !item.cancelled);
+  node.hidden = !task;
+  if (task && label) label.textContent = task.name || task.label || t("loadingMods");
 }
 
 function beginLoad(label) {
@@ -1156,7 +1198,9 @@ function statIcon(kind) {
 }
 
 function statRow(mod) {
-  const items = [
+  const items = steamMod(mod)
+    ? [["tag", "Versión", mod.version || "?"]]
+    : [
     ["trophy", "Apoyos", fmtCompact(mod.endorsements)],
     ["down", "Únicos", fmtCompact(mod.uniqueDownloads)],
     ["chart", "Descargas", fmtCompact(mod.downloads)],
@@ -1236,6 +1280,10 @@ async function api(path, options = {}) {
       const task = liveTasks.find((item) => item.id === job);
       if (task && last) task.size = Number(last.size) || task.size;
       if (data.ok === false) markTask(job, "error");
+    }
+    if (/\/api\/game\/workshop/.test(String(path)) && Number(data.bytes) > 0) {
+      const task = liveTasks.find((item) => item.id === job);
+      if (task) task.size = Number(data.bytes);
     }
     pushLog("req", `${options.method || "GET"} ${path} · ${res.status}`);
     return data;
@@ -1353,12 +1401,15 @@ function applyDockName() {
   const custom = state.nameSource === "custom";
   const machine = state.windowsUser || state.pcName;
   setDockName((custom ? state.customName || machine : machine) || "WYDEX");
-  const customBtn = $("name-custom");
-  const field = $("name-custom-field");
   const input = $("name-custom-input");
-  if (customBtn) customBtn.hidden = custom;
-  if (field) field.hidden = !custom;
-  if (input && document.activeElement !== input) input.value = state.customName;
+  if (input && document.activeElement !== input) input.value = state.customName || "";
+}
+
+function closeNameEdit() {
+  const field = $("name-custom-field");
+  const btn = $("name-custom");
+  if (field) field.hidden = true;
+  if (btn) btn.hidden = false;
 }
 
 function paintAppVersion(version) {
@@ -1872,8 +1923,8 @@ function gameMark(domain) {
   const game = catalogGame(domain);
   const row = LOCAL_COVERS[String(domain || "").toLowerCase()];
   if (row) return { src: imgSrc(row[0]), fallback: imgSrc(row[1]), logo: false };
-  if (game?.logoUrl) return { src: imgSrc(game.logoUrl), logo: true };
   if (game?.imageUrl) return { src: imgSrc(game.imageUrl), logo: false };
+  if (game?.logoUrl) return { src: imgSrc(game.logoUrl), logo: true };
   return { src: "", logo: false };
 }
 
@@ -1941,12 +1992,8 @@ function paintGameMenu() {
         toggleGameFavorite(fav.dataset.fav);
         return;
       }
-      if (localStorage.getItem("wi-mod-skip-gate") === "1" || button.dataset.game === state.game) {
-        selectGame(button.dataset.game);
-      } else {
-        playGameSplash(button.dataset.game);
-      }
       closeGameMenu();
+      playGameSplash(button.dataset.game);
     };
   });
 }
@@ -2041,6 +2088,27 @@ function renderGameScope() {
   }
   paintGameMenu();
   paintGamePlay();
+  paintGameFolder();
+}
+
+function closeFolderMenu() {
+  const menu = $("game-folder-menu");
+  const btn = $("game-folder");
+  if (menu) menu.hidden = true;
+  if (btn) btn.setAttribute("aria-expanded", "false");
+}
+
+function paintGameFolder() {
+  const btn = $("game-folder");
+  if (!btn) return;
+  btn.hidden = !state.game;
+  const wrap = btn.closest(".game-folder-wrap");
+  if (wrap) wrap.hidden = !state.game;
+  if (!state.game) closeFolderMenu();
+  const row = catalogGame(state.game) || {};
+  const where = String(row.installPath || "").trim();
+  btn.title = where || t("folderView");
+  btn.setAttribute("aria-label", t("folderView"));
 }
 
 function gameHasLauncher(game) {
@@ -2060,6 +2128,61 @@ function paintGamePlay() {
   btn.setAttribute("aria-label", tip);
   const wrap = $("game-play-tip");
   if (wrap) wrap.title = tip;
+  paintWorkshopButton();
+}
+
+let workshopPending = 0;
+let workshopSteam = false;
+let workshopAsked = "";
+let workshopPeekToken = 0;
+
+function gameIsSteam() {
+  return Number(catalogGame(state.game)?.steamAppId) > 0;
+}
+
+function paintWorkshopButton() {
+  const btn = $("workshop-scan");
+  if (!btn) return;
+  const game = state.game;
+  if (game && workshopAsked !== game) {
+    workshopPending = 0;
+    workshopSteam = false;
+  }
+  const show = Boolean(game) && (gameIsSteam() || workshopSteam);
+  btn.hidden = !show;
+  const fresh = show && workshopPending > 0;
+  btn.classList.toggle("has-new", fresh);
+  const tip = fresh ? t("workshopNew", { n: workshopPending }) : t("workshopScan");
+  btn.title = tip;
+  btn.setAttribute("aria-label", tip);
+  if (game && workshopAsked !== game) peekWorkshop();
+}
+
+let workshopPeekJob = null;
+
+async function peekWorkshop() {
+  const game = state.game;
+  if (!game || workshopAsked === game) return workshopPeekJob;
+  workshopAsked = game;
+  const token = ++workshopPeekToken;
+  const job = (async () => {
+    try {
+      const data = await api(`/api/game/workshop?id=${encodeURIComponent(game)}`);
+      if (token !== workshopPeekToken || state.game !== game) return;
+      workshopSteam = Boolean(data.steam);
+      workshopPending = Number(data.pending) || 0;
+      paintWorkshopButton();
+    } catch {
+      if (token !== workshopPeekToken || state.game !== game) return;
+      if (!gameIsSteam()) {
+        workshopSteam = false;
+        workshopPending = 0;
+      }
+      paintWorkshopButton();
+    }
+  })();
+  workshopPeekJob = job;
+  return job;
 }
 
 function selectGame(domain) {
@@ -2222,7 +2345,25 @@ function modDownloaded(mod) {
   return (mod?.files || []).some((file) => file && String(file.storedAs || "").trim());
 }
 
+function steamMod(mod) {
+  return String(mod?.platform || "") === "Steam Workshop";
+}
+
+function workshopOnDisk(mod) {
+  return steamMod(mod)
+    && String(mod?.localPath || "").trim()
+    && statusOn(mod, "got");
+}
+
+function cardTone(mod) {
+  if (steamMod(mod)) return "";
+  if (statusOn(mod, "in")) return "is-active";
+  if (modDownloaded(mod)) return "inactive";
+  return "";
+}
+
 function fileState(mod) {
+  if (steamMod(mod)) return "";
   if (!modDownloaded(mod)) return t("noLocal");
   const bits = [t("gotOn")];
   if (mod.installed) bits.push(t("installed"));
@@ -2233,8 +2374,13 @@ function fileState(mod) {
 async function setMarkedActive(active) {
   const ids = [...state.selected].filter((id) => {
     const mod = state.mods.find((item) => item.id === id);
-    return mod && modDownloaded(mod);
+    return mod && !steamMod(mod) && modDownloaded(mod);
   });
+  const other = [...state.selected].some((id) => {
+    const mod = state.mods.find((item) => item.id === id);
+    return mod && !steamMod(mod);
+  });
+  if (!other) return;
   if (!ids.length) {
     toast(t("needDownload"), "warn");
     return;
@@ -2302,7 +2448,7 @@ function visible() {
   let mods = scopedMods().filter((mod) => {
     if (state.platform && String(mod.platform || "Nexus") !== state.platform) return false;
     const here = inOpenInstance(mod);
-    if (!here && !modDownloaded(mod)) return false;
+    if (!here && !modDownloaded(mod) && !workshopOnDisk(mod)) return false;
     if (here && state.packCat && String(mod.modpackCategoryId || "") !== state.packCat) return false;
     if (state.category && String(mod.category || "General") !== state.category) return false;
     const hasFiles = (mod.files || []).length > 0;
@@ -2310,7 +2456,7 @@ function visible() {
     if (state.files === "without" && hasFiles) return false;
     if (state.onlyUpdates && !mod.updateAvailable) return false;
     if (!q && !listQ) return true;
-    const blob = `${mod.name} ${mod.author} ${mod.gameName} ${mod.category} ${mod.categoryEs || ""} ${mod.platform} ${packLabel(mod)} ${mod.summary} ${mod.summaryEs || ""} ${mod.techNotes || ""} ${mod.compatNotes || ""} ${mod.notes || ""}`.toLowerCase();
+    const blob = `${mod.name} ${mod.author} ${mod.gameName} ${mod.category} ${mod.categoryEs || ""} ${mod.platform} ${platformLabel(mod.platform)} ${packLabel(mod)} ${mod.summary} ${mod.summaryEs || ""} ${mod.techNotes || ""} ${mod.compatNotes || ""} ${mod.notes || ""}`.toLowerCase();
     if (q && !blob.includes(q)) return false;
     if (listQ && !blob.includes(listQ)) return false;
     return true;
@@ -2636,9 +2782,9 @@ function renderFilters() {
     const name = mod.platform || "Nexus";
     if (!platformNames.includes(name)) platformNames.push(name);
   });
-  const platformMap = platformNames.map((name) => ({
+  const platformMap = pinExternalLast(platformNames).map((name) => ({
     id: name,
-    label: name,
+    label: platformLabel(name),
     count: scopedMods().filter((mod) => (mod.platform || "Nexus") === name).length,
   }));
   const platformPage = sidePaged(
@@ -3180,6 +3326,21 @@ async function setTheme(theme) {
 
 const PLATFORMS = ["Nexus", "Modrinth", "CurseForge", "Steam Workshop", "ModDB", "Independiente"];
 
+function platformLabel(name) {
+  return name === "Independiente" ? t("independent") : (name || "");
+}
+
+function pinExternalLast(names) {
+  const rest = [];
+  let external = false;
+  for (const name of names) {
+    if (name === "Independiente") external = true;
+    else rest.push(name);
+  }
+  if (external) rest.push("Independiente");
+  return rest;
+}
+
 function platformsForGame(domain) {
   const key = String(domain || "").trim().toLowerCase();
   const map = state.sources || {};
@@ -3193,7 +3354,7 @@ function platformsForGame(domain) {
 }
 
 function searchPlatformLabel() {
-  return searchPlatforms().join(" y ");
+  return searchPlatforms().map(platformLabel).join(" y ");
 }
 
 function searchPlatforms() {
@@ -3246,7 +3407,7 @@ function syncAddSource() {
   if (allowed && $("add-url").value.trim() && !allowed.includes(picked)) {
     fillPlatformSelect(select, allowed[0]);
     select.disabled = true;
-    if ($("add-status")) $("add-status").textContent = `Este juego solo acepta ${allowed.join(", ")}.`;
+    if ($("add-status")) $("add-status").textContent = `Este juego solo acepta ${allowed.map(platformLabel).join(", ")}.`;
     return;
   }
   if ($("add-url").value.trim() && known) {
@@ -3268,8 +3429,8 @@ function fillPlatformSelect(node, preferred) {
   let current = preferred || node.value || options[0] || "Nexus";
   if (!options.includes(current)) current = options[0] || current;
   if (current && !options.includes(current)) options.push(current);
-  node.innerHTML = options.map((name) => (
-    `<option value="${esc(name)}" ${name === current ? "selected" : ""}>${esc(name)}</option>`
+  node.innerHTML = pinExternalLast(options).map((name) => (
+    `<option value="${esc(name)}" ${name === current ? "selected" : ""}>${esc(platformLabel(name))}</option>`
   )).join("");
 }
 
@@ -4011,13 +4172,18 @@ function paintBulk() {
     $("bulk-pack-cat").value || "",
     state.game
   );
-  const canToggle = [...state.selected].some((id) => {
+  const actionable = [...state.selected].filter((id) => {
+    const mod = state.mods.find((item) => item.id === id);
+    return mod && !steamMod(mod);
+  });
+  const canToggle = actionable.some((id) => {
     const mod = state.mods.find((item) => item.id === id);
     return mod && modDownloaded(mod);
   });
   ["bulk-enable", "bulk-disable"].forEach((id) => {
     const button = $(id);
     if (!button) return;
+    button.hidden = !actionable.length;
     button.disabled = !canToggle;
     button.title = canToggle ? "" : t("needDownload");
   });
@@ -4046,6 +4212,7 @@ function statusPicks(mod) {
 }
 
 function cardStatusMark(mod) {
+  if (steamMod(mod)) return "";
   const hasFiles = modDownloaded(mod);
   const on = statusOn(mod, "in");
   if (!hasFiles) {
@@ -4056,6 +4223,7 @@ function cardStatusMark(mod) {
 }
 
 function cardActiveToggle(mod) {
+  if (steamMod(mod)) return "";
   const hasFiles = modDownloaded(mod);
   const on = statusOn(mod, "in");
   const tip = !hasFiles ? t("activeNeedFiles") : (on ? t("activeTipOn") : t("activeTipOff"));
@@ -4069,10 +4237,13 @@ function cardIco(d) {
 function cardQuickBar(mod) {
   const nexus = String(mod.nexusUrl || "").trim();
   const nexusBtn = nexus
-    ? `<a class="card-quick-btn" href="${esc(nexus)}" target="_blank" rel="noreferrer" data-card-act="nexus" title="${esc(mod.platform || "Nexus")}">${cardIco("M14 4h6v6M10 14L20 4M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5")}</a>`
-    : `<button type="button" class="card-quick-btn" data-card-act="nexus" disabled title="${esc(mod.platform || "Nexus")}">${cardIco("M14 4h6v6M10 14L20 4M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5")}</button>`;
+    ? `<a class="card-quick-btn" href="${esc(nexus)}" target="_blank" rel="noreferrer" data-card-act="nexus" title="${esc(platformLabel(mod.platform || "Nexus"))}">${cardIco("M14 4h6v6M10 14L20 4M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5")}</a>`
+    : `<button type="button" class="card-quick-btn" data-card-act="nexus" disabled title="${esc(platformLabel(mod.platform || "Nexus"))}">${cardIco("M14 4h6v6M10 14L20 4M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5")}</button>`;
+  const fileBtn = steamMod(mod)
+    ? ""
+    : `<button type="button" class="card-quick-btn" data-card-act="file" title="${esc(t("localFile"))}">${cardIco("M4 6h6l2 2h8v10H4z")}</button>`;
   return `<div class="card-quick" aria-hidden="true">
-    <button type="button" class="card-quick-btn" data-card-act="file" title="${esc(t("localFile"))}">${cardIco("M4 6h6l2 2h8v10H4z")}</button>
+    ${fileBtn}
     ${nexusBtn}
     <button type="button" class="card-quick-btn" data-card-act="note" title="${esc(t("note"))}">${cardIco("M6 3h9l5 5v13H6zM14 3v6h6M8 13h8M8 17h6")}</button>
     <button type="button" class="card-quick-btn danger" data-card-act="delete" title="${esc(t("delete"))}">${cardIco("M5 7h14M10 11v6M14 11v6M9 7V5h6v2M7 7l1 14h8l1-14")}</button>
@@ -4082,10 +4253,13 @@ function cardQuickBar(mod) {
 function listQuickBar(mod) {
   const nexus = String(mod.nexusUrl || "").trim();
   const nexusBtn = nexus
-    ? `<a class="list-quick-btn" href="${esc(nexus)}" target="_blank" rel="noreferrer" data-card-act="nexus" title="${esc(mod.platform || "Nexus")}">${cardIco("M14 4h6v6M10 14L20 4M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5")}</a>`
-    : `<button type="button" class="list-quick-btn" data-card-act="nexus" disabled title="${esc(mod.platform || "Nexus")}">${cardIco("M14 4h6v6M10 14L20 4M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5")}</button>`;
+    ? `<a class="list-quick-btn" href="${esc(nexus)}" target="_blank" rel="noreferrer" data-card-act="nexus" title="${esc(platformLabel(mod.platform || "Nexus"))}">${cardIco("M14 4h6v6M10 14L20 4M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5")}</a>`
+    : `<button type="button" class="list-quick-btn" data-card-act="nexus" disabled title="${esc(platformLabel(mod.platform || "Nexus"))}">${cardIco("M14 4h6v6M10 14L20 4M20 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h5")}</button>`;
+  const fileBtn = steamMod(mod)
+    ? ""
+    : `<button type="button" class="list-quick-btn" data-card-act="file" title="${esc(t("localFile"))}">${cardIco("M4 6h6l2 2h8v10H4z")}</button>`;
   return `<div class="list-quick">
-    <button type="button" class="list-quick-btn" data-card-act="file" title="${esc(t("localFile"))}">${cardIco("M4 6h6l2 2h8v10H4z")}</button>
+    ${fileBtn}
     ${nexusBtn}
     <button type="button" class="list-quick-btn danger" data-card-act="delete" title="${esc(t("delete"))}">${cardIco("M5 7h14M10 11v6M14 11v6M9 7V5h6v2M7 7l1 14h8l1-14")}</button>
   </div>`;
@@ -4133,12 +4307,12 @@ function listRowHtml(mod, index) {
   const game = mod.gameName || mod.gameDomain || "";
   const under = [cat, game].filter(Boolean).join(" · ");
   const pool = !inOpenInstance(mod);
-  return `<article class="card list-row${pool ? " pool" : ""} ${state.selected.has(mod.id) ? "on" : ""} ${statusOn(mod, "in") ? "is-active" : ""} ${!statusOn(mod, "in") && modDownloaded(mod) ? "inactive" : ""} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 25}ms">
+  return `<article class="card list-row${pool ? " pool" : ""} ${state.selected.has(mod.id) ? "on" : ""} ${cardTone(mod)} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 25}ms">
     ${dragHandle()}
     <div class="shot list-thumb" ${shot(mod)}></div>
     <div class="card-body">
       <h3>${esc(mod.name)}${mod.updateAvailable ? `<span class="ver-new">${esc(t("newTag"))}</span>` : ""}</h3>
-      <p class="meta">${esc(under || (mod.platform || "Nexus"))}</p>
+      <p class="meta">${esc(under || platformLabel(mod.platform || "Nexus"))}</p>
     </div>
     <span class="list-ver">v${esc(mod.version || "?")}</span>
     ${listConflictBadge(mod)}
@@ -4174,6 +4348,7 @@ function tableConflictCell(mod) {
 }
 
 function tableFlags(mod) {
+  if (steamMod(mod)) return `<span class="table-flags"></span>`;
   const hasFiles = modDownloaded(mod);
   const diskTip = mod.installed ? t("installed") : t("gotOn");
   const disk = hasFiles
@@ -4190,9 +4365,8 @@ function tableNameCell(mod) {
 }
 
 function tableRowHtml(mod) {
-  const inactive = !statusOn(mod, "in") && modDownloaded(mod);
   const pool = !inOpenInstance(mod);
-  return `<tr class="card${pool ? " pool" : ""} ${state.selected.has(mod.id) ? "on" : ""} ${statusOn(mod, "in") ? "is-active" : ""} ${inactive ? "inactive" : ""} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}">
+  return `<tr class="card${pool ? " pool" : ""} ${state.selected.has(mod.id) ? "on" : ""} ${cardTone(mod)} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}">
     <td class="col-grip">${dragHandle()}</td>
     <td class="col-prio">${priorityCell(mod)}</td>
     <td class="col-conflict">${tableConflictCell(mod)}</td>
@@ -4269,7 +4443,8 @@ function addPackBtn(mod) {
 }
 
 function poolHead(mod, prev) {
-  if (inOpenInstance(mod) || (prev && !inOpenInstance(prev))) return "";
+  if (inOpenInstance(mod) || steamMod(mod)) return "";
+  if (prev && !inOpenInstance(prev) && !steamMod(prev)) return "";
   return `<p class="pool-head">${esc(t("installedGame"))}</p>`;
 }
 
@@ -4290,7 +4465,7 @@ function paintUpdateBanner() {
 
 async function setModStatus(id, status) {
   const mod = state.mods.find((item) => item.id === id);
-  if (!mod) return;
+  if (!mod || steamMod(mod)) return;
   if (status === "in" && !modDownloaded(mod) && !statusOn(mod, "in")) {
     toast(t("activeNeedFiles"), "warn");
     return;
@@ -4418,7 +4593,7 @@ function render() {
   } else $("grid").innerHTML = mods.map((mod, index) => {
     const pool = !inOpenInstance(mod);
     return `${poolHead(mod, mods[index - 1])}
-    <article class="card${pool ? " pool" : ""} ${state.selected.has(mod.id) ? "on" : ""} ${statusOn(mod, "in") ? "is-active" : ""} ${!statusOn(mod, "in") && modDownloaded(mod) ? "inactive" : ""} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 35}ms">
+    <article class="card${pool ? " pool" : ""} ${state.selected.has(mod.id) ? "on" : ""} ${cardTone(mod)} ${downloading.has(mod.id) ? "downloading" : ""}" data-id="${mod.id}" style="animation-delay:${Math.min(index, 10) * 35}ms">
       <div class="shot" ${shot(mod)}>
         <span class="ver-badge">v${esc(mod.version || "?")}</span>
         <span class="shot-game">${esc(mod.gameName || mod.gameDomain || "Juego")}</span>
@@ -4426,7 +4601,7 @@ function render() {
       </div>
       <div class="card-body">
         <h3>${esc(mod.name)}${mod.updateAvailable ? `<span class="ver-new">${esc(t("newTag"))}</span>` : ""}</h3>
-        <p class="meta">${esc(mod.platform || "Nexus")}${packLabel(mod) ? ` · ${esc(packLabel(mod))}` : ""} · ${esc(categoryLabel(mod.category, mod))}</p>
+        <p class="meta">${esc(platformLabel(mod.platform || "Nexus"))}${packLabel(mod) ? ` · ${esc(packLabel(mod))}` : ""} · ${esc(categoryLabel(mod.category, mod))}</p>
         <p class="sub">${esc(displaySummary(mod))}${mod.summaryEs ? ` <span class="meta">${state.showEs ? "ES" : "EN"}</span>` : ""}</p>
       </div>
       <footer>
@@ -4673,7 +4848,7 @@ async function detect() {
     fillPreview(state.detected);
     status.textContent = state.detected.duplicate
       ? `Ya existe “${state.detected.existingName || state.detected.name || "este mod"}”. Al guardar elige duplicar o sustituir.`
-      : (state.detected.official ? `Página lista. Plataforma: ${state.detected.platform || "Independiente"}.` : "Presa detectada.");
+      : (state.detected.official ? `Página lista. Plataforma: ${platformLabel(state.detected.platform || "Independiente")}.` : "Presa detectada.");
     sfx.ok();
   } catch (error) {
     state.detected = null;
@@ -4739,7 +4914,7 @@ async function saveMod(event) {
     || targetGame === "wow"
     || targetGame.startsWith("worldofwarcraft");
   if (locked && allowed.length && picked && !allowed.includes(picked)) {
-    status.textContent = `Este juego solo acepta ${allowed.join(", ")}.`;
+    status.textContent = `Este juego solo acepta ${allowed.map(platformLabel).join(", ")}.`;
     sfx.warn();
     setLoading(button, false);
     return;
@@ -4836,7 +5011,7 @@ function detailMarkup(mod) {
       ${image ? `<img class="hero" alt="" src="${esc(image)}">` : ""}
       <div class="detail-side">
         <p class="hint">${esc(mod.gameName || "")} · ${esc(mod.author || "?")}</p>
-        <p class="meta">${mod.nexusUrl ? `<a href="${esc(mod.nexusUrl)}" target="_blank" rel="noreferrer">${esc(mod.platform || "Nexus")}</a>` : esc(mod.platform || "Nexus")} · ${esc(categoryLabel(mod.category, mod))} · ${esc(fmtDate(mod.updatedAt))}</p>
+        <p class="meta">${mod.nexusUrl ? `<a href="${esc(mod.nexusUrl)}" target="_blank" rel="noreferrer">${esc(platformLabel(mod.platform || "Nexus"))}</a>` : esc(platformLabel(mod.platform || "Nexus"))} · ${esc(categoryLabel(mod.category, mod))} · ${esc(fmtDate(mod.updatedAt))}</p>
         ${statRow(mod)}
         <p class="summary" id="detail-summary" title="${esc(mod.summary || "")}">${esc(summaryText || "Sin descripción.")}</p>
       </div>
@@ -4859,11 +5034,11 @@ function detailMarkup(mod) {
     <label>Nota
       <textarea id="detail-note" rows="3" placeholder="Nota de este mod">${esc(mod.notes || "")}</textarea>
     </label>
-    <p class="hint" id="detail-files">${esc(filesHint(mod))}</p>
+    <p class="hint" id="detail-files"${steamMod(mod) ? " hidden" : ""}>${esc(filesHint(mod))}</p>
     <footer>
       <button type="button" id="detail-delete">Eliminar</button>
       <span class="detail-actions">
-        <button type="button" id="detail-active"></button>
+        ${steamMod(mod) ? "" : `<button type="button" id="detail-active"></button>
         <span class="detail-menu">
           <button type="button" id="detail-more" aria-expanded="false" aria-haspopup="menu">Acciones <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M5 8l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
           <div class="detail-pop" id="detail-pop" hidden role="menu">
@@ -4872,7 +5047,7 @@ function detailMarkup(mod) {
             <button type="button" id="detail-download" data-i18n="download" role="menuitem">Descargar</button>
             <button type="button" id="detail-install" role="menuitem">Instalar</button>
           </div>
-        </span>
+        </span>`}
         <button type="button" id="detail-save">Guardar</button>
       </span>
     </footer>`;
@@ -4974,15 +5149,18 @@ function wireDetail(mod, probe = true) {
   $("detail-save").onclick = () => saveDetail(mod.id);
   const refresh = $("detail-refresh");
   if (refresh) refresh.onclick = () => refreshOne(mod.id);
-  $("detail-download").onclick = () => downloadMod(mod.id);
+  const download = $("detail-download");
+  if (download) download.onclick = () => downloadMod(mod.id);
   const fileBtn = $("detail-file");
   if (fileBtn) {
     fileBtn.hidden = !(mod.files || []).length;
     fileBtn.textContent = t("localFile");
     fileBtn.onclick = () => revealMod(mod.id);
   }
-  $("detail-install").onclick = () => installMod(mod);
-  $("detail-active").onclick = () => setModStatus(mod.id, "in");
+  const install = $("detail-install");
+  if (install) install.onclick = () => installMod(mod);
+  const active = $("detail-active");
+  if (active) active.onclick = () => setModStatus(mod.id, "in");
   $("detail-delete").onclick = () => removeMod(mod.id);
   $("detail").dataset.id = mod.id;
   paintDetailActive(mod);
@@ -5040,6 +5218,7 @@ function paintDetailActive(mod) {
 }
 
 function filesHint(mod) {
+  if (steamMod(mod)) return "";
   const files = mod.files || [];
   if (!files.length) return t("downloadNone");
   return fileState(mod);
@@ -5127,6 +5306,7 @@ function askVersion(listed) {
 }
 
 async function installMod(mod, retried) {
+  if (steamMod(mod)) return;
   const button = $("detail-install");
   setLoading(button, true, "…");
   try {
@@ -5357,6 +5537,8 @@ function askWhere(name) {
 }
 
 async function downloadMod(id) {
+  const mod = state.mods.find((item) => item.id === id);
+  if (steamMod(mod)) return;
   const button = $("detail-download");
   setLoading(button, true, "Descargando");
   sfx.sniff();
@@ -5712,6 +5894,7 @@ let gameSearchTimer = null;
 
 function openGameDialog() {
   sfx.open();
+  setGameDialogMode("rawg");
   $("game-search").value = "";
   $("game-results").innerHTML = `<p class="hint">${esc(t("type2"))}</p>`;
   $("game-dialog").showModal();
@@ -5739,12 +5922,12 @@ async function searchRawgGames(query) {
     }
     box.innerHTML = rows.map((game) => `
       <div class="game-hit">
-        <img alt="" src="${esc(imgSrc(game.imageUrl || ""))}" loading="lazy">
+        <div class="game-cover"><img alt="" src="${esc(imgSrc(game.imageUrl || ""))}" loading="lazy"></div>
         <div>
           <b>${esc(game.gameName || "")}</b>
           <p class="meta">${esc(game.released || "¿?")}${game.rating ? ` · ${esc(String(game.rating))}` : ""}${game.platforms?.length ? ` · ${esc(game.platforms.slice(0, 3).join(", "))}` : ""}</p>
         </div>
-        <button type="button" class="solid" data-rawg-add="${esc(String(game.rawgId || ""))}">${esc(t("add"))}</button>
+        <button type="button" class="solid game-add" data-rawg-add="${esc(String(game.rawgId || ""))}"><span aria-hidden="true">+</span> ${esc(t("add"))}</button>
       </div>
     `).join("");
     box.querySelectorAll("[data-rawg-add]").forEach((button) => {
@@ -5929,14 +6112,17 @@ $("more-open").onclick = (event) => {
   event.currentTarget.setAttribute("aria-expanded", open ? "true" : "false");
   if (!open) {
     setSettingsOpen(false);
+    closeNameEdit();
     return;
   }
+  closeNameEdit();
   sfx.open();
   placePop(pop, event.currentTarget);
 };
 $("tape-open").onclick = (event) => {
   event.stopPropagation();
   $("more-pop").hidden = true;
+  closeNameEdit();
   $("tape-pop").hidden = true;
   $("more-open").setAttribute("aria-expanded", "false");
   openPackDialog();
@@ -5948,6 +6134,7 @@ document.addEventListener("pointerdown", (event) => {
   const inTape = tape && (tape.contains(event.target) || event.target.closest("#tape-open"));
   if (more && !more.hidden && !inMore && !inTape) {
     more.hidden = true;
+    closeNameEdit();
     $("more-open").setAttribute("aria-expanded", "false");
   }
   if (tape && !tape.hidden && !inTape) tape.hidden = true;
@@ -6464,7 +6651,10 @@ document.addEventListener("keydown", (event) => {
   closePrefsSwitch();
   const more = $("more-pop");
   const tape = $("tape-pop");
-  if (more) more.hidden = true;
+  if (more) {
+    more.hidden = true;
+    closeNameEdit();
+  }
   if (tape) tape.hidden = true;
   const dots = $("more-open");
   if (dots) dots.setAttribute("aria-expanded", "false");
@@ -6775,43 +6965,133 @@ function openLaunchSetup(game, { auto = false } = {}) {
 
 function startGameDetect() {
   const more = $("more-pop");
-  if (more) more.hidden = true;
+  if (more) {
+    more.hidden = true;
+    closeNameEdit();
+  }
   scanMissingGames();
+}
+
+let detectedRows = [];
+const detectedAdded = new Set();
+
+function setGameDialogMode(mode) {
+  const dialog = $("game-dialog");
+  if (dialog) dialog.dataset.mode = mode;
+  const sub = $("game-dialog-sub");
+  const input = $("game-search");
+  if (sub) sub.setAttribute("data-i18n", mode === "steam" ? "detectSub" : "rawgHint");
+  if (input) input.setAttribute("data-i18n-placeholder", mode === "steam" ? "detectSearch" : "gameSearchPh");
+  paintChrome();
+}
+
+function steamCoverUrl(appId, header) {
+  const id = Number(appId) || 0;
+  if (!id) return "";
+  const file = header ? "header.jpg" : "library_600x900.jpg";
+  return `https://cdn.cloudflare.steamstatic.com/steam/apps/${id}/${file}`;
+}
+
+function bindSteamCovers(box) {
+  box.querySelectorAll(".game-cover img").forEach((img) => {
+    img.onerror = async () => {
+      const step = Number(img.dataset.step || 0);
+      if (step < 1) {
+        img.dataset.step = "1";
+        img.src = steamCoverUrl(img.dataset.app, true);
+        return;
+      }
+      if (img.dataset.step === "store") {
+        img.remove();
+        return;
+      }
+      img.dataset.step = "store";
+      try {
+        const data = await fetch(`/api/game/cover?appid=${encodeURIComponent(img.dataset.app)}`, {
+          headers: sessionToken() ? { "X-Session": sessionToken() } : {},
+          credentials: "same-origin",
+        });
+        const body = await data.json();
+        if (data.ok && body.imageUrl) {
+          img.src = body.imageUrl;
+          return;
+        }
+      } catch (_) { /* sin carátula */ }
+      img.remove();
+    };
+  });
+}
+
+function paintDetectedGames(query) {
+  const box = $("game-results");
+  if (!box) return;
+  const q = String(query || "").trim().toLowerCase();
+  const rows = detectedRows.filter((game) => {
+    if (!q) return true;
+    return `${game.gameName || ""} ${game.path || ""}`.toLowerCase().includes(q);
+  });
+  if (!detectedRows.length) {
+    box.innerHTML = `<p class="hint">${esc(t("detectNone"))}</p>`;
+    return;
+  }
+  if (!rows.length) {
+    box.innerHTML = `<p class="hint">${esc(t("noResults"))}</p>`;
+    return;
+  }
+  box.innerHTML = rows.map((game) => {
+    const id = String(game.steamAppId || "");
+    const added = detectedAdded.has(id);
+    const cover = steamCoverUrl(id);
+    return `
+      <div class="game-hit">
+        <div class="game-cover">${cover ? `<img alt="" data-app="${esc(id)}" src="${esc(cover)}" loading="lazy">` : ""}</div>
+        <div>
+          <b><img class="game-plat" src="/brand/steam.ico" alt=""><span>${esc(game.gameName || "")}</span></b>
+          <p class="meta">${esc(game.path || "")}</p>
+        </div>
+        <button type="button" class="solid game-add${added ? " is-added" : ""}" data-scan-add="${esc(id)}" ${added ? "disabled" : ""}>${added ? esc(t("addedMark")) : `<span aria-hidden="true">+</span> ${esc(t("add"))}`}</button>
+      </div>
+    `;
+  }).join("");
+  bindSteamCovers(box);
+  box.querySelectorAll("[data-scan-add]").forEach((button) => {
+    if (button.disabled) return;
+    button.onclick = () => addDetectedGame(detectedRows.find((row) => String(row.steamAppId) === button.dataset.scanAdd), button);
+  });
 }
 
 async function scanMissingGames() {
   sfx.click();
+  detectedAdded.clear();
+  detectedRows = [];
+  setGameDialogMode("steam");
   $("game-search").value = "";
   $("game-results").innerHTML = `<p class="hint">${esc(t("searching"))}</p>`;
-  $("game-dialog").showModal();
+  const dialog = $("game-dialog");
   try {
-    const data = await api("/api/game/installed", { method: "POST" });
-    const rows = data.games || [];
-    const box = $("game-results");
-    if (!rows.length) {
-      box.innerHTML = `<p class="hint">${esc(t("detectNone"))}</p>`;
-      return;
-    }
-    box.innerHTML = `<p class="hint">${esc(t("detectFound"))}</p>` + rows.map((game) => `
-      <div class="game-hit">
-        <div>
-          <b>${esc(game.gameName || "")}</b>
-          <p class="meta">${esc(game.path || "")}</p>
-        </div>
-        <button type="button" class="solid" data-scan-add="${esc(String(game.steamAppId || ""))}">${esc(t("add"))}</button>
-      </div>
-    `).join("");
-    box.querySelectorAll("[data-scan-add]").forEach((button) => {
-      button.onclick = () => addDetectedGame(rows.find((row) => String(row.steamAppId) === button.dataset.scanAdd), button);
-    });
+    if (dialog && !dialog.open) dialog.showModal();
   } catch (error) {
-    $("game-results").innerHTML = `<p class="hint">${esc(error.message)}</p>`;
+    toast(error.message || t("searching"), "bad");
+    return;
+  }
+  setTimeout(() => $("game-search")?.focus(), 40);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const data = await api("/api/game/installed", { method: "POST", signal: ctrl.signal });
+    detectedRows = data.games || [];
+    paintDetectedGames("");
+  } catch (error) {
+    const msg = error.name === "AbortError" ? "La búsqueda tardó demasiado." : (error.message || "No se pudo completar.");
+    $("game-results").innerHTML = `<p class="hint">${esc(msg)}</p>`;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
 async function addDetectedGame(game, button) {
-  if (!game?.gameDomain) return;
-  setLoading(button, true, "…");
+  if (!game?.gameDomain || button?.disabled) return;
+  button.disabled = true;
   try {
     const data = await api("/api/catalog", {
       method: "POST",
@@ -6834,13 +7114,16 @@ async function addDetectedGame(game, button) {
       state.catalog = data.catalog || state.catalog;
     }
     toast(`${game.gameName || "Juego"} añadido.`);
-    button.closest(".game-hit")?.remove();
+    const id = String(game.steamAppId || "");
+    detectedAdded.add(id);
+    button.classList.add("is-added");
+    button.disabled = true;
+    button.textContent = t("addedMark");
     if (!$("game-gate")?.hidden) showGameGate();
     renderGameScope();
   } catch (error) {
+    button.disabled = false;
     toast(error.message, "bad");
-  } finally {
-    setLoading(button, false);
   }
 }
 
@@ -7010,12 +7293,95 @@ document.querySelectorAll('input[name="instance-loader"]').forEach((input) => {
   input.onchange = () => fillInstanceLoaderVersions();
 });
 if ($("launch-form")) $("launch-form").onsubmit = (event) => event.preventDefault();
+async function changeGameFolder() {
+  if (!state.game) {
+    toast(t("launchNeedGame"), "warn");
+    return;
+  }
+  const current = String(catalogGame(state.game)?.installPath || "").trim();
+  const host = window.pywebview && window.pywebview.api && window.pywebview.api.pick_folder;
+  let picked = "";
+  if (host) {
+    picked = await pickFolderPath();
+    if (!picked) return;
+  } else {
+    picked = await askInput({
+      title: t("folderChange"),
+      hint: t("folderHint"),
+      placeholder: current || t("launchPathPh"),
+      value: current,
+      label: t("launchPathLabel"),
+      browse: "folder",
+      okLabel: t("save"),
+    });
+  }
+  if (!picked) return;
+  const data = await api("/api/game/install-path", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: state.game, path: picked }),
+  });
+  if (data.catalog) state.catalog = data.catalog;
+  paintGameFolder();
+  toast(t("folderSaved"));
+}
+
+async function openGameFolder() {
+  if (!state.game) {
+    toast(t("launchNeedGame"), "warn");
+    return;
+  }
+  const data = await api("/api/game/open-folder", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: state.game }),
+  });
+  if (!data.ok) {
+    toast(t("folderMissing"), "warn");
+    await changeGameFolder();
+  }
+}
+
+if ($("game-folder")) {
+  $("game-folder").onclick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const menu = $("game-folder-menu");
+    if (!menu) return;
+    const open = menu.hidden;
+    if (open) {
+      closeGameMenu();
+      closeSysMenu();
+      menu.hidden = false;
+      $("game-folder").setAttribute("aria-expanded", "true");
+    } else {
+      closeFolderMenu();
+    }
+  };
+}
+if ($("game-folder-open")) {
+  $("game-folder-open").onclick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    closeFolderMenu();
+    openGameFolder().catch((error) => toast(error.message, "bad"));
+  };
+}
+if ($("game-folder-change")) {
+  $("game-folder-change").onclick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    closeFolderMenu();
+    changeGameFolder().catch((error) => toast(error.message, "bad"));
+  };
+}
 $("game-picker").onclick = (event) => {
   event.preventDefault();
   event.stopPropagation();
   const menu = $("game-menu");
   const open = menu.hidden;
   if (open) {
+    closeFolderMenu();
     menu.hidden = false;
     $("game-picker").setAttribute("aria-expanded", "true");
     const search = menu.querySelector(".game-menu-search");
@@ -7028,11 +7394,16 @@ $("game-picker").onclick = (event) => {
 };
 document.addEventListener("click", (event) => {
   if (!event.target.closest?.(".game-picker-wrap")) closeGameMenu();
+  if (!event.target.closest?.(".game-folder-wrap")) closeFolderMenu();
   if (!event.target.closest?.(".app-menu-wrap")) closeAppMenu();
   if (!event.target.closest?.(".search-wrap")) hideRemoteSearch();
 });
 $("game-form").onsubmit = (event) => event.preventDefault();
 $("game-search").oninput = (event) => {
+  if ($("game-dialog")?.dataset.mode === "steam") {
+    paintDetectedGames(event.target.value);
+    return;
+  }
   clearTimeout(gameSearchTimer);
   gameSearchTimer = setTimeout(() => searchRawgGames(event.target.value), 320);
 };
@@ -7741,6 +8112,33 @@ if ($("detect-games")) {
     startGameDetect();
   };
 }
+if ($("workshop-scan")) {
+  $("workshop-scan").onclick = () => importWorkshop();
+}
+
+async function importWorkshop() {
+  if (!state.game) {
+    toast(t("launchNeedGame"), "bad");
+    return;
+  }
+  sfx.click();
+  try {
+    const data = await api("/api/game/workshop", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: state.game }),
+    });
+    workshopAsked = "";
+    workshopPending = 0;
+    state.modpack = "";
+    state.packCat = "";
+    await load();
+    const count = Number(data.count) || 0;
+    toast(t("workshopOk").replace("{n}", String(count)));
+  } catch (error) {
+    toast(error.message || t("workshopScan"), "bad");
+  }
+}
 
 async function refreshAllMods(button) {
   if (!button) return;
@@ -7930,7 +8328,8 @@ function syncPackDialog() {
   if (needsValue) {
     let options = [];
     if (scope === "platform") {
-      options = counts((mod) => mod.platform || "Nexus", state.mods).map((row) => [row.id, `${row.label} (${row.count})`]);
+      options = counts((mod) => mod.platform || "Nexus", state.mods).map((row) => [row.id, `${platformLabel(row.label)} (${row.count})`]);
+      options.sort((a, b) => (a[0] === "Independiente") - (b[0] === "Independiente"));
     } else if (scope === "game") {
       if (preview?.games?.length) {
         options = preview.games.map((row) => [row.id, `${row.name} (${row.count})`]);
@@ -8283,6 +8682,7 @@ $("login-reset").onclick = () => {
 };
 $("logout").onclick = () => {
   $("more-pop").hidden = true;
+  closeNameEdit();
   $("more-open").setAttribute("aria-expanded", "false");
   closeAppMenu();
   askQuit(false);
@@ -8448,27 +8848,27 @@ async function playGameSplash(domain, fromGate) {
   const cover = gameCover(domain) || gameMark(domain).src || "";
   const line = $("game-enter-line");
   if (line) line.textContent = t("gateLoading", { name });
-  const hasPack = state.modpacks.some((pack) => String(pack.gameDomain || "") === domain);
-  const lineTimer = setTimeout(() => {
-    if (hasPack && line) line.textContent = t("gatePreparing");
-  }, 900);
   const started = performance.now();
   showGameEnter(name, cover);
   try {
+    workshopAsked = "";
     if (domain !== state.game) selectGame(domain);
     else {
       sfx.click();
       render();
     }
-    await enrichActiveGame();
-    const left = 2000 - (performance.now() - started);
+    if (line) line.textContent = t("gateSeek");
+    await Promise.all([
+      enrichActiveGame(),
+      workshopPeekJob || Promise.resolve(),
+    ]);
+    const left = 900 - (performance.now() - started);
     if (left > 0) await new Promise((resolve) => setTimeout(resolve, left));
     const enter = $("game-enter");
     if (enter) enter.classList.add("is-out");
     if (fromGate) $("game-gate")?.classList.add("is-out");
     await new Promise((resolve) => setTimeout(resolve, 460));
   } finally {
-    clearTimeout(lineTimer);
     if (fromGate) hideGameGate();
     else {
       const enter = $("game-enter");
@@ -9204,6 +9604,7 @@ function bindSysbar() {
     if (!menu) return;
     const open = menu.hidden;
     if (open) {
+      closeFolderMenu();
       fillSysMenu();
       menu.querySelector(".sys-menu-search")?.focus();
     }
@@ -9568,6 +9969,10 @@ if ($("name-custom")) {
     localStorage.setItem("wi-mod-name-source", "custom");
     localStorage.setItem("wi-mod-custom-name", state.customName);
     applyDockName();
+    const field = $("name-custom-field");
+    const btn = $("name-custom");
+    if (field) field.hidden = false;
+    if (btn) btn.hidden = true;
     const pop = $("more-pop");
     if (!pop.hidden) placePop(pop, $("more-open"));
     const input = $("name-custom-input");
@@ -9590,6 +9995,7 @@ if ($("name-custom-input")) {
 if ($("tour-open")) {
   $("tour-open").onclick = () => {
     $("more-pop").hidden = true;
+  closeNameEdit();
     $("more-open").setAttribute("aria-expanded", "false");
     sfx.click();
     startTour();

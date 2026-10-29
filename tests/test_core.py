@@ -263,6 +263,24 @@ class SourceTests(unittest.TestCase):
         self.assertIsNone(project_ref("https://www.curseforge.com/minecraft"))
 
 
+class GameDetectionTests(unittest.TestCase):
+    def test_rawg_match_score(self):
+        from wi_mod.rawg import _match_score
+        exact = {"gameName": "Slay the Spire", "rawgSlug": "slay-the-spire", "added": 5000, "rating": 4.3}
+        different = {"gameName": "The Witcher 3: Wild Hunt", "rawgSlug": "the-witcher-3-wild-hunt", "added": 25000, "rating": 4.6}
+        self.assertGreater(_match_score(exact, "Slay the Spire"), _match_score(different, "Slay the Spire"))
+
+    def test_complete_game_fallback(self):
+        from wi_mod.server import _complete_game, App
+        with tempfile.TemporaryDirectory() as folder:
+            app = App(Path(folder))
+            # Test complete game with simulated/mocked or steam app id
+            game = _complete_game(app, "slaythespire", "Slay the Spire", 646570)
+            self.assertEqual(game.get("gameDomain"), "slaythespire")
+            self.assertTrue(game.get("imageUrl"))
+            self.assertIsNotNone(game.get("rating"))
+
+
 def _post(url, payload, opener=None):
     req = urllib.request.Request(
         url,
@@ -277,3 +295,4 @@ def _post(url, payload, opener=None):
 
 if __name__ == "__main__":
     unittest.main()
+

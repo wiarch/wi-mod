@@ -128,11 +128,18 @@ def _attach(app: Any, path: Path, strict: bool) -> str:
     if mod is None and strict:
         return "skip"
     if mod is None:
+        g_domain = info.get("game") or ""
+        g_name = info.get("game_name") or info.get("game") or ""
+        if g_domain and hasattr(app, "ensure_game"):
+            try:
+                app.ensure_game(g_domain, g_name)
+            except Exception:
+                pass
         fields: dict[str, Any] = {
             "name": path.stem,
             "platform": "Nexus" if info.get("mod_id") else "Independiente",
-            "gameDomain": info.get("game") or "",
-            "gameName": info.get("game_name") or info.get("game") or "",
+            "gameDomain": g_domain,
+            "gameName": g_name,
             "version": info.get("version") or "",
             "primaryFileName": path.name,
         }

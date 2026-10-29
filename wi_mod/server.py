@@ -75,7 +75,8 @@ from wi_mod.rawg import (
 )
 from wi_mod.launch import detect_game, launch_path, list_installed_games, steam_run_url
 from wi_mod.sources import GAME_SOURCES, platforms_for, sources_payload
-from wi_mod.steam import SteamError, validate_key as validate_steam_key
+from wi_mod.steam import SteamError, fetch_steam_game, search_steam_store, validate_key as validate_steam_key
+from wi_mod.workshop import scan_all_workshops, scan_workshop, steamapps_dirs, store_header
 from wi_mod.store import Library, now, safe_name
 from wi_mod.translate import TranslateError, translate_text
 
@@ -451,6 +452,9 @@ class App:
         with self._note_lock:
             return list(self._notes)
 
+    def ensure_game(self, domain: str, name: str = "", app_id: int = 0) -> dict:
+        return _complete_game(self, domain, name, app_id)
+
     def ask_choice(self, kind: str, name: str, timeout: float = 600, title: str = "", tone: str = "") -> dict:
         token = uuid.uuid4().hex
         done = threading.Event()
@@ -662,6 +666,11 @@ def make_handler(app: App):
             if path == "/styles.css":
                 self._file(WEB / "styles.css", "text/css; charset=utf-8")
                 return
+            if path == "/api/game/workshop":
+                query = parse_qs(urlparse(self.path).query)
+                domain = (query.get("id") or [""])[0].strip().lower()
+                self._json(200, _workshop_status(app, domain))
+                return
             if path == "/api/library":
                 mods = [_public_mod(mod) for mod in app.library.list_mods()]
                 linked = installed_ids(app.library)
@@ -700,6 +709,11 @@ def make_handler(app: App):
                 query = parse_qs(urlparse(self.path).query)
                 q = (query.get("q") or [""])[0]
                 self._json(200, {"results": _rawg_search(app, q)})
+                return
+            if path == "/api/game/cover":
+                query = parse_qs(urlparse(self.path).query)
+                raw = (query.get("appid") or [""])[0]
+                self._json(200, {"imageUrl": store_header(raw)})
                 return
             if path == "/api/nexus/search":
                 query = parse_qs(urlparse(self.path).query)
@@ -945,6 +959,12 @@ def make_handler(app: App):
             if path == "/api/game/installed":
                 self._json(200, {"games": _installed_missing(app)})
                 return
+            if path == "/api/game/workshop":
+                body = self._json_body()
+                domain = str(body.get("id") or body.get("gameDomain") or "").strip().lower()
+                result = _import_workshop(app, domain)
+                self._json(200, result)
+                return
             if path == "/api/game/detect":
                 body = self._json_body()
                 domain = str(body.get("id") or body.get("gameDomain") or "").strip().lower()
@@ -969,6 +989,30 @@ def make_handler(app: App):
                     None,
                 )
                 self._json(200, {"catalog": catalog, "game": game})
+                return
+            if path == "/api/game/install-path":
+                body = self._json_body()
+                domain = str(body.get("id") or body.get("gameDomain") or "").strip().lower()
+                path_value = str(body.get("path") or body.get("installPath") or "").strip()
+                catalog = app.library.set_game_install(domain, path_value)
+                game = next(
+                    (
+                        item for item in (catalog.get("games") or [])
+                        if isinstance(item, dict) and str(item.get("gameDomain") or "").lower() == domain
+                    ),
+                    None,
+                )
+                self._json(200, {"catalog": catalog, "game": game})
+                return
+            if path == "/api/game/open-folder":
+                body = self._json_body()
+                domain = str(body.get("id") or body.get("gameDomain") or "").strip().lower()
+                folder = _game_install_dir(app, domain)
+                if folder is None:
+                    self._json(200, {"ok": False, "reason": "missing"})
+                    return
+                _open_dir(folder)
+                self._json(200, {"ok": True, "path": str(folder)})
                 return
             if path == "/api/java/install":
                 body = self._json_body()
@@ -1629,6 +1673,329 @@ def _installed_missing(app: App) -> list[dict]:
     return rows
 
 
+def _steam_app_id(game: dict, installed: list[dict]) -> int:
+    try:
+        current = int(game.get("steamAppId") or 0)
+    except (TypeError, ValueError):
+        current = 0
+    if current > 0:
+        return current
+    domain = str(game.get("gameDomain") or "").strip().lower()
+    name_key = re.sub(r"[^a-z0-9]", "", str(game.get("gameName") or "").lower())
+    for row in installed:
+        try:
+            app_id = int(row.get("steamAppId") or 0)
+        except (TypeError, ValueError):
+            continue
+        row_name = str(row.get("gameName") or "")
+        row_domain = nexus_domain_for("", row_name)
+        row_key = re.sub(r"[^a-z0-9]", "", row_name.lower())
+        if app_id > 0 and ((domain and row_domain == domain) or (name_key and row_key == name_key)):
+            return app_id
+    return 0
+
+
+def _workshop_bytes(rows: list) -> int:
+    total = 0
+    for row in rows:
+        try:
+            total += int(row.get("bytes") or 0)
+        except (TypeError, ValueError):
+            continue
+    return total
+
+
+def _workshop_status(app: App, domain: str) -> dict:
+    game = _catalog_game(app, domain)
+    if not game:
+        return {"steam": False, "pending": 0}
+    app_id = _steam_app_id(game, list_installed_games())
+    if app_id <= 0:
+        return {"steam": False, "pending": 0}
+    try:
+        rows = scan_workshop(app_id, str(game.get("gameName") or ""))
+    except SteamError:
+        rows = []
+    known: set[int] = set()
+    domain_key = str(game.get("gameDomain") or domain).strip().lower()
+    for mod in app.library.list_mods():
+        if str(mod.get("gameDomain") or "").strip().lower() != domain_key:
+            continue
+        if str(mod.get("platform") or "") != "Steam Workshop":
+            continue
+        try:
+            wid = int(mod.get("modId") or 0)
+        except (TypeError, ValueError):
+            wid = 0
+        if wid > 0:
+            known.add(wid)
+    pending = 0
+    for row in rows:
+        try:
+            wid = int(row.get("WorkshopID") or 0)
+        except (TypeError, ValueError):
+            wid = 0
+        if wid > 0 and wid not in known:
+            pending += 1
+    return {"steam": True, "pending": pending, "appId": app_id, "bytes": _workshop_bytes(rows)}
+
+
+def _workshop_cover(app: App, mod: dict, preview: str) -> dict:
+    src = Path(preview)
+    suffix = src.suffix.lower()
+    if suffix not in {".png", ".jpg", ".jpeg", ".webp", ".gif"} or not src.is_file():
+        return mod
+    dest_dir = app.root / "images"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / f"{mod['id']}{suffix}"
+    try:
+        same = dest.is_file() and dest.stat().st_size == src.stat().st_size
+        if not same:
+            shutil.copy2(src, dest)
+    except OSError:
+        return mod
+    relative = dest.relative_to(app.root).as_posix()
+    if mod.get("pictureFile") != relative:
+        app.library.set_picture(mod["id"], relative)
+        return app.library.get(mod["id"]) or mod
+    return mod
+
+
+def _workshop_games(app: App) -> tuple[dict[int, dict], dict[str, dict], dict[str, dict]]:
+    by_app: dict[int, dict] = {}
+    by_domain: dict[str, dict] = {}
+    by_key: dict[str, dict] = {}
+    for item in app.library.catalog().get("games") or []:
+        if not isinstance(item, dict):
+            continue
+        domain = str(item.get("gameDomain") or "").strip().lower()
+        gname = str(item.get("gameName") or "")
+        key = re.sub(r"[^a-z0-9]", "", gname.lower())
+        if domain:
+            by_domain[domain] = item
+        if key:
+            by_key[key] = item
+        try:
+            aid = int(item.get("steamAppId") or 0)
+        except (TypeError, ValueError):
+            aid = 0
+        if aid > 0:
+            by_app[aid] = item
+    return by_app, by_domain, by_key
+
+
+def _game_thin(game: dict | None) -> bool:
+    if not isinstance(game, dict):
+        return True
+    if not str(game.get("imageUrl") or "").strip():
+        return True
+    if game.get("rating") in (None, ""):
+        return True
+    if not str(game.get("description") or "").strip():
+        return True
+    dom = str(game.get("gameDomain") or "").strip().lower()
+    name = str(game.get("gameName") or "").strip().lower()
+    c_dom = re.sub(r"[^a-z0-9]", "", dom)
+    c_name = re.sub(r"[^a-z0-9]", "", name)
+    if c_dom and c_name and c_dom != c_name and c_dom not in c_name and c_name not in c_dom:
+        if dom not in {"skyrimspecialedition", "gtasa", "newvegas", "witcher3", "stalkershadowofchernobyl", "darksoulsremastered", "worldofwarcraftclassic"}:
+            return True
+    return False
+
+
+def _complete_game(app: App, domain: str, name: str = "", app_id: int = 0) -> dict:
+    """Juego nuevo o incompleto: busca carátula, nota, descripción y datos usando Steam y RAWG."""
+    domain = str(domain or "").strip().lower()
+    name = str(name or "").strip()
+    if not domain and name:
+        domain = nexus_domain_for("", name)
+    if not name and domain:
+        name = domain
+
+    raw_existing = _catalog_game(app, domain) or {}
+    c_dom = re.sub(r"[^a-z0-9]", "", domain)
+    c_name = re.sub(r"[^a-z0-9]", "", name.lower()) if name else c_dom
+    c_exist = re.sub(r"[^a-z0-9]", "", str(raw_existing.get("gameName") or "").lower())
+    if c_exist and c_exist != c_dom and c_exist != c_name and c_name not in c_exist and c_exist not in c_name and domain not in {"skyrimspecialedition", "gtasa", "newvegas", "witcher3", "stalkershadowofchernobyl", "darksoulsremastered", "worldofwarcraftclassic"}:
+        existing: dict[str, Any] = {"gameDomain": domain}
+    else:
+        existing = dict(raw_existing)
+    aid = int(app_id or 0)
+    if aid <= 0 and existing.get("steamAppId"):
+        try:
+            aid = int(existing.get("steamAppId") or 0)
+        except (TypeError, ValueError):
+            aid = 0
+    if aid <= 0:
+        try:
+            aid = search_steam_store(name or domain, lang=_lang(app))
+        except Exception:
+            aid = 0
+
+    steam_data: dict[str, Any] | None = None
+    if aid > 0:
+        try:
+            steam_data = fetch_steam_game(aid, lang=_lang(app))
+        except Exception:
+            steam_data = None
+
+    rawg_data: dict[str, Any] | None = None
+    resolve_query = (steam_data.get("gameName") if steam_data else "") or name or domain
+    try:
+        rawg_data = _rawg_resolve(app, domain, resolve_query)
+    except Exception:
+        rawg_data = None
+
+    payload = dict(existing)
+    payload["gameDomain"] = domain
+
+    official_title = (
+        (steam_data.get("gameName") if steam_data else "")
+        or (rawg_data.get("gameName") if rawg_data else "")
+        or str(payload.get("gameName") or name or domain)
+    )
+    payload["gameName"] = official_title
+
+    if aid > 0:
+        payload["steamAppId"] = aid
+
+    if isinstance(rawg_data, dict):
+        for k, v in rawg_data.items():
+            if v not in (None, "") and k not in {"steamAppId"}:
+                payload[k] = v
+
+    if isinstance(steam_data, dict):
+        if not payload.get("imageUrl") and steam_data.get("imageUrl"):
+            payload["imageUrl"] = steam_data["imageUrl"]
+        if payload.get("rating") in (None, "") and steam_data.get("rating") not in (None, ""):
+            payload["rating"] = steam_data["rating"]
+        if not payload.get("description") and steam_data.get("description"):
+            payload["description"] = steam_data["description"]
+        if not payload.get("descriptionEs") and steam_data.get("descriptionEs"):
+            payload["descriptionEs"] = steam_data["descriptionEs"]
+        if not payload.get("genres") and steam_data.get("genres"):
+            payload["genres"] = steam_data["genres"]
+        if not payload.get("platforms") and steam_data.get("platforms"):
+            payload["platforms"] = steam_data["platforms"]
+        if not payload.get("released") and steam_data.get("released"):
+            payload["released"] = steam_data["released"]
+        if not payload.get("metacritic") and steam_data.get("metacritic"):
+            payload["metacritic"] = steam_data["metacritic"]
+
+    if aid > 0 and not str(payload.get("imageUrl") or "").strip():
+        header = store_header(aid)
+        if header:
+            payload["imageUrl"] = header
+
+    app.library.add_catalog_item("game", payload)
+    return _catalog_game(app, domain) or payload
+
+
+_complete_workshop_game = _complete_game
+
+
+def _workshop_owner(
+    app: App,
+    app_id: int,
+    game_name: str,
+    by_app: dict[int, dict],
+    by_domain: dict[str, dict],
+    by_key: dict[str, dict],
+    stamped: set[int],
+) -> dict:
+    gname = game_name.strip() or f"App {app_id}"
+    domain = nexus_domain_for("", gname)
+    key = re.sub(r"[^a-z0-9]", "", gname.lower())
+    owner = by_app.get(app_id) or by_domain.get(domain) or by_key.get(key)
+    if owner is not None:
+        domain = str(owner.get("gameDomain") or domain).strip().lower()
+        gname = str(owner.get("gameName") or gname).strip() or gname
+        key = re.sub(r"[^a-z0-9]", "", gname.lower())
+    if owner is None or (app_id not in stamped and _game_thin(owner)):
+        owner = _complete_game(app, domain, gname, app_id)
+        domain = str(owner.get("gameDomain") or domain).strip().lower()
+        by_domain[domain] = owner
+        if key:
+            by_key[key] = owner
+    elif app_id > 0 and app_id not in stamped and int(owner.get("steamAppId") or 0) <= 0:
+        app.library.add_catalog_item("game", {
+            "gameDomain": owner.get("gameDomain"),
+            "gameName": owner.get("gameName") or gname,
+            "steamAppId": app_id,
+        })
+        owner["steamAppId"] = app_id
+    if app_id > 0:
+        by_app[app_id] = owner
+        stamped.add(app_id)
+    return owner
+
+
+def _import_workshop(app: App, domain: str) -> dict:
+    game = _catalog_game(app, domain)
+    if not game:
+        raise ValueError("Elige un juego arriba.")
+    installed = list_installed_games()
+    if not installed and not steamapps_dirs():
+        raise SteamError("Steam no está instalado.", 404)
+    app_id = _steam_app_id(game, installed)
+    if app_id <= 0:
+        raise SteamError("Este juego no está instalado en Steam.", 404)
+    if not game.get("steamAppId"):
+        app.library.add_catalog_item("game", {
+            "gameDomain": game.get("gameDomain"),
+            "gameName": game.get("gameName") or domain,
+            "steamAppId": app_id,
+        })
+    name = str(game.get("gameName") or "")
+    by_app, by_domain, by_key = _workshop_games(app)
+    if app_id > 0 and name:
+        by_app.setdefault(app_id, game)
+    rows = scan_all_workshops({aid: str(row.get("gameName") or "") for aid, row in by_app.items()})
+    mods = []
+    stamped: set[int] = set()
+    for row in rows:
+        workshop_id = int(row["WorkshopID"])
+        try:
+            row_app = int(row.get("AppID") or 0)
+        except (TypeError, ValueError):
+            row_app = 0
+        owner = _workshop_owner(app, row_app, str(row.get("gameName") or ""), by_app, by_domain, by_key, stamped)
+        local_path = str(row["LocalPath"])
+        blurb = str(row.get("summary") or "").strip()
+        title = str(row.get("title") or row.get("name") or f"Workshop {workshop_id}")
+        saved = app.library.add({
+            "platform": "Steam Workshop",
+            "nexusUrl": f"https://steamcommunity.com/sharedfiles/filedetails/?id={workshop_id}",
+            "gameDomain": str(owner.get("gameDomain") or domain),
+            "gameName": str(owner.get("gameName") or row.get("gameName") or ""),
+            "modId": workshop_id,
+            "steamAppId": row_app,
+            "localPath": local_path,
+            "name": title,
+            "summary": blurb[:500],
+            "author": row.get("author") or "",
+            "version": row.get("version") or "",
+            "category": "Workshop",
+            "categorySource": "user",
+            "notes": "Detectado",
+            "techNotes": local_path,
+        })
+        if row.get("status") == "installed" and "got" not in str(saved.get("status") or "").split("+"):
+            parts = [part for part in str(saved.get("status") or "").split("+") if part]
+            parts.append("got")
+            saved = app.library.update(saved["id"], {"status": "+".join(parts)}) or saved
+        saved = _workshop_cover(app, saved, str(row.get("coverUrl") or row.get("preview") or ""))
+        mods.append(saved)
+    return {
+        "count": len(mods),
+        "games": len({int(row.get("AppID") or 0) for row in rows if int(row.get("AppID") or 0) > 0}),
+        "appId": app_id,
+        "gameName": name,
+        "bytes": _workshop_bytes(rows),
+        "mods": [_public_mod(mod) for mod in mods],
+    }
+
+
 def _catalog_game(app: App, domain: str) -> dict | None:
     domain = str(domain or "").strip().lower()
     if not domain:
@@ -1944,19 +2311,10 @@ def _ensure_catalog_game(app: App, domain: str, name: str) -> None:
     domain = str(domain or "").strip().lower()
     if not domain:
         return
-    catalog = app.library.catalog()
-    exists = any(
-        isinstance(item, dict) and str(item.get("gameDomain") or "").lower() == domain
-        for item in (catalog.get("games") or [])
-    )
-    if exists:
+    existing = _catalog_game(app, domain)
+    if existing and not _game_thin(existing):
         return
-    try:
-        if _rawg_resolve(app, domain, name or domain):
-            return
-    except ValueError:
-        pass
-    app.library.add_catalog_item("game", {"gameDomain": domain, "gameName": name or domain})
+    _complete_game(app, domain, name)
 
 
 def _create(app: App, body: dict) -> dict:
@@ -2328,6 +2686,54 @@ def _download_mod(app: App, mod_id: str, body: dict | None = None, token: str = 
         "savedAs": saved,
         "mod": _public_mod(app.library.get(mod_id)),
     }
+
+
+def _game_install_dir(app: App, domain: str) -> Path | None:
+    game = _catalog_game(app, domain)
+    if not game:
+        return None
+    custom = str(game.get("installPath") or "").strip()
+    if custom:
+        folder = Path(custom)
+        if folder.is_file():
+            folder = folder.parent
+        if folder.is_dir():
+            return folder
+    launch = str(game.get("launchPath") or "").strip()
+    if launch and not launch.lower().startswith("steam://"):
+        folder = Path(launch)
+        if folder.is_file():
+            folder = folder.parent
+        if folder.is_dir():
+            return folder
+    try:
+        want = int(game.get("steamAppId") or 0)
+    except (TypeError, ValueError):
+        want = 0
+    name = re.sub(r"[^a-z0-9]", "", str(game.get("gameName") or "").lower())
+    domain_key = re.sub(r"[^a-z0-9]", "", domain)
+    for row in list_installed_games():
+        try:
+            app_id = int(row.get("steamAppId") or 0)
+        except (TypeError, ValueError):
+            app_id = 0
+        key = re.sub(r"[^a-z0-9]", "", str(row.get("gameName") or "").lower())
+        if (want and app_id == want) or (key and key in {name, domain_key}):
+            folder = Path(str(row.get("path") or ""))
+            if folder.is_dir():
+                return folder
+    return None
+
+
+def _open_dir(path: Path) -> None:
+    target = str(path.resolve())
+    if sys.platform == "win32":
+        subprocess.Popen(["explorer", target])
+        return
+    if sys.platform == "darwin":
+        subprocess.Popen(["open", target])
+        return
+    subprocess.Popen(["xdg-open", target])
 
 
 def _reveal_mod(app: App, mod_id: str) -> dict:
@@ -2784,31 +3190,15 @@ def _enrich_game_from_rawg(app: App, body: dict) -> dict:
 def _fill_default_games(app: App) -> None:
     catalog = app.library.catalog()
     games = [item for item in (catalog.get("games") or []) if isinstance(item, dict)]
-    pending = [
-        item
-        for item in games
-        if str(item.get("gameDomain") or "").lower() in {
-            "gtasa", "skyrimspecialedition",
-        }
-        and (not item.get("imageUrl") or not item.get("description"))
-    ]
-    if not pending:
-        return
-    key = str(app.library.settings().get("rawgApiKey") or "").strip()
-    if not key:
-        return
-    for item in pending:
-        rawg_id = item.get("rawgId")
-        domain = str(item.get("gameDomain") or "").strip().lower()
-        if not rawg_id:
-            continue
-        try:
-            game = get_game(key, rawg_id)
-            game["gameDomain"] = domain
-            game = _localize_game(app, game)
-            app.library.add_catalog_item("game", game)
-        except (RawgError, ValueError):
-            continue
+    for item in games:
+        if _game_thin(item):
+            domain = str(item.get("gameDomain") or "").strip().lower()
+            name = str(item.get("gameName") or "").strip()
+            aid = int(item.get("steamAppId") or 0)
+            try:
+                _complete_game(app, domain, name, aid)
+            except Exception:
+                pass
 
 
 def _add_game_from_rawg(app: App, body: dict) -> dict:
@@ -2839,6 +3229,13 @@ def _rawg_resolve(app: App, domain: str, name: str) -> dict | None:
         ),
         None,
     )
+    if existing:
+        c_dom = re.sub(r"[^a-z0-9]", "", domain)
+        c_name = re.sub(r"[^a-z0-9]", "", name.lower()) if name else c_dom
+        c_exist = re.sub(r"[^a-z0-9]", "", str(existing.get("gameName") or "").lower())
+        if c_exist and c_exist != c_dom and c_exist != c_name and c_name not in c_exist and c_exist not in c_name and domain not in {"skyrimspecialedition", "gtasa", "newvegas", "witcher3", "stalkershadowofchernobyl", "darksoulsremastered", "worldofwarcraftclassic"}:
+            existing = None
+
     if existing and existing.get("description") and existing.get("imageUrl") and "steamAppId" in existing:
         game = dict(existing)
         if _lang(app) == "es" and not str(game.get("descriptionEs") or "").strip():
@@ -2857,16 +3254,16 @@ def _rawg_resolve(app: App, domain: str, name: str) -> dict | None:
             game = _localize_game(app, game)
             app.library.add_catalog_item("game", game)
             return game
-        except RawgError as exc:
-            raise ValueError(str(exc)) from exc
+        except (RawgError, ValueError):
+            pass
     try:
         game = resolve_game(
             key,
             domain=domain,
             name=name or str((existing or {}).get("gameName") or ""),
         )
-    except RawgError as exc:
-        raise ValueError(str(exc)) from exc
+    except (RawgError, ValueError):
+        game = None
     if not game:
         return existing
     if domain:

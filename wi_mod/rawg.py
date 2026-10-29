@@ -37,6 +37,8 @@ NEXUS_BY_SLUG = {
     "hollow-knight": "hollowknight",
     "grand-theft-auto-san-andreas": "gtasa",
     "grand-theft-auto-v": "gta5",
+    "slay-the-spire": "slaythespire",
+    "project-zomboid": "projectzomboid",
     "stalker-shadow-of-chernobyl": "stalkershadowofchernobyl",
     "stalker-clear-sky": "stalkerclearsky",
     "stalker-call-of-pripyat": "stalkercallofpripyat",
@@ -98,13 +100,32 @@ def search_games(api_key: str, query: str, *, page_size: int = 12) -> list[dict[
         {
             "search": q,
             "page_size": 40,
-            "search_precise": "false",
-            "ordering": "-added",
         },
     )
     rows = [normalize_game(item) for item in (data.get("results") or []) if isinstance(item, dict)]
-    rows.sort(key=_fame, reverse=True)
+    rows.sort(key=lambda item: _match_score(item, q), reverse=True)
     return rows[: max(1, min(int(page_size), 40))]
+
+
+def _match_score(game: dict[str, Any], query: str) -> tuple[int, int, float]:
+    clean_q = re.sub(r"[^a-z0-9]", "", query.lower())
+    clean_name = re.sub(r"[^a-z0-9]", "", str(game.get("gameName") or "").lower())
+    clean_slug = re.sub(r"[^a-z0-9]", "", str(game.get("rawgSlug") or "").lower())
+    clean_domain = re.sub(r"[^a-z0-9]", "", str(game.get("gameDomain") or "").lower())
+    if clean_name == clean_q or clean_slug == clean_q or clean_domain == clean_q:
+        tier = 3
+    elif clean_name.startswith(clean_q) or clean_slug.startswith(clean_q):
+        tier = 2
+    elif clean_q in clean_name or clean_q in clean_slug:
+        tier = 1
+    else:
+        tier = 0
+    added = int(game.get("added") or 0)
+    try:
+        rating = float(game.get("rating") or 0)
+    except (TypeError, ValueError):
+        rating = 0.0
+    return (tier, added, rating)
 
 
 def _fame(game: dict[str, Any]) -> tuple[int, int, float]:
@@ -214,6 +235,10 @@ def resolve_game(api_key: str, *, domain: str = "", name: str = "") -> dict[str,
     domain = (domain or "").strip().lower()
     name = (name or "").strip()
     slug = slug_for_domain(domain)
+    if not slug and name:
+        slug_guess = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+        if slug_guess:
+            slug = slug_guess
     if slug:
         try:
             game = get_game(api_key, slug)
@@ -228,23 +253,53 @@ def resolve_game(api_key: str, *, domain: str = "", name: str = "") -> dict[str,
     results = search_games(api_key, query, page_size=8)
     if not results:
         return None
-    if domain:
+
+    clean_query = re.sub(r"[^a-z0-9]", "", query.lower())
+    clean_domain = re.sub(r"[^a-z0-9]", "", domain)
+
+    # 1. Exact domain or slug match
+    if clean_domain:
         for row in results:
-            if str(row.get("gameDomain") or "").lower() == domain:
+            clean_row_dom = re.sub(r"[^a-z0-9]", "", str(row.get("gameDomain") or "").lower())
+            clean_row_slug = re.sub(r"[^a-z0-9]", "", str(row.get("rawgSlug") or "").lower())
+            if clean_row_dom == clean_domain or clean_row_slug == clean_domain:
                 try:
                     game = get_game(api_key, row["rawgId"])
-                    game["gameDomain"] = domain
+                    if domain:
+                        game["gameDomain"] = domain
                     return game
                 except RawgError:
-                    row["gameDomain"] = domain
+                    if domain:
+                        row["gameDomain"] = domain
                     return row
-    hit = results[0]
-    try:
-        game = get_game(api_key, hit["rawgId"])
-        if domain:
-            game["gameDomain"] = domain
-        return game
-    except RawgError:
-        if domain:
-            hit["gameDomain"] = domain
-        return hit
+
+    # 2. Exact clean name match
+    if clean_query:
+        for row in results:
+            clean_row_name = re.sub(r"[^a-z0-9]", "", str(row.get("gameName") or "").lower())
+            if clean_row_name == clean_query:
+                try:
+                    game = get_game(api_key, row["rawgId"])
+                    if domain:
+                        game["gameDomain"] = domain
+                    return game
+                except RawgError:
+                    if domain:
+                        row["gameDomain"] = domain
+                    return row
+
+    # 3. Plausible match (prefix or substring in name)
+    for row in results:
+        clean_row_name = re.sub(r"[^a-z0-9]", "", str(row.get("gameName") or "").lower())
+        if clean_query and (clean_query in clean_row_name or clean_row_name in clean_query):
+            try:
+                game = get_game(api_key, row["rawgId"])
+                if domain:
+                    game["gameDomain"] = domain
+                return game
+            except RawgError:
+                if domain:
+                    row["gameDomain"] = domain
+                return row
+
+    return None

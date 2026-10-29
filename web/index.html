@@ -10,7 +10,10 @@
     } catch (_) {}
   </script>
   <link rel="icon" href="/wimod-icon-pack/wimod.ico" type="image/x-icon">
-  <link rel="stylesheet" href="/styles.css?v=0.29.1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css?v=0.29.1-5">
 </head>
 <body>
   <div id="login" class="login" hidden>
@@ -257,6 +260,15 @@
 
   <header class="top">
     <div class="game-scope">
+      <div class="game-folder-wrap">
+        <button type="button" id="game-folder" class="game-folder" hidden aria-haspopup="menu" aria-expanded="false" title="Ver ubicación">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" d="M3 7.5V18a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-7l-2-2H5a2 2 0 0 0-2 2.5z"/></svg>
+        </button>
+        <div id="game-folder-menu" class="sys-menu game-folder-menu" hidden role="menu">
+          <button type="button" id="game-folder-open" role="menuitem" data-i18n="folderView">Ver ubicación</button>
+          <button type="button" id="game-folder-change" role="menuitem" data-i18n="folderChange">Cambiar ubicación</button>
+        </div>
+      </div>
       <div class="game-picker-wrap">
         <button type="button" id="game-picker" class="sys-pill game-picker is-empty" aria-haspopup="listbox" aria-expanded="false">
           <svg class="instance-mark game-mark" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 12h3M9.5 10.5v3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="15.5" cy="11" r="0.8" fill="currentColor"/><circle cx="17.2" cy="13" r="0.8" fill="currentColor"/></svg>
@@ -283,6 +295,9 @@
         <span data-i18n="play">Jugar</span>
       </button>
       </span>
+      <button type="button" id="workshop-scan" class="game-steam" hidden title="Workshop de Steam" aria-label="Workshop de Steam">
+        <img src="/brand/steam.ico" alt="" width="18" height="18">
+      </button>
     </div>
     <div class="search-wrap">
       <div class="search-field">
@@ -433,6 +448,10 @@
           </div>
         </div>
       </div>
+      <div id="work-loader" class="work-loader" hidden>
+        <span aria-hidden="true"></span>
+        <b id="work-loader-text">Cargando…</b>
+      </div>
       <div id="grid" class="grid"></div>
     </main>
   </div>
@@ -567,16 +586,19 @@
   <dialog id="game-dialog">
     <form id="game-form">
       <header>
-        <h2 data-i18n="addGameDlg">Añadir juego</h2>
-        <button type="button" class="icon" data-close>✕</button>
+        <div>
+          <h2 data-i18n="addGameDlg">Añadir juego</h2>
+          <p id="game-dialog-sub" class="game-dialog-sub" data-i18n="rawgHint">Busca en RAWG y ve añadiendo juegos poco a poco.</p>
+        </div>
+        <button type="button" class="icon" data-close aria-label="Cerrar">✕</button>
       </header>
-      <p class="hint"><span data-i18n="rawgHint">Busca en RAWG y ve añadiendo juegos poco a poco.</span></p>
-      <label><span data-i18n="search">Buscar</span>
+      <label class="game-search-field">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         <input id="game-search" type="search" placeholder="Skyrim, WoW Classic, Minecraft…" data-i18n-placeholder="gameSearchPh" autocomplete="off" spellcheck="false">
       </label>
       <div id="game-results" class="game-results"></div>
-      <p class="hint"><span data-i18n="rawgData">Datos de juegos vía RAWG.</span></p>
       <footer>
+        <p class="hint" data-i18n="rawgData">Datos de juegos vía RAWG.</p>
         <button class="ghost" type="button" data-close data-i18n="close">Cerrar</button>
       </footer>
     </form>
@@ -1080,6 +1102,6 @@
   </div>
 
   <script src="/neon.js?v=0.29.1"></script>
-  <script src="/app.js?v=0.29.1"></script>
+  <script src="/app.js?v=0.29.1-5"></script>
 </body>
 </html>

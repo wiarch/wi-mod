@@ -93,10 +93,22 @@ class Library:
             nexus_id = fields.get("modId")
             existing = None
             page = _norm_url(str(fields.get("nexusUrl") or ""))
-            official = str(fields.get("platform") or "") in {
-                "Independiente", "Modrinth", "CurseForge", "Steam Workshop", "ModDB",
-            }
-            if mode != "duplicate" and official and page:
+            platform = str(fields.get("platform") or "")
+            # filedetails/?id= se queda sin query en _norm_url; no deduplicar Workshop por esa URL.
+            if mode != "duplicate" and platform == "Steam Workshop" and isinstance(nexus_id, int) and nexus_id > 0:
+                for mod in data["mods"]:
+                    if str(mod.get("platform") or "") != "Steam Workshop":
+                        continue
+                    try:
+                        same = int(mod.get("modId") or 0) == nexus_id
+                    except (TypeError, ValueError):
+                        same = False
+                    if same:
+                        existing = mod
+                        break
+            elif mode != "duplicate" and platform in {
+                "Independiente", "Modrinth", "CurseForge", "ModDB",
+            } and page:
                 for mod in data["mods"]:
                     if _norm_url(str(mod.get("nexusUrl") or "")) == page:
                         existing = mod
@@ -1138,6 +1150,34 @@ class Library:
             self._write(data)
             return self.catalog()
 
+    def set_game_install(self, domain: str, install_path: str) -> dict[str, Any]:
+        domain = str(domain or "").strip().lower()
+        if not domain:
+            raise ValueError("Elige un juego.")
+        path = str(install_path or "").strip()
+        with self._lock:
+            data = self._read()
+            self._migrate(data)
+            catalog = data.setdefault("catalog", self._empty_catalog())
+            games = [item for item in (catalog.get("games") or []) if isinstance(item, dict)]
+            game = next(
+                (item for item in games if str(item.get("gameDomain") or "").lower() == domain),
+                None,
+            )
+            if game is None:
+                raise ValueError("Ese juego no está en la lista.")
+            if path:
+                folder = Path(path)
+                if folder.is_file():
+                    folder = folder.parent
+                if not folder.is_dir():
+                    raise ValueError("Esa carpeta no existe.")
+                game["installPath"] = str(folder)[:1000]
+            else:
+                game.pop("installPath", None)
+            self._write(data)
+            return self.catalog()
+
     def set_game_flags(self, domain: str, *, pin: bool | None = None, favorite: bool | None = None) -> dict[str, Any]:
         domain = str(domain or "").strip().lower()
         if not domain:
@@ -1499,7 +1539,7 @@ class Library:
             return mod
 
     def _apply_meta(self, mod: dict[str, Any], fields: dict[str, Any], overwrite_user: bool) -> None:
-        numeric = {"endorsements", "downloads", "uniqueDownloads", "modId", "primaryFileId", "categoryId"}
+        numeric = {"endorsements", "downloads", "uniqueDownloads", "modId", "primaryFileId", "categoryId", "steamAppId"}
         for key in (
             "nexusUrl",
             "filesUrl",
@@ -1507,6 +1547,8 @@ class Library:
             "gameDomain",
             "gameName",
             "modId",
+            "steamAppId",
+            "localPath",
             "name",
             "summary",
             "summaryEs",

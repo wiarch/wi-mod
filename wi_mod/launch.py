@@ -136,14 +136,42 @@ def _safe_iter(path: Path) -> list[Path]:
         return []
 
 
-def _steam_libraries() -> list[Path]:
-    found: list[Path] = []
-    candidates = [
+def _steam_vdf_candidates() -> list[Path]:
+    candidates: list[Path] = []
+    if os.name == "nt":
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam") as key:
+                raw, _ = winreg.QueryValueEx(key, "SteamPath")
+            if raw:
+                candidates.append(Path(str(raw)) / "steamapps" / "libraryfolders.vdf")
+        except OSError:
+            pass
+    home = Path.home()
+    candidates.extend([
         Path(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)")) / "Steam" / "steamapps" / "libraryfolders.vdf",
         Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / "Steam" / "steamapps" / "libraryfolders.vdf",
-    ]
-    home = Path.home()
-    candidates.append(home / "Steam" / "steamapps" / "libraryfolders.vdf")
+        home / "Steam" / "steamapps" / "libraryfolders.vdf",
+        home / ".steam" / "steam" / "steamapps" / "libraryfolders.vdf",
+        home / ".steam" / "root" / "steamapps" / "libraryfolders.vdf",
+        home / ".local" / "share" / "Steam" / "steamapps" / "libraryfolders.vdf",
+        home / ".steam" / "debian-installation" / "steamapps" / "libraryfolders.vdf",
+        home / ".var" / "app" / "com.valvesoftware.Steam" / ".local" / "share" / "Steam" / "steamapps" / "libraryfolders.vdf",
+        home / ".var" / "app" / "com.valvesoftware.Steam" / ".steam" / "steam" / "steamapps" / "libraryfolders.vdf",
+    ])
+    return candidates
+
+
+def _vdf_path(raw: str) -> Path:
+    text = raw.replace("\\\\", "\\")
+    if os.name != "nt":
+        text = text.replace("\\", "/")
+    return Path(text)
+
+
+def _steam_libraries() -> list[Path]:
+    found: list[Path] = []
+    candidates = _steam_vdf_candidates()
     for drive in _drives():
         candidates.append(drive / "Program Files (x86)" / "Steam" / "steamapps" / "libraryfolders.vdf")
         candidates.append(drive / "Program Files" / "Steam" / "steamapps" / "libraryfolders.vdf")
@@ -161,7 +189,7 @@ def _steam_libraries() -> list[Path]:
         except OSError:
             continue
         for match in re.finditer(r'"path"\s+"([^"]+)"', text):
-            base = Path(match.group(1).replace("\\\\", "\\")) / "steamapps" / "common"
+            base = _vdf_path(match.group(1)) / "steamapps" / "common"
             if base.is_dir() and base not in found:
                 found.append(base)
         local = vdf.parent / "common"
