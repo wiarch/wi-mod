@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>wi-mod</title>
+  <script>
+    try {
+      if (localStorage.getItem("wi-mod-neon") !== "0") document.documentElement.classList.add("neon-effects-active");
+    } catch (_) {}
+  </script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #151b26 !important;
+      font-family: Inter, "Segoe UI", sans-serif;
+      color: #f3f4f6;
+      user-select: none;
+    }
+    .splash {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .glow {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at center, rgba(34, 211, 238, 0.08) 0%, transparent 55%);
+    }
+    .watermark {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.04;
+      overflow: hidden;
+    }
+    .bg-brand-pattern {
+      position: absolute;
+      inset: -40%;
+      background-image: url("/wimod-icon-pack/wimod-64x64.png");
+      background-repeat: repeat;
+      background-size: 80px 80px;
+      transform: rotate(-25deg) scale(1.3);
+      image-rendering: crisp-edges;
+    }
+    .stack {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .brand-row {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .logo {
+      width: 4rem;
+      height: 4rem;
+      object-fit: contain;
+      flex: 0 0 auto;
+    }
+    html.neon-effects-active .logo {
+      filter: drop-shadow(0 0 18px rgba(34, 211, 238, 0.85));
+    }
+    .title {
+      margin: 0;
+      font-family: Inter, "Segoe UI", sans-serif;
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      line-height: 1;
+    }
+    .wi { color: #fff; }
+    .mod { color: #22d3ee; }
+    html.neon-effects-active .title {
+      text-shadow: 0 0 20px rgba(34, 211, 238, 0.8);
+    }
+    .line {
+      margin: 0.75rem 0 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      text-align: center;
+      color: #9ca3af;
+      animation: splash-pulse 1.6s ease-in-out infinite;
+    }
+    .bar {
+      box-sizing: border-box;
+      width: 20rem;
+      max-width: calc(100vw - 2rem);
+      height: 0.5rem;
+      padding: 1px;
+      border-radius: 9999px;
+      border: 1px solid rgba(34, 211, 238, 0.8);
+      background: rgba(3, 7, 18, 0.8);
+      overflow: hidden;
+    }
+    html.neon-effects-active .bar {
+      box-shadow: 0 0 12px rgba(34, 211, 238, 0.5);
+    }
+    .fill {
+      display: block;
+      height: 100%;
+      width: 8%;
+      border-radius: 9999px;
+      background: #22d3ee;
+      box-shadow: 0 0 10px #22d3ee;
+      transition: all 0.3s ease-out;
+      animation: progress 2.8s ease-out forwards;
+    }
+    @keyframes progress {
+      to { width: 88%; }
+    }
+    @keyframes splash-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/splashscreen-CNwNwqD8.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/neon-QtqbDXuq.js">
+  <link rel="modulepreload" crossorigin href="/assets/core-b35iMLeV.js">
+  <link rel="modulepreload" crossorigin href="/assets/window-CFKEh2AM.js">
+</head>
+<body>
+  <div class="splash">
+    <div class="glow" aria-hidden="true"></div>
+    <div class="watermark" aria-hidden="true">
+      <div class="bg-brand-pattern"></div>
+    </div>
+    <div class="stack">
+      <div class="brand-row">
+        <img class="logo" src="/wimod-icon-pack/wimod-256x256.png" alt="" width="64" height="64">
+        <h1 class="title"><span class="wi">wi-</span><span class="mod">mod</span></h1>
+      </div>
+      <div class="bar" aria-hidden="true"><span class="fill"></span></div>
+      <p class="line">contando escamas…</p>
+    </div>
+  </div>
+</body>
+</html>
