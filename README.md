@@ -116,3 +116,6 @@ python app.py
 # or: scripts\wi-mod.bat
 ```
 
+---
+
+Part of the **[WI Arch](https://github.com/wiarch)** ecosystem.
